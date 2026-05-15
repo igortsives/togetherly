@@ -20,6 +20,8 @@ The tables below catalog every field we currently store, pulled from [`prisma/sc
 
 Not collected: phone number, mailing address, marketing preferences, demographic data.
 
+Email is the only public identity signal and must not be a side-channel into the user list. `app/register/actions.ts` defends against account enumeration by attempting the INSERT unconditionally (bcrypt-hashing the password on every request) and silently swallowing the `P2002` unique-constraint collision — so a new email and a registered email both redirect to `/login?registered=1` with identical response shape and similar timing. Issue [#62](https://github.com/igortsives/togetherly/issues/62).
+
 ### 1.2 Family
 
 | Field | Required? | Rationale |

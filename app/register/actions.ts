@@ -2,8 +2,8 @@
 
 import { hash } from "bcryptjs";
 import { redirect } from "next/navigation";
-import { signIn } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
+import { isUniqueConstraintError } from "@/lib/auth/register";
 import { credentialsRegisterSchema } from "@/lib/auth/schemas";
 
 const BCRYPT_ROUNDS = 12;
@@ -23,25 +23,27 @@ export async function registerCredentialsAction(formData: FormData) {
 
   const email = parsed.data.email.toLowerCase();
 
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
-    redirect(
-      `/register?error=${encodeURIComponent("An account with this email already exists.")}`
-    );
+  // Account-enumeration defense (#62): always hash the password and
+  // attempt the INSERT, regardless of whether the email is registered.
+  // A P2002 unique-constraint failure is swallowed so the response is
+  // byte-identical (and similarly timed) to a fresh signup. Both new
+  // and existing emails land on `/login?registered=1`, which renders a
+  // generic "account created — please sign in" message so an attacker
+  // cannot distinguish the two cases.
+  const passwordHash = await hash(parsed.data.password, BCRYPT_ROUNDS);
+  try {
+    await prisma.user.create({
+      data: {
+        email,
+        name: parsed.data.name,
+        passwordHash
+      }
+    });
+  } catch (err) {
+    if (!isUniqueConstraintError(err)) {
+      throw err;
+    }
   }
 
-  const passwordHash = await hash(parsed.data.password, BCRYPT_ROUNDS);
-  await prisma.user.create({
-    data: {
-      email,
-      name: parsed.data.name,
-      passwordHash
-    }
-  });
-
-  await signIn("credentials", {
-    email: parsed.data.email,
-    password: parsed.data.password,
-    redirectTo: "/"
-  });
+  redirect("/login?registered=1");
 }
