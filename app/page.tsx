@@ -1,3 +1,4 @@
+import { SourceType } from "@prisma/client";
 import {
   CalendarCheck,
   FileUp,
@@ -6,10 +7,17 @@ import {
   ShieldCheck,
   Sparkles
 } from "lucide-react";
-import { createCalendarAction, createChildAction, toggleCalendarAction } from "./actions";
+import {
+  createCalendarAction,
+  createChildAction,
+  createPdfSourceAction,
+  createUrlSourceAction,
+  toggleCalendarAction
+} from "./actions";
+import { calendarTypeOptions, getFamilyDashboard } from "@/lib/family/dashboard";
+import { labelSourceType } from "@/lib/sources/source-metadata";
 
 export const dynamic = "force-dynamic";
-import { calendarTypeOptions, getFamilyDashboard } from "@/lib/family/dashboard";
 
 const importOptions = [
   { label: "PDF", detail: "Academic calendar files", icon: FileUp },
@@ -54,6 +62,9 @@ export default async function Home() {
   const dashboard = await getFamilyDashboard();
   const children = dashboard.family.children;
   const calendars = dashboard.family.calendars;
+  const sourceCount = dashboard.dbAvailable
+    ? calendars.reduce((total, calendar) => total + calendar.sources.length, 0)
+    : 0;
   const pendingReviewCount = dashboard.dbAvailable
     ? calendars.reduce((total, calendar) => total + calendar.candidates.length, 0)
     : 0;
@@ -83,10 +94,10 @@ export default async function Home() {
             <p className="eyebrow">Family free-time planner</p>
             <h1>Find the days everyone is actually free.</h1>
           </div>
-          <button className="primaryButton" type="button">
+          <a className="primaryButton" href="#sources">
             <Search size={18} aria-hidden="true" />
             Add source
-          </button>
+          </a>
         </header>
 
         {!dashboard.dbAvailable ? (
@@ -102,16 +113,16 @@ export default async function Home() {
             <strong>{children.length}</strong>
           </div>
           <div className="metric">
-            <span>Calendar sources</span>
+            <span>Calendars</span>
             <strong>{calendars.length}</strong>
+          </div>
+          <div className="metric">
+            <span>Imported sources</span>
+            <strong>{sourceCount}</strong>
           </div>
           <div className="metric">
             <span>Pending review</span>
             <strong>{pendingReviewCount}</strong>
-          </div>
-          <div className="metric">
-            <span>Free window target</span>
-            <strong>5 days</strong>
           </div>
         </section>
 
@@ -197,20 +208,84 @@ export default async function Home() {
           <div className="sectionHeader">
             <div>
               <p className="eyebrow">Import sources</p>
-              <h2>Bring calendars in from the places parents already use.</h2>
+              <h2>Attach source files and feeds to a calendar.</h2>
             </div>
           </div>
           <div className="importGrid">
             {importOptions.map((option) => {
               const Icon = option.icon;
               return (
-                <button className="importTile" key={option.label} type="button">
+                <div className="importTile static" key={option.label}>
                   <Icon size={20} aria-hidden="true" />
                   <span>{option.label}</span>
                   <small>{option.detail}</small>
-                </button>
+                </div>
               );
             })}
+          </div>
+
+          <div className="sourceImportGrid">
+            <form action={createUrlSourceAction} className="sourceForm">
+              <div>
+                <p className="eyebrow">URL / ICS</p>
+                <h3>Import a public page or feed</h3>
+              </div>
+              <label>
+                Calendar
+                <select name="calendarId" required defaultValue="">
+                  <option disabled value="">
+                    Choose calendar
+                  </option>
+                  {calendars.map((calendar) => (
+                    <option key={calendar.id} value={calendar.id}>
+                      {calendar.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Source type
+                <select name="sourceType" defaultValue={SourceType.URL}>
+                  <option value={SourceType.URL}>Web page URL</option>
+                  <option value={SourceType.ICS}>ICS feed URL</option>
+                </select>
+              </label>
+              <label className="wideField">
+                Source URL
+                <input
+                  name="sourceUrl"
+                  placeholder="https://registrar.ucla.edu/calendars/annual-academic-calendar"
+                  required
+                  type="url"
+                />
+              </label>
+              <button type="submit">Import source</button>
+            </form>
+
+            <form action={createPdfSourceAction} className="sourceForm">
+              <div>
+                <p className="eyebrow">PDF</p>
+                <h3>Upload an academic calendar</h3>
+              </div>
+              <label>
+                Calendar
+                <select name="calendarId" required defaultValue="">
+                  <option disabled value="">
+                    Choose calendar
+                  </option>
+                  {calendars.map((calendar) => (
+                    <option key={calendar.id} value={calendar.id}>
+                      {calendar.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="wideField">
+                PDF file
+                <input accept="application/pdf,.pdf" name="pdfFile" required type="file" />
+              </label>
+              <button type="submit">Upload PDF</button>
+            </form>
           </div>
         </section>
 
@@ -228,7 +303,7 @@ export default async function Home() {
                   <div>
                     <strong>{calendar.name}</strong>
                     <span>
-                      {calendar.child?.nickname || "Family"} · {calendar.type.toLowerCase()}
+                      {calendar.child?.nickname || "Family"} · {calendar.type.toLowerCase()} · {calendar.sources.length} sources
                     </span>
                   </div>
                   <form action={toggleCalendarAction}>
@@ -247,6 +322,32 @@ export default async function Home() {
           <div className="panel">
             <div className="sectionHeader compact">
               <div>
+                <p className="eyebrow">Imported sources</p>
+                <h2>Ready for extraction</h2>
+              </div>
+            </div>
+            <div className="sourceList">
+              {calendars.flatMap((calendar) =>
+                calendar.sources.map((source) => (
+                  <div className="sourceItem" key={source.id}>
+                    <div>
+                      <strong>{labelSourceType(source.sourceType)}</strong>
+                      <span>{source.sourceUrl || source.uploadedFileKey || source.providerCalendarId}</span>
+                      <small>{calendar.name} · {source.parserType.toLowerCase()} · {source.refreshStatus.toLowerCase()}</small>
+                    </div>
+                    <em>{source.contentHash ? source.contentHash.slice(0, 8) : "pending"}</em>
+                  </div>
+                ))
+              )}
+              {sourceCount === 0 ? <p className="emptyState">No imported sources yet.</p> : null}
+            </div>
+          </div>
+        </section>
+
+        <section className="twoColumn">
+          <div className="panel">
+            <div className="sectionHeader compact">
+              <div>
                 <p className="eyebrow">Source corpus</p>
                 <h2>Initial parser targets</h2>
               </div>
@@ -261,6 +362,22 @@ export default async function Home() {
                   <em>{source.status}</em>
                 </div>
               ))}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Next parser path</p>
+                <h2>Extraction starts after sources exist.</h2>
+              </div>
+            </div>
+            <div className="reviewItem">
+              <span className="confidence high">P0</span>
+              <div>
+                <strong>ICS first</strong>
+                <p>Feeds are the highest-confidence import path for sports and activities.</p>
+              </div>
             </div>
           </div>
         </section>
