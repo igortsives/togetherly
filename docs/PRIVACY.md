@@ -115,15 +115,14 @@ Export to provider calendars (`EXP-001`, `EXP-002` in PRD § 7.8) is P1. When th
 - "Disconnect" MUST: revoke the token with the provider, delete the linked `Account` row, leave imported `CalendarEvent` rows in place (parent can delete those separately), and set the related `CalendarSource.refreshStatus` to a terminal state. **The in-product disconnect UX is not yet built** — today the only path is operator-side Prisma access. Tracked in [`TECH_DEBT.md`](./TECH_DEBT.md).
 - On user deletion (see [§4](#4-data-retention--deletion)), all `Account` rows for that user cascade-delete via the `Account.userId` foreign key.
 
-### 3.4 Email-Based Account Linking Trade-Off
+### 3.4 Email-Based Account Linking
 
 Both the Google and Microsoft providers are configured with `allowDangerousEmailAccountLinking: true`. This lets an existing Togetherly user (who signed up with credentials, Google, or another OAuth) link the *other* provider by re-signing in, as long as the two providers report the same email address.
 
-The trade-off: anyone who controls the linked-provider account at the matching email could take over the existing Togetherly user. This is acceptable for the private-beta cohort but **must be revisited before public launch** (per `TECH_DEBT.md`). Mitigations to consider when revisiting:
+The takeover risk from an unverified provider email is closed by a `signIn` callback in `auth.ts`: Google sign-ins are rejected unless `profile.email_verified === true`. Microsoft Entra ID does not surface an equivalent per-claim verification flag, but verifies email at the directory/tenant level, so we accept those by default. Future mitigations to consider when productionizing:
 
 - Require fresh re-authentication before linking.
 - Require explicit confirmation in-product before linking a new provider.
-- Tie linking to a verified email signal rather than the raw email claim.
 
 ## 4. Data Retention + Deletion
 

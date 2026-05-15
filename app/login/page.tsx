@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { auth, signIn } from "@/auth";
+import { sanitizeRedirectPath } from "@/lib/auth/redirects";
 
 type Props = {
   searchParams: Promise<{ callbackUrl?: string; error?: string }>;
@@ -16,7 +17,7 @@ const appleEnabled = Boolean(
 export default async function LoginPage({ searchParams }: Props) {
   const session = await auth();
   const params = await searchParams;
-  const callbackUrl = params.callbackUrl ?? "/";
+  const callbackUrl = sanitizeRedirectPath(params.callbackUrl);
 
   if (session?.user) {
     redirect(callbackUrl);
