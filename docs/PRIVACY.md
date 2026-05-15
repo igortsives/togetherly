@@ -208,6 +208,10 @@ Grounded in [`SECURITY_PRIVACY.md` MVP Security Checklist](./SECURITY_PRIVACY.md
 
 This applies to application logs, error-reporting tooling, and any future metrics export. Audit timestamps on imports/refreshes (`MVP Security Checklist` bullet 6) reference IDs, not titles.
 
+### Sign-in rate limiting
+
+The Credentials sign-in path (`auth.ts`) records failed attempts in a `SignInAttempt` table keyed by `email:<addr>` and `ip:<addr>`. Counters are kept in two layered 15-minute windows: 5 failures per email, 20 per IP. On limit-exceeded, `authorize` returns `null` (same generic failure path as a wrong password) and emits a single info-level log line containing only the bucket name and count — never the raw email or IP. Stale rows are pruned per-key on each check; a periodic global cleanup of orphaned IP rows is tracked separately. Issue [#64](https://github.com/igortsives/togetherly/issues/64).
+
 ## 7. Beta-Specific Posture
 
 From [`BETA_PLAN.md`](./BETA_PLAN.md) and [`MVP_SPEC.md` Initial Private Beta Constraints](./MVP_SPEC.md#initial-private-beta-constraints):
