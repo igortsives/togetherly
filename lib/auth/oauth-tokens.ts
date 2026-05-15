@@ -1,4 +1,4 @@
-import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const KEY_BYTES = 32;
@@ -37,22 +37,15 @@ function getEncryptionKey(): Buffer {
   }
 
   const trimmed = raw.trim();
-  let candidate: Buffer | null = null;
+  const decoded = Buffer.from(trimmed, "base64");
 
-  try {
-    const decoded = Buffer.from(trimmed, "base64");
-    if (decoded.length >= KEY_BYTES) {
-      candidate = decoded.slice(0, KEY_BYTES);
-    }
-  } catch {
-    candidate = null;
+  if (decoded.length < KEY_BYTES) {
+    throw new OAuthTokenKeyError(
+      `OAUTH_TOKEN_ENCRYPTION_KEY must be at least 32 bytes of random data (base64-encoded). Got ${decoded.length} bytes. Generate one with: openssl rand -base64 32.`
+    );
   }
 
-  if (!candidate) {
-    candidate = createHash("sha256").update(trimmed).digest();
-  }
-
-  cachedKey = candidate;
+  cachedKey = decoded.subarray(0, KEY_BYTES);
   return cachedKey;
 }
 

@@ -69,7 +69,7 @@ export async function createUrlSourceAction(formData: FormData) {
     refreshStatus: RefreshStatus.NEEDS_REVIEW
   });
 
-  await ensureCalendarBelongsToCurrentFamily(input.calendarId);
+  const family = await ensureCalendarBelongsToCurrentFamily(input.calendarId);
 
   const source = await prisma.calendarSource.create({
     data: {
@@ -82,7 +82,7 @@ export async function createUrlSourceAction(formData: FormData) {
   });
 
   try {
-    await refreshSource(source.id);
+    await refreshSource(source.id, family.id);
   } catch (error) {
     console.error("Source extraction failed", { sourceId: source.id, error });
   }
@@ -98,7 +98,7 @@ export async function createPdfSourceAction(formData: FormData) {
     throw new Error("Choose a PDF calendar file before uploading.");
   }
 
-  await ensureCalendarBelongsToCurrentFamily(calendarId);
+  const family = await ensureCalendarBelongsToCurrentFamily(calendarId);
   const storedUpload = await storeCalendarPdf(file);
   const input = calendarSourceInputSchema.parse({
     calendarId,
@@ -120,7 +120,7 @@ export async function createPdfSourceAction(formData: FormData) {
   });
 
   try {
-    await refreshSource(source.id);
+    await refreshSource(source.id, family.id);
   } catch (error) {
     console.error("PDF extraction failed", { sourceId: source.id, error });
   }
@@ -144,7 +144,7 @@ export async function refreshSourceAction(formData: FormData) {
   }
 
   try {
-    await refreshSource(sourceId);
+    await refreshSource(sourceId, family.id);
   } catch (error) {
     console.error("Manual source refresh failed", { sourceId, error });
   }
@@ -221,7 +221,7 @@ export async function createGoogleCalendarSourceAction(formData: FormData) {
     refreshStatus: RefreshStatus.NEEDS_REVIEW
   });
 
-  await ensureCalendarBelongsToCurrentFamily(input.calendarId);
+  const family = await ensureCalendarBelongsToCurrentFamily(input.calendarId);
 
   const existing = await prisma.calendarSource.findFirst({
     where: {
@@ -246,7 +246,7 @@ export async function createGoogleCalendarSourceAction(formData: FormData) {
   });
 
   try {
-    await refreshSource(source.id);
+    await refreshSource(source.id, family.id);
   } catch (error) {
     console.error("Google Calendar extraction failed", {
       sourceId: source.id,
@@ -269,7 +269,7 @@ export async function createOutlookCalendarSourceAction(formData: FormData) {
     refreshStatus: RefreshStatus.NEEDS_REVIEW
   });
 
-  await ensureCalendarBelongsToCurrentFamily(input.calendarId);
+  const family = await ensureCalendarBelongsToCurrentFamily(input.calendarId);
 
   const existing = await prisma.calendarSource.findFirst({
     where: {
@@ -296,7 +296,7 @@ export async function createOutlookCalendarSourceAction(formData: FormData) {
   });
 
   try {
-    await refreshSource(source.id);
+    await refreshSource(source.id, family.id);
   } catch (error) {
     console.error("Outlook Calendar extraction failed", {
       sourceId: source.id,
@@ -352,4 +352,6 @@ async function ensureCalendarBelongsToCurrentFamily(calendarId: string) {
   if (!calendar) {
     throw new Error("Choose a valid calendar before importing a source.");
   }
+
+  return family;
 }

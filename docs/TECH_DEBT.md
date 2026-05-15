@@ -36,7 +36,6 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 - [#48](https://github.com/igortsives/togetherly/issues/48) — Add MICROSOFT to AuthProvider enum and surface on /login *(P2)*
 - [#52](https://github.com/igortsives/togetherly/issues/52) — LLM-assisted extraction for ambiguous HTML/PDF events *(P2)*
 - [#53](https://github.com/igortsives/togetherly/issues/53) — Add Playwright E2E test setup *(P2)*
-- [#54](https://github.com/igortsives/togetherly/issues/54) — Migrate package.json#prisma config to prisma.config.ts before Prisma 7 *(P2)*
 
 ### Partial / continuing work
 
@@ -81,6 +80,7 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 - ~~Demo-family seam removal~~ — PR #31 (`ensureDemoFamily` replaced with `requireUserFamily`).
 - ~~Encrypt OAuth access/refresh tokens at rest~~ — closes [#37](https://github.com/igortsives/togetherly/issues/37); AES-256-GCM via Prisma `$extends` in [`lib/db/prisma.ts`](../lib/db/prisma.ts), legacy plaintext rolls forward on refresh.
 - ~~Provider response bodies leaking into thrown errors / UI~~ — closes [#67](https://github.com/igortsives/togetherly/issues/67); scrubbed in both Google and Microsoft clients.
+- ~~Validate `OAUTH_TOKEN_ENCRYPTION_KEY` strength at startup~~ — closes [#70](https://github.com/igortsives/togetherly/issues/70); [`lib/auth/oauth-tokens.ts`](../lib/auth/oauth-tokens.ts) now requires the env var to base64-decode to at least 32 bytes and throws `OAuthTokenKeyError` otherwise. The previous SHA-256 fallback that masked weak inputs has been removed.
 - ~~UCLA + Vanderbilt fixtures synthetic~~ — PR #28 (live captures). Saratoga remains via [#19](https://github.com/igortsives/togetherly/issues/19).
 - ~~ICS extractor pinned to system local time for all-day events~~ — PR #22 UTC-anchored all-day dates.
 - ~~HTML and PDF extractor tests pinned to synthetic fixture dates~~ — PR #30 merge realigned expectations against the live captures from #28.
@@ -91,3 +91,4 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 - ~~Mid-flight refresh wiping the PENDING queue~~ — PR #36 fixup wrapped delete+create+update in `$transaction`.
 - ~~Destructive refresh silently reporting OK~~ — PR #36 fixup tightened `resolveRefreshStatus`.
 - ~~`pdf-parse` loaded via `createRequire` indirection~~ — closes [#55](https://github.com/igortsives/togetherly/issues/55); replaced with a direct `import pdfParseModule from "pdf-parse"` plus a small CJS-default unwrap in [`lib/sources/pdf-ingest.ts`](../lib/sources/pdf-ingest.ts), with an ambient module shim in [`types/pdf-parse.d.ts`](../types/pdf-parse.d.ts).
+- ~~`package.json#prisma` config block triggers Prisma 6 deprecation warning~~ — closes [#54](https://github.com/igortsives/togetherly/issues/54); seed config now lives in [`prisma.config.ts`](../prisma.config.ts) (`migrations.seed`), ready for Prisma 7.

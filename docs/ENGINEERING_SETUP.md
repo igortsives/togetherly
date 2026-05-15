@@ -105,7 +105,7 @@ npm run test:watch   # vitest in watch mode
 npm run prisma:generate
 npm run prisma:migrate
 npm run prisma:studio
-npm run prisma:seed  # via the `prisma.seed` config in package.json (`npx prisma db seed`)
+npm run prisma:seed  # via the `migrations.seed` entry in `prisma.config.ts` (`npx prisma db seed`)
 ```
 
 ## Test Strategy
