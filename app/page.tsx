@@ -93,7 +93,7 @@ export default async function Home() {
           <a href="#setup">Setup</a>
           <a href="#sources">Sources</a>
           <Link href="/review">Review queue</Link>
-          <a href="#windows">Free windows</a>
+          <Link href="/windows">Free windows</Link>
         </nav>
       </aside>
 
