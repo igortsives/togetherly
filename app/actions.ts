@@ -11,6 +11,7 @@ import {
 } from "@/lib/domain/schemas";
 import { ensureDemoFamily } from "@/lib/family/dashboard";
 import { runFreeWindowSearch } from "@/lib/matching/search";
+import { refreshHtmlSource } from "@/lib/sources/html-ingest";
 import { refreshIcsSource } from "@/lib/sources/ics-ingest";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
 import { storeCalendarPdf } from "@/lib/sources/storage";
@@ -84,6 +85,12 @@ export async function createUrlSourceAction(formData: FormData) {
       await refreshIcsSource(source.id);
     } catch (error) {
       console.error("ICS extraction failed", { sourceId: source.id, error });
+    }
+  } else if (source.sourceType === SourceType.URL) {
+    try {
+      await refreshHtmlSource(source.id);
+    } catch (error) {
+      console.error("HTML extraction failed", { sourceId: source.id, error });
     }
   }
 
