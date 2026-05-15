@@ -27,10 +27,25 @@ export class UnsupportedSourceTypeError extends Error {
   }
 }
 
-export async function refreshSource(sourceId: string): Promise<RefreshOutcome> {
+export class SourceFamilyMismatchError extends Error {
+  constructor(sourceId: string) {
+    super(`Source ${sourceId} does not belong to the expected family.`);
+    this.name = "SourceFamilyMismatchError";
+  }
+}
+
+export async function refreshSource(
+  sourceId: string,
+  expectedFamilyId: string
+): Promise<RefreshOutcome> {
   const source = await prisma.calendarSource.findUniqueOrThrow({
-    where: { id: sourceId }
+    where: { id: sourceId },
+    include: { calendar: { select: { familyId: true } } }
   });
+
+  if (source.calendar.familyId !== expectedFamilyId) {
+    throw new SourceFamilyMismatchError(sourceId);
+  }
 
   const isFirstRefresh = source.lastParsedAt === null;
   const beforeSnapshot = await snapshotCandidatesForSource(sourceId);
