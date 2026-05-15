@@ -98,6 +98,7 @@ Applies to Google Calendar (#13) and Outlook Calendar (#18). Grounded in [`ARCHI
 - All access tokens, refresh tokens, and id_tokens are encrypted with AES-256-GCM before being written to the `Account` table. Encryption is transparent (Prisma `$extends`), so the NextAuth adapter and the calendar API clients all benefit without changes.
 - Decryption happens only in server-side code paths that need to make a provider API call. Tokens MUST NOT cross into client components, API responses, or logs.
 - Provider response bodies are scrubbed from thrown errors and from UI-facing error strings — only the HTTP status code is preserved. The full body is available in server-side logs at debug level only.
+- `OAUTH_TOKEN_ENCRYPTION_KEY` strength is enforced at runtime (closes [#70](https://github.com/igortsives/togetherly/issues/70)). On first use, [`lib/auth/oauth-tokens.ts`](../lib/auth/oauth-tokens.ts) base64-decodes the env var and throws `OAuthTokenKeyError` if the decoded result is shorter than 32 bytes — a weak input like `OAUTH_TOKEN_ENCRYPTION_KEY=password` is now rejected outright instead of being silently SHA-256-derived. Always generate the key with `openssl rand -base64 32`.
 
 ### 3.2 Scope Minimization
 
