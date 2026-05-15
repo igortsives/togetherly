@@ -1,138 +1,88 @@
 # Tech Debt + TODOs
 
-A consolidated list of known debt, gotchas, and follow-ups that aren't already open GitHub issues. Items already tracked as GitHub issues are pointed at from [`ROADMAP.md`](./ROADMAP.md) instead.
+This page is a **thin index** into GitHub Issues. The substantive tracking lives there per [`GITHUB_TRACKING.md`](./GITHUB_TRACKING.md) ("GitHub Issues is the source of truth for execution tracking"). Items here that are not links to issues are intentionally documentation-only — micro cleanups, design rationale, or gotchas that wouldn't be worth a standalone issue.
 
-Each item links to the PR that introduced it (or the file where the debt lives) and is grouped by priority.
+## Open issues by priority
 
-## High Priority
+### Security / privacy (must be resolved before public launch)
 
-### OAuth tokens stored as plaintext columns
+- [#37](https://github.com/igortsives/togetherly/issues/37) — Encrypt OAuth access/refresh tokens at rest *(P0, Private Beta)*
+- [#38](https://github.com/igortsives/togetherly/issues/38) — Harden OAuth account linking before public launch *(P0, Private Beta)*
+- [#42](https://github.com/igortsives/togetherly/issues/42) — In-product OAuth disconnect for Google and Microsoft *(P1, Private Beta)*
+- [#43](https://github.com/igortsives/togetherly/issues/43) — In-product account deletion flow *(P1, Private Beta)*
+- [#49](https://github.com/igortsives/togetherly/issues/49) — Push family-ownership check into refreshSource() *(P2)*
 
-- **Where:** `Account.access_token` and `Account.refresh_token` columns in `prisma/schema.prisma`. Used by [`lib/sources/google.ts`](../lib/sources/google.ts) and [`lib/sources/microsoft.ts`](../lib/sources/microsoft.ts).
-- **State:** No column-level encryption. `OAUTH_TOKEN_ENCRYPTION_KEY` is declared in `.env.example` but unused.
-- **Mitigation in place:** Auth.js encrypts session cookies + JWTs using `AUTH_SECRET`. Tokens never cross into client components, API responses, or logs (enforced by code review against [`PRIVACY.md` §6](./PRIVACY.md#6-logging--telemetry-boundary)).
-- **Resolution path:** Add a Prisma client-extension that encrypts/decrypts on read/write, or move to pgcrypto column functions. Required before public launch.
-- **Refs:** PRs #31, #33, #34. `PRIVACY.md` §1.6 and §3.1.
+### Source refresh + change alerts (post-PR #36 follow-ups)
 
-### `allowDangerousEmailAccountLinking=true` on Google and Microsoft
+- [#40](https://github.com/igortsives/togetherly/issues/40) — Background scheduler for source refresh *(P1, Private Beta)*
+- [#41](https://github.com/igortsives/togetherly/issues/41) — Invalidate saved free-window results when underlying sources change *(P1, Private Beta)*
+- [#50](https://github.com/igortsives/togetherly/issues/50) — Provider webhooks for near-real-time Google + Outlook change detection *(P2)*
+- [#56](https://github.com/igortsives/togetherly/issues/56) — Use syncToken / delta for incremental Google + Outlook sync *(P2)*
 
-- **Where:** [`auth.ts`](../auth.ts) provider blocks.
-- **State:** Whoever controls the linked-provider account at the matching email can take over the existing Togetherly user.
-- **Why we shipped it:** Without it, an existing email/password user trying `signIn("google")` creates an orphan account instead of linking. UX is unacceptable for the calendar-connect flow.
-- **Resolution path before public launch:** require fresh re-auth, in-product confirmation, or a verified-email signal before linking.
-- **Refs:** PRs #33, #34. `PRIVACY.md` §3.4.
+### Product follow-ups for Private Beta launch
 
-### Saratoga / LGSUHSD parser fixture still synthetic
+- [#44](https://github.com/igortsives/togetherly/issues/44) — Bulk-confirm high-confidence candidates in review queue *(P1)*
+- [#45](https://github.com/igortsives/togetherly/issues/45) — Export selected free windows to Google or Outlook Calendar *(P1)*
+- [#46](https://github.com/igortsives/togetherly/issues/46) — In-product beta feedback capture *(P1)*
+- [#51](https://github.com/igortsives/togetherly/issues/51) — Surface source provenance in the dashboard *(P2)*
 
-- **Where:** [`fixtures/sources/html/saratoga-high-2026-2027.html`](../fixtures/sources/html/saratoga-high-2026-2027.html) and the matching `.pdf.txt` + expected-events JSON.
-- **State:** UCLA and Vanderbilt fixtures were replaced with live captures in PR #28. Saratoga remained structural because the district had not posted the 2026-27 LGSUHSD PDF and direct WebFetch of the 2025-26 PDF was blocked.
-- **Resolution path:** Re-check the SHS calendars page after publication of the 2026-27 PDF; replace fixture + expected-events; close issue [#19](https://github.com/igortsives/togetherly/issues/19).
-- **Refs:** PR #28, issue #19 comment.
+### Process / tooling
 
-### `middleware.ts` deprecation in Next 16
+- [#39](https://github.com/igortsives/togetherly/issues/39) — Rename middleware.ts to proxy.ts (Next 16 deprecation) *(P1, Private Beta)*
+- [#47](https://github.com/igortsives/togetherly/issues/47) — GitHub Actions workflow for lint/typecheck/test/build *(P1, Private Beta)*
+- [#48](https://github.com/igortsives/togetherly/issues/48) — Add MICROSOFT to AuthProvider enum and surface on /login *(P2)*
+- [#52](https://github.com/igortsives/togetherly/issues/52) — LLM-assisted extraction for ambiguous HTML/PDF events *(P2)*
+- [#53](https://github.com/igortsives/togetherly/issues/53) — Add Playwright E2E test setup *(P2)*
+- [#54](https://github.com/igortsives/togetherly/issues/54) — Migrate package.json#prisma config to prisma.config.ts before Prisma 7 *(P2)*
+- [#55](https://github.com/igortsives/togetherly/issues/55) — Replace pdf-parse createRequire indirection with a direct import *(P2)*
 
-- **Where:** [`middleware.ts`](../middleware.ts).
-- **State:** Next 16 logs a deprecation warning on dev startup: `The "middleware" file convention is deprecated. Please use "proxy" instead.` The old name still works.
-- **Resolution path:** Rename `middleware.ts` → `proxy.ts`; verify route gating behaves identically; check [Next docs](https://nextjs.org/docs/messages/middleware-to-proxy) for any matcher-syntax changes.
-- **Refs:** PR #31.
+### Partial / continuing work
 
-## Medium Priority
+- [#19](https://github.com/igortsives/togetherly/issues/19) — Parser corpus fixtures for UCLA, Vanderbilt, and Saratoga/LGSUHSD *(Saratoga capture still deferred — see PR #28)*
+- [#11](https://github.com/igortsives/togetherly/issues/11) — Parser corpus research follow-up
+- [#15](https://github.com/igortsives/togetherly/issues/15) — MVP launch readiness checklist
+- [#32](https://github.com/igortsives/togetherly/issues/32) — Stitch design integration
 
-### `pdf-parse` loaded via `createRequire` indirection
+## Documentation-only items (intentionally not filed as issues)
 
-- **Where:** [`lib/sources/pdf-ingest.ts`](../lib/sources/pdf-ingest.ts).
-- **State:** The agent that shipped PR #30 could not run `npm install` in its sandbox, so they avoided having the bundler statically resolve `pdf-parse` by constructing the module spec from a `["pdf","parse"].join("-")` expression with `createRequire(import.meta.url)`. Functional, but it bypasses build-time validation.
-- **Resolution path:** Replace with a direct `import` or top-level `require` once the dep is unambiguously in the install tree (which it now is). Verify the production bundle still tree-shakes properly.
-- **Refs:** PR #30.
+These are gotchas, design rationale, or micro-cleanups too small to be worth a tracking issue. They live here so they aren't lost.
 
-### Microsoft is not in the `AuthProvider` enum
+### Seed-after-migration gotcha
 
-- **Where:** `prisma/schema.prisma` `AuthProvider` enum: `EMAIL | GOOGLE | APPLE`.
-- **State:** Microsoft is a linkable provider for Outlook Calendar but cannot be surfaced as a "Sign in with Microsoft" button on `/login` without a schema migration.
-- **Resolution path:** If we ever want Microsoft as a top-level sign-in option, add `MICROSOFT` to the enum and update the `mapAuthProvider` switch in `auth.ts`.
-- **Refs:** PR #34.
+If you migrate the auth schema (from before PR #31) onto a database that already had the seeded `beta-parent@togetherly.local` user, the new `passwordHash` column is **null** for that existing row. Credentials sign-in then fails with `CredentialsSignin` until you re-run `npm run prisma:seed`, which upserts the bcrypt hash. The seed is safe to re-run.
 
-### Seed-after-migration gotcha (documented but easy to trip)
+Captured in [`docs/ENGINEERING_SETUP.md`](./ENGINEERING_SETUP.md#seed-after-migration-gotcha). Doesn't need an action — just a note.
 
-- **Where:** `prisma/seed.mjs`.
-- **State:** Running `npx prisma migrate dev` on a database that previously seeded `beta-parent@togetherly.local` adds the `passwordHash` column without populating it. Credentials sign-in then fails with `CredentialsSignin`. Re-running `npm run prisma:seed` fixes it.
-- **Mitigation:** Documented in [`ENGINEERING_SETUP.md`](./ENGINEERING_SETUP.md#seed-after-migration-gotcha) and in PR #31's body.
-- **Resolution path:** Long-term, a setup script could detect the missing hash and re-seed automatically.
-- **Refs:** PR #31.
+### Vitest `server.deps.inline` workaround
 
-### Source-creation extractor fires synchronously
+[`vitest.config.ts`](../vitest.config.ts) declares `server.deps.inline: ["next-auth", "@auth/core", "@auth/prisma-adapter"]`. Without this, `next-auth/lib/env.js` fails to resolve `next/server` under the jsdom environment because vitest's resolver doesn't synthesize the `.js` extension. Re-evaluate when next-auth v5 ships stable — but until that happens, no action is required.
 
-- **Where:** [`app/actions.ts`](../app/actions.ts) — every `createXxxSourceAction` calls the matching `refreshXxxSource` inside the request.
-- **State:** A slow ICS feed, large PDF, or first-time Google sync blocks the source-creation response. No retry, no queue.
-- **Resolution path:** Move to a job queue (BullMQ or similar) once #12 (source refresh + change alerts) lands.
-- **Refs:** PRs #22, #29, #30, #33, #34.
+### `lib/family/dashboard.ts` vs `lib/family/session.ts` split
 
-### Vitest needs `server.deps.inline` for next-auth
+The split exists specifically so `dashboard.test.ts` can run without dragging the next-auth import chain through vitest. Documented in [`docs/ARCHITECTURE.md`](./ARCHITECTURE.md#authentication). The convention is "pure helpers in `dashboard.ts`, auth-coupled wrappers in `session.ts`" — cosmetic, but worth knowing before reorganising.
 
-- **Where:** [`vitest.config.ts`](../vitest.config.ts).
-- **State:** `server.deps.inline: ["next-auth", "@auth/core", "@auth/prisma-adapter"]` is required because next-auth's `lib/env.js` imports `next/server` without the `.js` extension and vitest's resolver doesn't synthesize it under jsdom.
-- **Resolution path:** Re-evaluate when next-auth v5 stable lands; the upstream import is likely to change.
-- **Refs:** PR #31.
+### `Account` table has columns we don't query on
 
-## Low Priority
+The NextAuth Prisma-adapter standard schema includes `token_type`, `scope`, `id_token`, and `session_state`. We read `access_token`, `refresh_token`, `expires_at`, and (in the refresh path) `scope` + `token_type`. Trimming the unused columns would require a custom adapter; not worth it for the savings.
 
-### Pure helpers split from auth-coupled code in `lib/family/`
+### Calendar timezone fallback chain edge case
 
-- **Where:** [`lib/family/dashboard.ts`](../lib/family/dashboard.ts) (pure) vs [`lib/family/session.ts`](../lib/family/session.ts) (imports `@/auth`).
-- **State:** The split exists specifically so the helper test in `dashboard.test.ts` can run without `server.deps.inline` transformation. Slightly odd file organization for new contributors.
-- **Resolution path:** Either keep as-is (the convention is documented in `ARCHITECTURE.md`) or move the auth-coupled wrappers into a shared `lib/auth/` module. Cosmetic.
-- **Refs:** PR #31.
+Google/Microsoft ingest mapping falls back through `event.start.timeZone → calendar.timezone → family.timezone`. ICS extractor uses the `defaultTimezone` argument. HTML/PDF extractors use the calendar's timezone. There's a theoretical edge case where a calendar imports events from a wildly different timezone than the family timezone and surfaces incorrectly on the dashboard timeline. No bug has been reported — speculative.
 
-### No incremental sync for Google / Outlook
+### No window control in the UI
 
-- **Where:** `lib/sources/google-ingest.ts`, `lib/sources/microsoft-ingest.ts`.
-- **State:** Every refresh does a full window fetch (30d back / 365d forward). Google supports `syncToken`; Microsoft supports `delta` queries.
-- **Resolution path:** Add when #12 source-refresh ships; for the create-only-trigger world we have today, full sync is fine.
+Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest.ts`. Users can't widen or shorten. A settings panel for per-source overrides is implied by [#40](https://github.com/igortsives/togetherly/issues/40) and [#56](https://github.com/igortsives/togetherly/issues/56); will get exposed when those land.
 
-### No backfill / window control in the UI
+## Resolved (kept for context)
 
-- **Where:** Dashboard import forms.
-- **State:** Users can't widen or shorten the sync window. The constants are hard-coded to 30d/365d in each `*-ingest.ts`.
-- **Resolution path:** Expose as part of the per-source settings UI once we have one (deferred).
-
-### `Account` table has unique-index columns we don't query on
-
-- **Where:** `prisma/schema.prisma` `Account` model.
-- **State:** The NextAuth Prisma-adapter standard schema includes columns we don't read (`token_type`, `scope`, `id_token`, `session_state`). They're harmless but bloat the row.
-- **Resolution path:** Consider trimming if we later switch to a custom adapter.
-
-### Confidence heuristics are keyword-only
-
-- **Where:** [`lib/sources/extractors/html.ts`](../lib/sources/extractors/html.ts), [`lib/sources/extractors/pdf.ts`](../lib/sources/extractors/pdf.ts).
-- **State:** Classification is `String.prototype.includes` on the title. No fuzzy matching, no LLM assist. Every HTML/PDF candidate ends up under 0.9 so it flows through review (which is the safety net).
-- **Resolution path:** LLM-assisted extraction per [`PARSING_STRATEGY.md`](./PARSING_STRATEGY.md) when a real corpus appetite emerges.
-
-### Calendar timezone fallback chain isn't always honored
-
-- **Where:** Google/Microsoft ingest mapping fall back through `event timezone → calendar.timezone → family.timezone`. ICS extractor uses `defaultTimezone` argument. HTML/PDF extractors use the calendar's timezone.
-- **State:** Edge case where a calendar imports events from a wildly different timezone than the family timezone may not surface correctly on the timeline.
-- **Resolution path:** Tighten when a real timezone-drift bug is reported. Add explicit per-source-event timezone tests.
-
-## Product / UX TODOs (not yet tracked as issues)
-
-- **In-product OAuth disconnect** — today the only way to revoke a linked Google/Microsoft account is operator-side Prisma access.
-- **In-product account deletion** — `PRIVACY.md` §4.3 specifies the contract but no UI exists.
-- **In-product source-source removal** — a parent can disable a calendar but not delete an imported source row from the dashboard.
-- **Source-provenance display** — the review queue shows the evidence text/locator but the dashboard doesn't expose "this calendar was imported from {source}" beyond the small `parserType` chip.
-- **Saved windows export to provider calendars** — `EXP-001`/`EXP-002` in PRD §7.8 are P1 and not yet implemented.
-- **Bulk-confirm in review queue** — REV-005 is P1; today every candidate is confirmed individually.
-- **Beta feedback capture** — listed in `BETA_PLAN.md` but no in-app form exists.
-
-## CI / Tooling TODOs
-
-- **GitHub Actions** — the local validation gate (`lint` + `typecheck` + `test` + `build`) is enforced by convention, not by CI. A workflow that runs the four commands on every PR is a small but important follow-up.
-- **Playwright E2E** — not yet wired. Deferred to Phase 3 per `ROADMAP.md`.
-- **Prisma config migration** — Prisma 7 will remove the `package.json#prisma` config block. The `npm run prisma:seed` script currently relies on it. Migrate to a `prisma.config.ts` file before the upgrade.
-
-## Resolved items (kept for context)
-
-- ~~Demo-family seam removal~~ — resolved by PR #31 (`ensureDemoFamily` replaced with `requireUserFamily`).
-- ~~No OAuth token model in schema~~ — resolved by the NextAuth `Account` table in PR #31; encryption is now a separate (open) item above.
-- ~~UCLA + Vanderbilt fixtures synthetic~~ — resolved by PR #28 (live captures); Saratoga remains.
-- ~~ICS extractor pinned to system local time for all-day events~~ — resolved in PR #22 by UTC-anchoring all-day dates.
-- ~~HTML and PDF extractor tests pinned to synthetic fixture dates~~ — resolved in PR #30's merge commit by realigning expectations against the live captures from #28.
+- ~~Demo-family seam removal~~ — PR #31 (`ensureDemoFamily` replaced with `requireUserFamily`).
+- ~~No OAuth token model in schema~~ — resolved by the NextAuth `Account` table in PR #31; encryption is now [#37](https://github.com/igortsives/togetherly/issues/37).
+- ~~UCLA + Vanderbilt fixtures synthetic~~ — PR #28 (live captures). Saratoga remains via [#19](https://github.com/igortsives/togetherly/issues/19).
+- ~~ICS extractor pinned to system local time for all-day events~~ — PR #22 UTC-anchored all-day dates.
+- ~~HTML and PDF extractor tests pinned to synthetic fixture dates~~ — PR #30 merge realigned expectations against the live captures from #28.
+- ~~Source-creation extractor was the only path~~ — PR #36 added the dispatcher + manual Refresh button. Scheduler is now [#40](https://github.com/igortsives/togetherly/issues/40).
+- ~~In-product source removal~~ — PR #36 added the Remove button.
+- ~~`pill-busy-busy` reused for FAILED chip~~ — PR #36 fixup added `pill-failed`.
+- ~~Pipe-joined sort key in `hashCandidateSet`~~ — PR #36 fixup switched to JSON-tuple.
+- ~~Mid-flight refresh wiping the PENDING queue~~ — PR #36 fixup wrapped delete+create+update in `$transaction`.
+- ~~Destructive refresh silently reporting OK~~ — PR #36 fixup tightened `resolveRefreshStatus`.
