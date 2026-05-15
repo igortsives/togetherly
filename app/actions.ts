@@ -12,11 +12,7 @@ import {
 } from "@/lib/domain/schemas";
 import { requireUserFamily } from "@/lib/family/session";
 import { runFreeWindowSearch } from "@/lib/matching/search";
-import { refreshGoogleSource } from "@/lib/sources/google-ingest";
-import { refreshHtmlSource } from "@/lib/sources/html-ingest";
-import { refreshIcsSource } from "@/lib/sources/ics-ingest";
-import { refreshMicrosoftSource } from "@/lib/sources/microsoft-ingest";
-import { extractAndPersistPdf } from "@/lib/sources/pdf-ingest";
+import { refreshSource } from "@/lib/sources/refresh";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
 import { storeCalendarPdf } from "@/lib/sources/storage";
 
@@ -84,18 +80,10 @@ export async function createUrlSourceAction(formData: FormData) {
     }
   });
 
-  if (source.sourceType === SourceType.ICS) {
-    try {
-      await refreshIcsSource(source.id);
-    } catch (error) {
-      console.error("ICS extraction failed", { sourceId: source.id, error });
-    }
-  } else if (source.sourceType === SourceType.URL) {
-    try {
-      await refreshHtmlSource(source.id);
-    } catch (error) {
-      console.error("HTML extraction failed", { sourceId: source.id, error });
-    }
+  try {
+    await refreshSource(source.id);
+  } catch (error) {
+    console.error("Source extraction failed", { sourceId: source.id, error });
   }
 
   revalidatePath("/");
@@ -131,12 +119,57 @@ export async function createPdfSourceAction(formData: FormData) {
   });
 
   try {
-    await extractAndPersistPdf({ calendarSourceId: source.id });
+    await refreshSource(source.id);
   } catch (error) {
     console.error("PDF extraction failed", { sourceId: source.id, error });
   }
 
   revalidatePath("/");
+}
+
+export async function refreshSourceAction(formData: FormData) {
+  const sourceId = String(formData.get("sourceId") || "");
+  if (!sourceId) {
+    throw new Error("Source ID is required");
+  }
+
+  const family = await requireUserFamily();
+  const source = await prisma.calendarSource.findFirst({
+    where: { id: sourceId, calendar: { familyId: family.id } },
+    select: { id: true }
+  });
+  if (!source) {
+    throw new Error("Source not found for this family.");
+  }
+
+  try {
+    await refreshSource(sourceId);
+  } catch (error) {
+    console.error("Manual source refresh failed", { sourceId, error });
+  }
+
+  revalidatePath("/");
+  revalidatePath("/review");
+}
+
+export async function deleteSourceAction(formData: FormData) {
+  const sourceId = String(formData.get("sourceId") || "");
+  if (!sourceId) {
+    throw new Error("Source ID is required");
+  }
+
+  const family = await requireUserFamily();
+  const source = await prisma.calendarSource.findFirst({
+    where: { id: sourceId, calendar: { familyId: family.id } },
+    select: { id: true }
+  });
+  if (!source) {
+    throw new Error("Source not found for this family.");
+  }
+
+  await prisma.calendarSource.delete({ where: { id: sourceId } });
+  revalidatePath("/");
+  revalidatePath("/review");
 }
 
 export async function toggleCalendarAction(formData: FormData) {
@@ -210,7 +243,7 @@ export async function createGoogleCalendarSourceAction(formData: FormData) {
   });
 
   try {
-    await refreshGoogleSource({ calendarSourceId: source.id });
+    await refreshSource(source.id);
   } catch (error) {
     console.error("Google Calendar extraction failed", {
       sourceId: source.id,
@@ -260,7 +293,7 @@ export async function createOutlookCalendarSourceAction(formData: FormData) {
   });
 
   try {
-    await refreshMicrosoftSource({ calendarSourceId: source.id });
+    await refreshSource(source.id);
   } catch (error) {
     console.error("Outlook Calendar extraction failed", {
       sourceId: source.id,

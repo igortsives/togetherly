@@ -1,4 +1,4 @@
-import { CalendarType, EventCategory, ParserType, RefreshStatus } from "@prisma/client";
+import { CalendarType, EventCategory, ParserType, RefreshStatus, ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   eventCandidateInputSchema,
@@ -73,6 +73,10 @@ export async function refreshMicrosoftSource(
         source.calendar.timezone ?? source.calendar.family.timezone
     });
 
+    await prisma.eventCandidate.deleteMany({
+      where: { calendarSourceId: source.id, reviewStatus: ReviewStatus.PENDING }
+    });
+
     if (candidates.length > 0) {
       await prisma.eventCandidate.createMany({
         data: candidates.map((candidate) => ({
@@ -99,9 +103,7 @@ export async function refreshMicrosoftSource(
       data: {
         parserType: ParserType.OUTLOOK,
         lastFetchedAt: now,
-        lastParsedAt: now,
-        refreshStatus:
-          errors.length === 0 ? RefreshStatus.OK : RefreshStatus.NEEDS_REVIEW
+        lastParsedAt: now
       }
     });
 

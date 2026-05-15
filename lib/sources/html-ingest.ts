@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { ParserType, RefreshStatus } from "@prisma/client";
+import { ParserType, RefreshStatus, ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   extractHtmlEvents,
@@ -58,6 +58,10 @@ export async function extractAndPersistHtml(args: {
     defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
   });
 
+  await prisma.eventCandidate.deleteMany({
+    where: { calendarSourceId: source.id, reviewStatus: ReviewStatus.PENDING }
+  });
+
   if (candidates.length > 0) {
     await prisma.eventCandidate.createMany({
       data: candidates.map((candidate) => ({
@@ -85,9 +89,7 @@ export async function extractAndPersistHtml(args: {
       contentHash: args.contentHash,
       parserType: ParserType.HTML,
       lastFetchedAt: now,
-      lastParsedAt: now,
-      refreshStatus:
-        errors.length === 0 ? RefreshStatus.OK : RefreshStatus.NEEDS_REVIEW
+      lastParsedAt: now
     }
   });
 

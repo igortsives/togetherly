@@ -1,4 +1,4 @@
-import { ReviewStatus, SourceType } from "@prisma/client";
+import { RefreshStatus, ReviewStatus, SourceType } from "@prisma/client";
 import {
   CalendarCheck,
   FileUp,
@@ -16,8 +16,10 @@ import {
   createOutlookCalendarSourceAction,
   createPdfSourceAction,
   createUrlSourceAction,
+  deleteSourceAction,
   linkGoogleAccountAction,
   linkMicrosoftAccountAction,
+  refreshSourceAction,
   signOutAction,
   toggleCalendarAction
 } from "./actions";
@@ -30,6 +32,44 @@ import { getMicrosoftConnectionState } from "@/lib/sources/microsoft";
 import { labelSourceType } from "@/lib/sources/source-metadata";
 
 export const dynamic = "force-dynamic";
+
+const lastFetchedFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  hour: "numeric",
+  minute: "2-digit"
+});
+
+function formatLastFetched(date: Date | null) {
+  if (!date) return "never fetched";
+  return `fetched ${lastFetchedFormatter.format(date)}`;
+}
+
+function formatRefreshStatus(status: RefreshStatus): string {
+  switch (status) {
+    case RefreshStatus.OK:
+      return "up to date";
+    case RefreshStatus.CHANGED:
+      return "changed — re-review";
+    case RefreshStatus.NEEDS_REVIEW:
+      return "needs review";
+    case RefreshStatus.FAILED:
+      return "failed";
+  }
+}
+
+function refreshStatusClass(status: RefreshStatus): string {
+  switch (status) {
+    case RefreshStatus.OK:
+      return "pill pill-confidence";
+    case RefreshStatus.CHANGED:
+      return "pill pill-warn";
+    case RefreshStatus.NEEDS_REVIEW:
+      return "pill pill-unknown";
+    case RefreshStatus.FAILED:
+      return "pill pill-busy-busy";
+  }
+}
 
 const importOptions = [
   { label: "PDF", detail: "Academic calendar files", icon: FileUp },
@@ -483,9 +523,27 @@ export default async function Home() {
                     <div>
                       <strong>{labelSourceType(source.sourceType)}</strong>
                       <span>{source.sourceUrl || source.uploadedFileKey || source.providerCalendarId}</span>
-                      <small>{calendar.name} · {source.parserType.toLowerCase()} · {source.refreshStatus.toLowerCase()}</small>
+                      <small>
+                        {calendar.name} · {source.parserType.toLowerCase()} · {formatLastFetched(source.lastFetchedAt)}
+                      </small>
                     </div>
-                    <em>{source.contentHash ? source.contentHash.slice(0, 8) : "pending"}</em>
+                    <div className="sourceItemActions">
+                      <span className={refreshStatusClass(source.refreshStatus)}>
+                        {formatRefreshStatus(source.refreshStatus)}
+                      </span>
+                      <form action={refreshSourceAction}>
+                        <input name="sourceId" type="hidden" value={source.id} />
+                        <button className="subtleButton" type="submit">
+                          Refresh
+                        </button>
+                      </form>
+                      <form action={deleteSourceAction}>
+                        <input name="sourceId" type="hidden" value={source.id} />
+                        <button className="subtleButton danger" type="submit">
+                          Remove
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 ))
               )}

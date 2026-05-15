@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { ParserType, RefreshStatus } from "@prisma/client";
+import { ParserType, RefreshStatus, ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   extractPdfTextEvents,
@@ -86,6 +86,10 @@ export async function extractAndPersistPdf(args: {
       defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
     });
 
+    await prisma.eventCandidate.deleteMany({
+      where: { calendarSourceId: source.id, reviewStatus: ReviewStatus.PENDING }
+    });
+
     if (candidates.length > 0) {
       await prisma.eventCandidate.createMany({
         data: candidates.map((candidate) => ({
@@ -112,9 +116,7 @@ export async function extractAndPersistPdf(args: {
       data: {
         parserType: ParserType.PDF_TEXT,
         lastFetchedAt: now,
-        lastParsedAt: now,
-        refreshStatus:
-          errors.length === 0 ? RefreshStatus.OK : RefreshStatus.NEEDS_REVIEW
+        lastParsedAt: now
       }
     });
 

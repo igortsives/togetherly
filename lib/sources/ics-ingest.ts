@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { ParserType, RefreshStatus } from "@prisma/client";
+import { ParserType, RefreshStatus, ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   extractIcsEvents,
@@ -67,6 +67,10 @@ export async function extractAndPersistIcs(args: {
     window
   });
 
+  await prisma.eventCandidate.deleteMany({
+    where: { calendarSourceId: source.id, reviewStatus: ReviewStatus.PENDING }
+  });
+
   if (candidates.length > 0) {
     await prisma.eventCandidate.createMany({
       data: candidates.map((candidate) => ({
@@ -94,9 +98,7 @@ export async function extractAndPersistIcs(args: {
       contentHash: args.contentHash,
       parserType: ParserType.ICS,
       lastFetchedAt: now,
-      lastParsedAt: now,
-      refreshStatus:
-        errors.length === 0 ? RefreshStatus.OK : RefreshStatus.NEEDS_REVIEW
+      lastParsedAt: now
     }
   });
 
