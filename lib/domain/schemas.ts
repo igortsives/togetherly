@@ -136,4 +136,6 @@ export type ChildInput = z.infer<typeof childInputSchema>;
 export type CalendarInput = z.infer<typeof calendarInputSchema>;
 export type CalendarSourceInput = z.infer<typeof calendarSourceInputSchema>;
 export type EventCandidateInput = z.input<typeof eventCandidateInputSchema>;
+export type EventCandidate = z.output<typeof eventCandidateInputSchema>;
 export type CalendarEventInput = z.input<typeof calendarEventInputSchema>;
+export type CalendarEventNormalized = z.output<typeof calendarEventInputSchema>;
