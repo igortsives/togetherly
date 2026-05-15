@@ -1,9 +1,11 @@
+import { Prisma } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/db/prisma", () => ({
   prisma: {
     family: {
-      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
       create: vi.fn()
     }
   }
@@ -16,7 +18,11 @@ vi.mock("@/auth", () => ({
 import { prisma } from "@/lib/db/prisma";
 import { resolveFamilyForUser, UnauthenticatedError } from "./dashboard";
 
-const mockFindFirst = prisma.family.findFirst as unknown as ReturnType<typeof vi.fn>;
+const mockFindUnique = prisma.family.findUnique as unknown as ReturnType<
+  typeof vi.fn
+>;
+const mockFindUniqueOrThrow =
+  prisma.family.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;
 const mockCreate = prisma.family.create as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
@@ -30,14 +36,13 @@ describe("resolveFamilyForUser", () => {
       ownerId: "user-1",
       timezone: "America/Los_Angeles"
     };
-    mockFindFirst.mockResolvedValue(family);
+    mockFindUnique.mockResolvedValue(family);
 
     const result = await resolveFamilyForUser("user-1");
 
     expect(result).toBe(family);
-    expect(mockFindFirst).toHaveBeenCalledWith({
-      where: { ownerId: "user-1" },
-      orderBy: { createdAt: "asc" }
+    expect(mockFindUnique).toHaveBeenCalledWith({
+      where: { ownerId: "user-1" }
     });
     expect(mockCreate).not.toHaveBeenCalled();
   });
@@ -48,7 +53,7 @@ describe("resolveFamilyForUser", () => {
       ownerId: "user-2",
       timezone: "America/Los_Angeles"
     };
-    mockFindFirst.mockResolvedValue(null);
+    mockFindUnique.mockResolvedValue(null);
     mockCreate.mockResolvedValue(newFamily);
 
     const result = await resolveFamilyForUser("user-2");
@@ -60,6 +65,38 @@ describe("resolveFamilyForUser", () => {
         timezone: "America/Los_Angeles"
       }
     });
+  });
+
+  it("recovers from the create race by re-reading on P2002", async () => {
+    const winningFamily = {
+      id: "family-winner",
+      ownerId: "user-3",
+      timezone: "America/Los_Angeles"
+    };
+    mockFindUnique.mockResolvedValue(null);
+    mockCreate.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError(
+        "Unique constraint failed",
+        { code: "P2002", clientVersion: "test" }
+      )
+    );
+    mockFindUniqueOrThrow.mockResolvedValue(winningFamily);
+
+    const result = await resolveFamilyForUser("user-3");
+
+    expect(result).toBe(winningFamily);
+    expect(mockFindUniqueOrThrow).toHaveBeenCalledWith({
+      where: { ownerId: "user-3" }
+    });
+  });
+
+  it("rethrows non-P2002 errors from create", async () => {
+    const otherError = new Error("connection refused");
+    mockFindUnique.mockResolvedValue(null);
+    mockCreate.mockRejectedValue(otherError);
+
+    await expect(resolveFamilyForUser("user-4")).rejects.toBe(otherError);
+    expect(mockFindUniqueOrThrow).not.toHaveBeenCalled();
   });
 });
 
