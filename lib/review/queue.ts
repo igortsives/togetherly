@@ -1,7 +1,11 @@
 import { ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireUserFamily } from "@/lib/family/session";
-import { serializeCandidate, type SerializedCandidate } from "./candidates";
+import {
+  isBulkConfirmEligible,
+  serializeCandidate,
+  type SerializedCandidate
+} from "./candidates";
 
 export type ReviewQueueGroup = {
   calendarId: string;
@@ -9,6 +13,7 @@ export type ReviewQueueGroup = {
   calendarType: string;
   childNickname: string | null;
   candidates: SerializedCandidate[];
+  bulkConfirmCount: number;
 };
 
 export type ReviewQueue = {
@@ -43,13 +48,17 @@ export async function getReviewQueue(): Promise<ReviewQueue | ReviewQueueUnavail
 
     const groups: ReviewQueueGroup[] = calendars
       .filter((calendar) => calendar.candidates.length > 0)
-      .map((calendar) => ({
-        calendarId: calendar.id,
-        calendarName: calendar.name,
-        calendarType: calendar.type,
-        childNickname: calendar.child?.nickname ?? null,
-        candidates: calendar.candidates.map(serializeCandidate)
-      }));
+      .map((calendar) => {
+        const candidates = calendar.candidates.map(serializeCandidate);
+        return {
+          calendarId: calendar.id,
+          calendarName: calendar.name,
+          calendarType: calendar.type,
+          childNickname: calendar.child?.nickname ?? null,
+          candidates,
+          bulkConfirmCount: candidates.filter(isBulkConfirmEligible).length
+        };
+      });
 
     const totalPending = groups.reduce(
       (total, group) => total + group.candidates.length,

@@ -2,11 +2,15 @@ import { BusyStatus, EventCategory } from "@prisma/client";
 import { ArrowLeft, CheckCircle2, Pencil, ShieldAlert, Trash2 } from "lucide-react";
 import Link from "next/link";
 import {
+  bulkConfirmCandidatesAction,
   confirmCandidateAction,
   editAndConfirmCandidateAction,
   rejectCandidateAction
 } from "./actions";
-import type { SerializedCandidate } from "@/lib/review/candidates";
+import {
+  isBulkConfirmEligible,
+  type SerializedCandidate
+} from "@/lib/review/candidates";
 import { getReviewQueue } from "@/lib/review/queue";
 
 export const dynamic = "force-dynamic";
@@ -149,6 +153,24 @@ export default async function ReviewPage() {
                     {group.childNickname || "Family / parent"} · {group.candidates.length} pending
                   </span>
                 </div>
+                {group.bulkConfirmCount > 0 ? (
+                  <form action={bulkConfirmCandidatesAction}>
+                    {group.candidates
+                      .filter(isBulkConfirmEligible)
+                      .map((candidate) => (
+                        <input
+                          key={candidate.id}
+                          name="candidateId"
+                          type="hidden"
+                          value={candidate.id}
+                        />
+                      ))}
+                    <button className="primaryButton" type="submit">
+                      <CheckCircle2 size={16} aria-hidden="true" />
+                      Confirm all ({group.bulkConfirmCount}) high-confidence
+                    </button>
+                  </form>
+                ) : null}
               </div>
               <ul className="reviewList">
                 {group.candidates.map((candidate) => (

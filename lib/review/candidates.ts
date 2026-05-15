@@ -118,3 +118,7 @@ export function serializeCandidate(candidate: CandidateLike): SerializedCandidat
     needsReview: requiresParentReview(candidate.category, confidence)
   };
 }
+
+export function isBulkConfirmEligible(candidate: SerializedCandidate): boolean {
+  return !requiresParentReview(candidate.category, candidate.confidence);
+}

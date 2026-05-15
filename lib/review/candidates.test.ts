@@ -2,6 +2,7 @@ import { BusyStatus, EventCategory } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import {
   buildCalendarEventInputFromCandidate,
+  isBulkConfirmEligible,
   parseCalendarEventFromCandidate,
   serializeCandidate
 } from "./candidates";
@@ -121,6 +122,64 @@ describe("serializeCandidate", () => {
         category: EventCategory.UNKNOWN,
         confidence: 0.99
       }).needsReview
+    ).toBe(true);
+  });
+});
+
+describe("isBulkConfirmEligible", () => {
+  it("returns true when confidence is at or above 0.9 with a known category", () => {
+    expect(isBulkConfirmEligible(serializeCandidate(baseCandidate))).toBe(true);
+    expect(
+      isBulkConfirmEligible(
+        serializeCandidate({ ...baseCandidate, confidence: 0.9 })
+      )
+    ).toBe(true);
+    expect(
+      isBulkConfirmEligible(
+        serializeCandidate({ ...baseCandidate, confidence: 1 })
+      )
+    ).toBe(true);
+  });
+
+  it("returns false for UNKNOWN category regardless of confidence", () => {
+    expect(
+      isBulkConfirmEligible(
+        serializeCandidate({
+          ...baseCandidate,
+          category: EventCategory.UNKNOWN,
+          confidence: 0.99
+        })
+      )
+    ).toBe(false);
+    expect(
+      isBulkConfirmEligible(
+        serializeCandidate({
+          ...baseCandidate,
+          category: EventCategory.UNKNOWN,
+          confidence: 1
+        })
+      )
+    ).toBe(false);
+  });
+
+  it("returns false when confidence is below 0.9", () => {
+    expect(
+      isBulkConfirmEligible(
+        serializeCandidate({ ...baseCandidate, confidence: 0.55 })
+      )
+    ).toBe(false);
+  });
+
+  it("treats the 0.89 / 0.90 boundary correctly", () => {
+    expect(
+      isBulkConfirmEligible(
+        serializeCandidate({ ...baseCandidate, confidence: 0.89 })
+      )
+    ).toBe(false);
+    expect(
+      isBulkConfirmEligible(
+        serializeCandidate({ ...baseCandidate, confidence: 0.9 })
+      )
     ).toBe(true);
   });
 });
