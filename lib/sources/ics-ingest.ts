@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { ParserType, RefreshStatus } from "@prisma/client";
+import { ParserType, ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   extractIcsEvents,
@@ -67,38 +67,40 @@ export async function extractAndPersistIcs(args: {
     window
   });
 
-  if (candidates.length > 0) {
-    await prisma.eventCandidate.createMany({
-      data: candidates.map((candidate) => ({
-        calendarId: candidate.calendarId,
-        calendarSourceId: candidate.calendarSourceId,
-        rawTitle: candidate.rawTitle,
-        normalizedTitle: candidate.normalizedTitle ?? null,
-        category: candidate.category,
-        suggestedBusyStatus: candidate.suggestedBusyStatus,
-        startAt: candidate.startAt,
-        endAt: candidate.endAt,
-        allDay: candidate.allDay,
-        timezone: candidate.timezone,
-        confidence: candidate.confidence,
-        evidenceText: candidate.evidenceText ?? null,
-        evidenceLocator: candidate.evidenceLocator ?? null,
-        reviewStatus: candidate.reviewStatus
-      }))
-    });
-  }
+  const candidateData = candidates.map((candidate) => ({
+    calendarId: candidate.calendarId,
+    calendarSourceId: candidate.calendarSourceId,
+    rawTitle: candidate.rawTitle,
+    normalizedTitle: candidate.normalizedTitle ?? null,
+    category: candidate.category,
+    suggestedBusyStatus: candidate.suggestedBusyStatus,
+    startAt: candidate.startAt,
+    endAt: candidate.endAt,
+    allDay: candidate.allDay,
+    timezone: candidate.timezone,
+    confidence: candidate.confidence,
+    evidenceText: candidate.evidenceText ?? null,
+    evidenceLocator: candidate.evidenceLocator ?? null,
+    reviewStatus: candidate.reviewStatus
+  }));
 
-  await prisma.calendarSource.update({
-    where: { id: source.id },
-    data: {
-      contentHash: args.contentHash,
-      parserType: ParserType.ICS,
-      lastFetchedAt: now,
-      lastParsedAt: now,
-      refreshStatus:
-        errors.length === 0 ? RefreshStatus.OK : RefreshStatus.NEEDS_REVIEW
-    }
-  });
+  await prisma.$transaction([
+    prisma.eventCandidate.deleteMany({
+      where: { calendarSourceId: source.id, reviewStatus: ReviewStatus.PENDING }
+    }),
+    ...(candidateData.length > 0
+      ? [prisma.eventCandidate.createMany({ data: candidateData })]
+      : []),
+    prisma.calendarSource.update({
+      where: { id: source.id },
+      data: {
+        contentHash: args.contentHash,
+        parserType: ParserType.ICS,
+        lastFetchedAt: now,
+        lastParsedAt: now
+      }
+    })
+  ]);
 
   return { candidatesInserted: candidates.length, errors };
 }
@@ -114,21 +116,10 @@ export async function refreshIcsSource(
     throw new Error("ICS source is missing a URL");
   }
 
-  try {
-    const fetched = await fetchIcs(source.sourceUrl);
-    return await extractAndPersistIcs({
-      calendarSourceId,
-      icsText: fetched.text,
-      contentHash: fetched.contentHash
-    });
-  } catch (error) {
-    await prisma.calendarSource.update({
-      where: { id: calendarSourceId },
-      data: {
-        refreshStatus: RefreshStatus.FAILED,
-        lastFetchedAt: new Date()
-      }
-    });
-    throw error;
-  }
+  const fetched = await fetchIcs(source.sourceUrl);
+  return extractAndPersistIcs({
+    calendarSourceId,
+    icsText: fetched.text,
+    contentHash: fetched.contentHash
+  });
 }

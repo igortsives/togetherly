@@ -1338,3 +1338,26 @@ a {
   color: var(--muted);
   font-size: 0.78rem;
 }
+
+.sourceItemActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.subtleButton.danger {
+  color: var(--rose);
+  border-color: var(--rose);
+}
+
+.subtleButton.danger:hover {
+  background: #fdecef;
+}
+
+.pill-failed {
+  background: #fdecef;
+  color: var(--rose);
+  border: 1px solid #f4c0c8;
+}

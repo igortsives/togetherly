@@ -1,4 +1,4 @@
-import { CalendarType, EventCategory, ParserType, RefreshStatus } from "@prisma/client";
+import { CalendarType, EventCategory, ParserType, ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   eventCandidateInputSchema,
@@ -53,69 +53,60 @@ export async function refreshMicrosoftSource(
     throw new Error("Microsoft calendar source is missing providerCalendarId");
   }
 
-  try {
-    const microsoftEvents = await listMicrosoftCalendarEvents(
-      source.calendar.family.ownerId,
-      source.providerCalendarId,
-      {
-        timeMin: new Date(now.getTime() - LOOKBACK_DAYS * DAY_MS),
-        timeMax: new Date(now.getTime() + LOOKAHEAD_DAYS * DAY_MS)
-      },
-      args.deps
-    );
+  const microsoftEvents = await listMicrosoftCalendarEvents(
+    source.calendar.family.ownerId,
+    source.providerCalendarId,
+    {
+      timeMin: new Date(now.getTime() - LOOKBACK_DAYS * DAY_MS),
+      timeMax: new Date(now.getTime() + LOOKAHEAD_DAYS * DAY_MS)
+    },
+    args.deps
+  );
 
-    const { candidates, errors } = mapMicrosoftEventsToCandidates({
-      microsoftEvents,
-      calendarId: source.calendarId,
-      calendarSourceId: source.id,
-      calendarType: source.calendar.type,
-      defaultTimezone:
-        source.calendar.timezone ?? source.calendar.family.timezone
-    });
+  const { candidates, errors } = mapMicrosoftEventsToCandidates({
+    microsoftEvents,
+    calendarId: source.calendarId,
+    calendarSourceId: source.id,
+    calendarType: source.calendar.type,
+    defaultTimezone:
+      source.calendar.timezone ?? source.calendar.family.timezone
+  });
 
-    if (candidates.length > 0) {
-      await prisma.eventCandidate.createMany({
-        data: candidates.map((candidate) => ({
-          calendarId: candidate.calendarId,
-          calendarSourceId: candidate.calendarSourceId,
-          rawTitle: candidate.rawTitle,
-          normalizedTitle: candidate.normalizedTitle ?? null,
-          category: candidate.category,
-          suggestedBusyStatus: candidate.suggestedBusyStatus,
-          startAt: candidate.startAt,
-          endAt: candidate.endAt,
-          allDay: candidate.allDay,
-          timezone: candidate.timezone,
-          confidence: candidate.confidence,
-          evidenceText: candidate.evidenceText ?? null,
-          evidenceLocator: candidate.evidenceLocator ?? null,
-          reviewStatus: candidate.reviewStatus
-        }))
-      });
-    }
+  const candidateData = candidates.map((candidate) => ({
+    calendarId: candidate.calendarId,
+    calendarSourceId: candidate.calendarSourceId,
+    rawTitle: candidate.rawTitle,
+    normalizedTitle: candidate.normalizedTitle ?? null,
+    category: candidate.category,
+    suggestedBusyStatus: candidate.suggestedBusyStatus,
+    startAt: candidate.startAt,
+    endAt: candidate.endAt,
+    allDay: candidate.allDay,
+    timezone: candidate.timezone,
+    confidence: candidate.confidence,
+    evidenceText: candidate.evidenceText ?? null,
+    evidenceLocator: candidate.evidenceLocator ?? null,
+    reviewStatus: candidate.reviewStatus
+  }));
 
-    await prisma.calendarSource.update({
+  await prisma.$transaction([
+    prisma.eventCandidate.deleteMany({
+      where: { calendarSourceId: source.id, reviewStatus: ReviewStatus.PENDING }
+    }),
+    ...(candidateData.length > 0
+      ? [prisma.eventCandidate.createMany({ data: candidateData })]
+      : []),
+    prisma.calendarSource.update({
       where: { id: source.id },
       data: {
         parserType: ParserType.OUTLOOK,
         lastFetchedAt: now,
-        lastParsedAt: now,
-        refreshStatus:
-          errors.length === 0 ? RefreshStatus.OK : RefreshStatus.NEEDS_REVIEW
+        lastParsedAt: now
       }
-    });
+    })
+  ]);
 
-    return { candidatesInserted: candidates.length, errors };
-  } catch (error) {
-    await prisma.calendarSource.update({
-      where: { id: args.calendarSourceId },
-      data: {
-        refreshStatus: RefreshStatus.FAILED,
-        lastFetchedAt: now
-      }
-    });
-    throw error;
-  }
+  return { candidatesInserted: candidates.length, errors };
 }
 
 export type MapMicrosoftEventsArgs = {
