@@ -59,6 +59,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         // Rate-limit defense (#64). Buckets layer: per-email blocks
         // password-spray against a single account; per-IP blocks an
         // attacker grinding across many emails from one host.
+        // Limit-exceeded does NOT record a new attempt — that would
+        // make the window self-extending and lock out legitimate users
+        // sharing an IP (NAT, family Wi-Fi). The rolling window decays
+        // as old rows age out.
         const emailLimit = await isRateLimited(emailKey, EMAIL_RATE_LIMIT);
         if (emailLimit.limited) {
           console.info("Sign-in rate-limited", {
@@ -80,15 +84,19 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         const user = await prisma.user.findUnique({ where: { email } });
 
         if (!user?.passwordHash) {
-          await recordFailedAttempt(emailKey);
-          await recordFailedAttempt(ipKey);
+          await Promise.all([
+            recordFailedAttempt(emailKey),
+            recordFailedAttempt(ipKey)
+          ]);
           return null;
         }
 
         const valid = await compare(parsed.data.password, user.passwordHash);
         if (!valid) {
-          await recordFailedAttempt(emailKey);
-          await recordFailedAttempt(ipKey);
+          await Promise.all([
+            recordFailedAttempt(emailKey),
+            recordFailedAttempt(ipKey)
+          ]);
           return null;
         }
 
