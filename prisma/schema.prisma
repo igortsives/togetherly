@@ -301,3 +301,12 @@ model BetaFeedback {
 
   @@index([userId])
 }
+
+model SignInAttempt {
+  id          String   @id @default(cuid())
+  key         String
+  attemptedAt DateTime @default(now())
+
+  @@index([key, attemptedAt])
+  @@index([attemptedAt])
+}

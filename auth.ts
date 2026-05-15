@@ -9,6 +9,15 @@ import { AuthProvider } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { credentialsLoginSchema } from "@/lib/auth/schemas";
 import { isSameOriginUrl } from "@/lib/auth/redirects";
+import {
+  EMAIL_RATE_LIMIT,
+  emailRateLimitKey,
+  IP_RATE_LIMIT,
+  ipFromRequest,
+  ipRateLimitKey,
+  isRateLimited,
+  recordFailedAttempt
+} from "@/lib/auth/rate-limit";
 
 declare module "next-auth" {
   interface Session {
@@ -39,18 +48,49 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      authorize: async (credentials) => {
+      authorize: async (credentials, request) => {
         const parsed = credentialsLoginSchema.safeParse(credentials);
         if (!parsed.success) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: parsed.data.email.toLowerCase() }
-        });
+        const email = parsed.data.email.toLowerCase();
+        const emailKey = emailRateLimitKey(email);
+        const ipKey = ipRateLimitKey(ipFromRequest(request));
 
-        if (!user?.passwordHash) return null;
+        // Rate-limit defense (#64). Buckets layer: per-email blocks
+        // password-spray against a single account; per-IP blocks an
+        // attacker grinding across many emails from one host.
+        const emailLimit = await isRateLimited(emailKey, EMAIL_RATE_LIMIT);
+        if (emailLimit.limited) {
+          console.info("Sign-in rate-limited", {
+            bucket: "email",
+            count: emailLimit.count
+          });
+          return null;
+        }
+
+        const ipLimit = await isRateLimited(ipKey, IP_RATE_LIMIT);
+        if (ipLimit.limited) {
+          console.info("Sign-in rate-limited", {
+            bucket: "ip",
+            count: ipLimit.count
+          });
+          return null;
+        }
+
+        const user = await prisma.user.findUnique({ where: { email } });
+
+        if (!user?.passwordHash) {
+          await recordFailedAttempt(emailKey);
+          await recordFailedAttempt(ipKey);
+          return null;
+        }
 
         const valid = await compare(parsed.data.password, user.passwordHash);
-        if (!valid) return null;
+        if (!valid) {
+          await recordFailedAttempt(emailKey);
+          await recordFailedAttempt(ipKey);
+          return null;
+        }
 
         return {
           id: user.id,
