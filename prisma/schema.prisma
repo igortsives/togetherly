@@ -82,18 +82,19 @@ enum EventCreator {
 }
 
 model User {
-  id            String       @id @default(cuid())
-  email         String       @unique
+  id            String         @id @default(cuid())
+  email         String         @unique
   name          String?
   image         String?
   emailVerified DateTime?
   passwordHash  String?
-  authProvider  AuthProvider @default(EMAIL)
+  authProvider  AuthProvider   @default(EMAIL)
   accounts      Account[]
   sessions      Session[]
   families      Family[]
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
+  feedback      BetaFeedback[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Account {
@@ -286,4 +287,17 @@ model FreeWindowResult {
 
   @@index([searchId])
   @@index([saved])
+}
+
+model BetaFeedback {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  route         String
+  score         Int?
+  body          String
+  allowFollowUp Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
 }
