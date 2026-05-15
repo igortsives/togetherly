@@ -17,9 +17,48 @@
 | id | Primary key |
 | email | Unique |
 | name | Optional |
-| auth_provider | email, google, apple |
+| image | Optional. Profile-picture URL returned by OAuth providers. |
+| emailVerified | Optional timestamp. Populated by OAuth providers; unused for credentials sign-in today. |
+| passwordHash | Optional bcrypt hash for the Credentials provider. Null when the user signed up via OAuth only. |
+| auth_provider | email, google, apple (Microsoft is a linkable provider but not yet an enum value — see [`TECH_DEBT.md`](./TECH_DEBT.md)) |
 | created_at | Timestamp |
 | updated_at | Timestamp |
+
+### Account (NextAuth)
+
+Added in PR #31. One row per provider linked to a user. Stores OAuth tokens that calendar integrations (Google #13, Outlook #18) consume directly via `prisma.account.findFirst({ where: { userId, provider } })`.
+
+| Field | Notes |
+|---|---|
+| id | Primary key |
+| userId | FK → `User.id` with `onDelete: Cascade` |
+| type, provider, providerAccountId | NextAuth provider identity. Unique on `(provider, providerAccountId)`. |
+| refresh_token, access_token | Bearer tokens used by the calendar API clients. **Currently stored as plaintext columns** — see [`TECH_DEBT.md`](./TECH_DEBT.md). |
+| expires_at | Unix seconds. Refreshed inline by `ensureGoogleAccessToken` / `ensureMicrosoftAccessToken`. |
+| token_type, scope, id_token, session_state | Provider metadata. |
+| createdAt, updatedAt | Audit timestamps. |
+
+### Session (NextAuth)
+
+Reserved for the database-session strategy. We run JWT sessions, so this table is empty in normal operation but kept in the schema for future opt-in.
+
+| Field | Notes |
+|---|---|
+| id | Primary key |
+| sessionToken | Unique token |
+| userId | FK → `User.id` with `onDelete: Cascade` |
+| expires | Session expiry |
+| createdAt, updatedAt | Audit timestamps |
+
+### VerificationToken (NextAuth)
+
+Reserved for email magic-link or password-reset flows. Not currently issued; the table exists so a future flow can use it without another migration.
+
+| Field | Notes |
+|---|---|
+| identifier | Subject (usually email) |
+| token | Unique token |
+| expires | Token expiry |
 
 ### Family
 
