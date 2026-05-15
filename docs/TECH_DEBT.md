@@ -36,7 +36,6 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 - [#48](https://github.com/igortsives/togetherly/issues/48) — Add MICROSOFT to AuthProvider enum and surface on /login *(P2)*
 - [#52](https://github.com/igortsives/togetherly/issues/52) — LLM-assisted extraction for ambiguous HTML/PDF events *(P2)*
 - [#53](https://github.com/igortsives/togetherly/issues/53) — Add Playwright E2E test setup *(P2)*
-- [#54](https://github.com/igortsives/togetherly/issues/54) — Migrate package.json#prisma config to prisma.config.ts before Prisma 7 *(P2)*
 - [#55](https://github.com/igortsives/togetherly/issues/55) — Replace pdf-parse createRequire indirection with a direct import *(P2)*
 
 ### Partial / continuing work
@@ -91,3 +90,4 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 - ~~Pipe-joined sort key in `hashCandidateSet`~~ — PR #36 fixup switched to JSON-tuple.
 - ~~Mid-flight refresh wiping the PENDING queue~~ — PR #36 fixup wrapped delete+create+update in `$transaction`.
 - ~~Destructive refresh silently reporting OK~~ — PR #36 fixup tightened `resolveRefreshStatus`.
+- ~~`package.json#prisma` config block triggers Prisma 6 deprecation warning~~ — closes [#54](https://github.com/igortsives/togetherly/issues/54); seed config now lives in [`prisma.config.ts`](../prisma.config.ts) (`migrations.seed`), ready for Prisma 7.

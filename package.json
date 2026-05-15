@@ -41,8 +41,5 @@
     "prisma": "^6.19.0",
     "typescript": "^5.9.3",
     "vitest": "^4.0.6"
-  },
-  "prisma": {
-    "seed": "node prisma/seed.mjs"
   }
 }
