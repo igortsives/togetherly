@@ -8,7 +8,7 @@ import {
 } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
-import { ensureDemoFamily } from "@/lib/family/dashboard";
+import { requireUserFamily } from "@/lib/family/session";
 import {
   buildCalendarEventInputFromCandidate,
   type CandidateOverrides
@@ -27,7 +27,7 @@ export async function rejectCandidateAction(formData: FormData) {
     throw new Error("Candidate ID is required");
   }
 
-  await ensureCandidateBelongsToDemoFamily(candidateId);
+  await ensureCandidateBelongsToCurrentFamily(candidateId);
 
   await prisma.eventCandidate.update({
     where: { id: candidateId },
@@ -70,7 +70,7 @@ async function confirmCandidate(
     throw new Error("Candidate ID is required");
   }
 
-  const candidate = await ensureCandidateBelongsToDemoFamily(candidateId);
+  const candidate = await ensureCandidateBelongsToCurrentFamily(candidateId);
 
   if (candidate.reviewStatus === ReviewStatus.CONFIRMED || candidate.reviewStatus === ReviewStatus.EDITED) {
     throw new Error("Candidate has already been confirmed.");
@@ -106,8 +106,8 @@ async function confirmCandidate(
   revalidatePath("/");
 }
 
-async function ensureCandidateBelongsToDemoFamily(candidateId: string) {
-  const family = await ensureDemoFamily();
+async function ensureCandidateBelongsToCurrentFamily(candidateId: string) {
+  const family = await requireUserFamily();
   const candidate = await prisma.eventCandidate.findFirst({
     where: {
       id: candidateId,

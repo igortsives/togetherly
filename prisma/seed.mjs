@@ -1,14 +1,19 @@
 import { PrismaClient } from "@prisma/client";
+import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
 
+const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD ?? "togetherly-dev";
+
 async function main() {
+  const passwordHash = await hash(DEMO_PASSWORD, 12);
   const user = await prisma.user.upsert({
     where: { email: "beta-parent@togetherly.local" },
-    update: {},
+    update: { passwordHash },
     create: {
       email: "beta-parent@togetherly.local",
-      name: "Beta Parent"
+      name: "Beta Parent",
+      passwordHash
     }
   });
 

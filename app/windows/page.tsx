@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Calendar, Search } from "lucide-react";
 import { prisma } from "@/lib/db/prisma";
-import { ensureDemoFamily } from "@/lib/family/dashboard";
+import { requireUserFamily } from "@/lib/family/session";
 import { searchFreeWindowsAction } from "../actions";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +49,7 @@ function formatDate(date: Date | string) {
 
 export default async function WindowsPage({ searchParams }: WindowsPageProps) {
   const params = await searchParams;
-  const family = await ensureDemoFamily().catch(() => null);
+  const family = await requireUserFamily().catch(() => null);
 
   const calendars = family
     ? await prisma.calendar.findMany({

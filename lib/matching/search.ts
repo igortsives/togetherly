@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { ensureDemoFamily } from "@/lib/family/dashboard";
+import { requireUserFamily } from "@/lib/family/session";
 import { freeWindowSearchInputSchema } from "@/lib/domain/schemas";
 import { buildBusyIntervals } from "./event-busy";
 import type { EventBusyInput } from "./event-busy";
@@ -27,7 +27,7 @@ export async function runFreeWindowSearch(
     includeExamAsBusy: formData.get("includeExamAsBusy")
   });
 
-  const family = await ensureDemoFamily();
+  const family = await requireUserFamily();
 
   const calendars = await prisma.calendar.findMany({
     where: { familyId: family.id, enabled: true },

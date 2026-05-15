@@ -1,6 +1,6 @@
 import { ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { ensureDemoFamily } from "@/lib/family/dashboard";
+import { requireUserFamily } from "@/lib/family/session";
 import { serializeCandidate, type SerializedCandidate } from "./candidates";
 
 export type ReviewQueueGroup = {
@@ -27,7 +27,7 @@ export type ReviewQueueUnavailable = {
 
 export async function getReviewQueue(): Promise<ReviewQueue | ReviewQueueUnavailable> {
   try {
-    const family = await ensureDemoFamily();
+    const family = await requireUserFamily();
 
     const calendars = await prisma.calendar.findMany({
       where: { familyId: family.id },
