@@ -21,6 +21,8 @@ pnpm-debug.log*
 # prisma/local data
 *.db
 *.db-journal
+storage
+
 
 # system
 .DS_Store
