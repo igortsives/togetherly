@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import path from "node:path";
-import { ParserType, RefreshStatus, ReviewStatus } from "@prisma/client";
+import { ParserType, ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import {
   extractPdfTextEvents,
@@ -72,70 +72,53 @@ export async function extractAndPersistPdf(args: {
   });
 
   if (!source.uploadedFileKey) {
-    await markFailed(source.id, now);
     throw new Error("PDF source is missing an uploaded file key.");
   }
 
-  try {
-    const { text } = await readPdfText(source.uploadedFileKey);
+  const { text } = await readPdfText(source.uploadedFileKey);
 
-    const { candidates, errors } = extractPdfTextEvents(text, {
-      calendarId: source.calendarId,
-      calendarSourceId: source.id,
-      calendarType: source.calendar.type,
-      defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
-    });
+  const { candidates, errors } = extractPdfTextEvents(text, {
+    calendarId: source.calendarId,
+    calendarSourceId: source.id,
+    calendarType: source.calendar.type,
+    defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
+  });
 
-    await prisma.eventCandidate.deleteMany({
+  const candidateData = candidates.map((candidate) => ({
+    calendarId: candidate.calendarId,
+    calendarSourceId: candidate.calendarSourceId,
+    rawTitle: candidate.rawTitle,
+    normalizedTitle: candidate.normalizedTitle ?? null,
+    category: candidate.category,
+    suggestedBusyStatus: candidate.suggestedBusyStatus,
+    startAt: candidate.startAt,
+    endAt: candidate.endAt,
+    allDay: candidate.allDay,
+    timezone: candidate.timezone,
+    confidence: candidate.confidence,
+    evidenceText: candidate.evidenceText ?? null,
+    evidenceLocator: candidate.evidenceLocator ?? null,
+    reviewStatus: candidate.reviewStatus
+  }));
+
+  await prisma.$transaction([
+    prisma.eventCandidate.deleteMany({
       where: { calendarSourceId: source.id, reviewStatus: ReviewStatus.PENDING }
-    });
-
-    if (candidates.length > 0) {
-      await prisma.eventCandidate.createMany({
-        data: candidates.map((candidate) => ({
-          calendarId: candidate.calendarId,
-          calendarSourceId: candidate.calendarSourceId,
-          rawTitle: candidate.rawTitle,
-          normalizedTitle: candidate.normalizedTitle ?? null,
-          category: candidate.category,
-          suggestedBusyStatus: candidate.suggestedBusyStatus,
-          startAt: candidate.startAt,
-          endAt: candidate.endAt,
-          allDay: candidate.allDay,
-          timezone: candidate.timezone,
-          confidence: candidate.confidence,
-          evidenceText: candidate.evidenceText ?? null,
-          evidenceLocator: candidate.evidenceLocator ?? null,
-          reviewStatus: candidate.reviewStatus
-        }))
-      });
-    }
-
-    await prisma.calendarSource.update({
+    }),
+    ...(candidateData.length > 0
+      ? [prisma.eventCandidate.createMany({ data: candidateData })]
+      : []),
+    prisma.calendarSource.update({
       where: { id: source.id },
       data: {
         parserType: ParserType.PDF_TEXT,
         lastFetchedAt: now,
         lastParsedAt: now
       }
-    });
+    })
+  ]);
 
-    return { candidatesInserted: candidates.length, errors };
-  } catch (error) {
-    await markFailed(source.id, now);
-    throw error;
-  }
-}
-
-async function markFailed(calendarSourceId: string, now: Date) {
-  await prisma.calendarSource.update({
-    where: { id: calendarSourceId },
-    data: {
-      refreshStatus: RefreshStatus.FAILED,
-      parserType: ParserType.PDF_TEXT,
-      lastFetchedAt: now
-    }
-  });
+  return { candidatesInserted: candidates.length, errors };
 }
 
 type PdfParseFn = (

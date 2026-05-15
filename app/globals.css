@@ -1355,3 +1355,9 @@ a {
 .subtleButton.danger:hover {
   background: #fdecef;
 }
+
+.pill-failed {
+  background: #fdecef;
+  color: var(--rose);
+  border: 1px solid #f4c0c8;
+}

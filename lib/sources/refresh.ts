@@ -51,6 +51,7 @@ export async function refreshSource(sourceId: string): Promise<RefreshOutcome> {
     isFirstRefresh,
     beforeHash: beforeSnapshot.hash,
     afterHash: afterSnapshot.hash,
+    candidatesBefore: beforeSnapshot.candidates.length,
     candidatesAfter: afterSnapshot.candidates.length
   });
 
@@ -142,8 +143,18 @@ export function hashCandidateSet(candidates: CandidateSnapshotInput[]): string {
       evidenceLocator: candidate.evidenceLocator ?? null
     }))
     .sort((left, right) => {
-      const a = `${left.startAt}|${left.endAt}|${left.rawTitle}|${left.evidenceLocator ?? ""}`;
-      const b = `${right.startAt}|${right.endAt}|${right.rawTitle}|${right.evidenceLocator ?? ""}`;
+      const a = JSON.stringify([
+        left.startAt,
+        left.endAt,
+        left.rawTitle,
+        left.evidenceLocator ?? null
+      ]);
+      const b = JSON.stringify([
+        right.startAt,
+        right.endAt,
+        right.rawTitle,
+        right.evidenceLocator ?? null
+      ]);
       return a < b ? -1 : a > b ? 1 : 0;
     });
 
@@ -156,11 +167,18 @@ export function resolveRefreshStatus(args: {
   isFirstRefresh: boolean;
   beforeHash: string;
   afterHash: string;
+  candidatesBefore: number;
   candidatesAfter: number;
 }): RefreshStatus {
-  const { isFirstRefresh, beforeHash, afterHash, candidatesAfter } = args;
+  const {
+    isFirstRefresh,
+    beforeHash,
+    afterHash,
+    candidatesBefore,
+    candidatesAfter
+  } = args;
 
-  if (candidatesAfter === 0) {
+  if (candidatesBefore === 0 && candidatesAfter === 0) {
     return RefreshStatus.OK;
   }
 

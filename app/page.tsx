@@ -67,7 +67,7 @@ function refreshStatusClass(status: RefreshStatus): string {
     case RefreshStatus.NEEDS_REVIEW:
       return "pill pill-unknown";
     case RefreshStatus.FAILED:
-      return "pill pill-busy-busy";
+      return "pill pill-failed";
   }
 }
 
@@ -531,12 +531,14 @@ export default async function Home() {
                       <span className={refreshStatusClass(source.refreshStatus)}>
                         {formatRefreshStatus(source.refreshStatus)}
                       </span>
-                      <form action={refreshSourceAction}>
-                        <input name="sourceId" type="hidden" value={source.id} />
-                        <button className="subtleButton" type="submit">
-                          Refresh
-                        </button>
-                      </form>
+                      {source.sourceType !== SourceType.PDF_UPLOAD ? (
+                        <form action={refreshSourceAction}>
+                          <input name="sourceId" type="hidden" value={source.id} />
+                          <button className="subtleButton" type="submit">
+                            Refresh
+                          </button>
+                        </form>
+                      ) : null}
                       <form action={deleteSourceAction}>
                         <input name="sourceId" type="hidden" value={source.id} />
                         <button className="subtleButton danger" type="submit">

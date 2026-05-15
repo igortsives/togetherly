@@ -78,15 +78,30 @@ describe("hashCandidateSet", () => {
 });
 
 describe("resolveRefreshStatus", () => {
-  it("returns OK when the after-snapshot is empty", () => {
+  it("returns OK only when both snapshots are empty (no work to do)", () => {
     expect(
       resolveRefreshStatus({
         isFirstRefresh: false,
-        beforeHash: "a",
-        afterHash: "b",
+        beforeHash: "empty",
+        afterHash: "empty",
+        candidatesBefore: 0,
         candidatesAfter: 0
       })
     ).toBe(RefreshStatus.OK);
+  });
+
+  it("returns CHANGED when a previously-non-empty PENDING set is wiped", () => {
+    // Regression: an extractor that returns zero events for a source that
+    // previously had unreviewed candidates must NOT silently report OK.
+    expect(
+      resolveRefreshStatus({
+        isFirstRefresh: false,
+        beforeHash: "had-twelve",
+        afterHash: "empty",
+        candidatesBefore: 12,
+        candidatesAfter: 0
+      })
+    ).toBe(RefreshStatus.CHANGED);
   });
 
   it("returns NEEDS_REVIEW on the first refresh when candidates were produced", () => {
@@ -95,6 +110,7 @@ describe("resolveRefreshStatus", () => {
         isFirstRefresh: true,
         beforeHash: "empty",
         afterHash: "non-empty",
+        candidatesBefore: 0,
         candidatesAfter: 5
       })
     ).toBe(RefreshStatus.NEEDS_REVIEW);
@@ -106,6 +122,7 @@ describe("resolveRefreshStatus", () => {
         isFirstRefresh: false,
         beforeHash: "abc",
         afterHash: "abc",
+        candidatesBefore: 4,
         candidatesAfter: 4
       })
     ).toBe(RefreshStatus.OK);
@@ -117,6 +134,7 @@ describe("resolveRefreshStatus", () => {
         isFirstRefresh: false,
         beforeHash: "abc",
         afterHash: "def",
+        candidatesBefore: 4,
         candidatesAfter: 4
       })
     ).toBe(RefreshStatus.CHANGED);

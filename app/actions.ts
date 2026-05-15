@@ -150,6 +150,7 @@ export async function refreshSourceAction(formData: FormData) {
 
   revalidatePath("/");
   revalidatePath("/review");
+  revalidatePath("/windows");
 }
 
 export async function deleteSourceAction(formData: FormData) {
@@ -170,6 +171,7 @@ export async function deleteSourceAction(formData: FormData) {
   await prisma.calendarSource.delete({ where: { id: sourceId } });
   revalidatePath("/");
   revalidatePath("/review");
+  revalidatePath("/windows");
 }
 
 export async function toggleCalendarAction(formData: FormData) {
