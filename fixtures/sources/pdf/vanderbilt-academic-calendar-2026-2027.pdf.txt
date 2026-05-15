@@ -1,0 +1,47 @@
+VANDERBILT UNIVERSITY
+OFFICE OF THE UNIVERSITY REGISTRAR
+ACADEMIC CALENDAR 2026-2027 (UNDERGRADUATE)
+
+Note: This .pdf.txt fixture is a synthetic representation of the text layer
+of a Vanderbilt registrar academic calendar PDF (modeled on the format used at
+https://registrar.vanderbilt.edu/calendars/2026-27.php and the Owen 2026-27 PDF).
+Use it to exercise the PDF text-layer extractor (issue #7) before live PDFs
+are available. Two-column layout, sentence ordering, and label wording mirror
+the Vanderbilt registrar publishing pattern. Dated rows use only well-known
+anchor dates (federal holidays + the Vanderbilt semester pattern). Verify
+against the live PDF before relying on dated values for production.
+
+------------------------------------------------------------
+
+FALL SEMESTER 2026
+  Move-in / Welcome Week Begins ............ Tuesday, August 18, 2026
+  Classes Begin ............................ Wednesday, August 26, 2026
+  Labor Day (university holiday) ........... Monday, September 7, 2026
+  Fall Break ............................... Thursday-Friday, October 15-16, 2026
+  Thanksgiving Break ....................... Wednesday-Friday, November 25-27, 2026
+  Classes End .............................. Friday, December 4, 2026
+  Reading Days ............................. Saturday-Sunday, December 5-6, 2026
+  Final Examinations ....................... Monday-Wednesday, December 7-16, 2026
+
+WINTER BREAK (UNIVERSITY CLOSED)
+  Winter Break ............................. Thursday, December 17, 2026 - Sunday, January 10, 2027
+
+SPRING SEMESTER 2027
+  Classes Begin ............................ Monday, January 11, 2027
+  Martin Luther King Jr. Day ............... Monday, January 18, 2027
+  Spring Break ............................. Saturday, March 6 - Sunday, March 14, 2027
+  Good Friday Observance ................... Friday, March 26, 2027
+  Classes End .............................. Monday, April 26, 2027
+  Reading Days ............................. Tuesday-Wednesday, April 27-28, 2027
+  Final Examinations ....................... Thursday, April 29 - Friday, May 7, 2027
+  Commencement ............................. Friday, May 14, 2027
+
+SUMMER SESSIONS 2027
+  Maymester ................................ Monday, May 17 - Friday, June 4, 2027
+  Memorial Day (university holiday) ........ Monday, May 31, 2027
+  Summer Session I ......................... Monday, June 7 - Friday, July 9, 2027
+  Independence Day (observed) .............. Monday, July 5, 2027
+  Summer Session II ........................ Monday, July 12 - Friday, August 13, 2027
+
+------------------------------------------------------------
+Captured: 2026-05-14 (structure modeled offline; see docs/SOURCE_CORPUS.md)

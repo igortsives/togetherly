@@ -1,0 +1,51 @@
+UCLA OFFICE OF THE REGISTRAR
+ANNUAL ACADEMIC CALENDAR 2026-2027
+
+Note: This .pdf.txt fixture is a synthetic representation of the text layer
+of the UCLA registrar PDF at
+https://registrar.ucla.edu/portals/50/documents/calendar/academiccalendar26-27.pdf
+Use it to exercise the PDF text-layer extractor (issue #7) before live PDFs
+are available. Multi-column layout, sentence ordering, and label wording mirror
+the published UCLA pattern. Dated rows use only well-known anchor dates
+(federal holidays + the canonical UCLA quarter-system pattern). Verify against
+the live PDF before relying on dated values for production.
+
+------------------------------------------------------------
+
+FALL QUARTER 2026
+  Instruction Begins ............................... Thursday, September 24, 2026
+  Veterans Day Holiday ............................. Wednesday, November 11, 2026
+  Thanksgiving Holiday ............................. Thursday-Friday, November 26-27, 2026
+  Instruction Ends ................................. Friday, December 4, 2026
+  Final Examinations ............................... Saturday-Friday, December 5-11, 2026
+  Quarter Ends ..................................... Friday, December 11, 2026
+
+WINTER QUARTER 2027
+  Instruction Begins ............................... Monday, January 4, 2027
+  Martin Luther King Jr. Holiday ................... Monday, January 18, 2027
+  Presidents Day Holiday ........................... Monday, February 15, 2027
+  Instruction Ends ................................. Friday, March 12, 2027
+  Final Examinations ............................... Saturday-Friday, March 13-19, 2027
+  Quarter Ends ..................................... Friday, March 19, 2027
+
+SPRING QUARTER 2027
+  Instruction Begins ............................... Monday, March 29, 2027
+  Cesar Chavez Holiday ............................. Friday, April 2, 2027
+  Memorial Day Holiday ............................. Monday, May 31, 2027
+  Instruction Ends ................................. Friday, June 4, 2027
+  Final Examinations ............................... Saturday-Friday, June 5-11, 2027
+  Quarter Ends ..................................... Friday, June 11, 2027
+  Commencement ..................................... Friday-Sunday, June 11-13, 2027
+
+SUMMER SESSIONS 2027
+  Session A Instruction Begins ..................... Monday, June 21, 2027
+  Independence Day Holiday (observed) .............. Monday, July 5, 2027
+  Session A Ends ................................... Friday, July 30, 2027
+  Session C Instruction Begins ..................... Monday, August 2, 2027
+  Session C Ends ................................... Friday, September 10, 2027
+
+University holidays: Veterans Day, Thanksgiving (Thu and Fri), Martin Luther
+King Jr. Day, Presidents Day, Cesar Chavez Day, Memorial Day, Independence Day.
+
+------------------------------------------------------------
+Captured: 2026-05-14 (structure modeled offline; see docs/SOURCE_CORPUS.md)
