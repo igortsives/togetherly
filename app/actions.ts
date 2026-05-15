@@ -4,6 +4,7 @@ import { RefreshStatus, SourceType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { signIn, signOut } from "@/auth";
+import { sanitizeRedirectPath } from "@/lib/auth/redirects";
 import { prisma } from "@/lib/db/prisma";
 import {
   betaFeedbackInputSchema,
@@ -321,20 +322,21 @@ export async function submitBetaFeedbackAction(formData: FormData) {
     allowFollowUp: formData.get("allowFollowUp")
   });
 
+  const target = sanitizeRedirectPath(input.route);
+
   await prisma.betaFeedback.create({
     data: {
       userId,
-      route: input.route,
+      route: target,
       score: input.score,
       body: input.body,
       allowFollowUp: input.allowFollowUp
     }
   });
 
-  revalidatePath(input.route);
+  revalidatePath(target);
   revalidatePath("/feedback");
 
-  const target = input.route.startsWith("/") ? input.route : "/";
   const separator = target.includes("?") ? "&" : "?";
   redirect(`${target}${separator}feedback=sent`);
 }

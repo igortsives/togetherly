@@ -6,12 +6,10 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 
 ### Security / privacy (must be resolved before public launch)
 
-- [#38](https://github.com/igortsives/togetherly/issues/38) — Harden OAuth account linking before public launch *(P0, Private Beta)*
 - [#42](https://github.com/igortsives/togetherly/issues/42) — In-product OAuth disconnect for Google and Microsoft *(P1, Private Beta)*
 - [#43](https://github.com/igortsives/togetherly/issues/43) — In-product account deletion flow *(P1, Private Beta)*
 - [#49](https://github.com/igortsives/togetherly/issues/49) — Push family-ownership check into refreshSource() *(P2)*
 - [#62](https://github.com/igortsives/togetherly/issues/62) — Fix account enumeration on /register *(P1, Private Beta)*
-- [#63](https://github.com/igortsives/togetherly/issues/63) — Restrict OAuth callbackUrl and post-action redirects to same-origin *(P1, Private Beta)*
 - [#64](https://github.com/igortsives/togetherly/issues/64) — Add rate limiting on Credentials sign-in *(P1, Private Beta)*
 - [#65](https://github.com/igortsives/togetherly/issues/65) — Unique constraint on Family.ownerId to prevent duplicate-family race *(P2)*
 - [#66](https://github.com/igortsives/togetherly/issues/66) — Serialize OAuth token refresh per Account *(P2)*
@@ -92,3 +90,5 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 - ~~Destructive refresh silently reporting OK~~ — PR #36 fixup tightened `resolveRefreshStatus`.
 - ~~`pdf-parse` loaded via `createRequire` indirection~~ — closes [#55](https://github.com/igortsives/togetherly/issues/55); replaced with a direct `import pdfParseModule from "pdf-parse"` plus a small CJS-default unwrap in [`lib/sources/pdf-ingest.ts`](../lib/sources/pdf-ingest.ts), with an ambient module shim in [`types/pdf-parse.d.ts`](../types/pdf-parse.d.ts).
 - ~~`package.json#prisma` config block triggers Prisma 6 deprecation warning~~ — closes [#54](https://github.com/igortsives/togetherly/issues/54); seed config now lives in [`prisma.config.ts`](../prisma.config.ts) (`migrations.seed`), ready for Prisma 7.
+- ~~Harden OAuth account linking before public launch~~ — closes [#38](https://github.com/igortsives/togetherly/issues/38); [`auth.ts`](../auth.ts) now has a `signIn` callback that rejects Google sign-ins where `profile.email_verified !== true`, closing the account-linking takeover path while keeping `allowDangerousEmailAccountLinking` for the legitimate cross-provider linking flow. Microsoft Entra ID has no equivalent per-claim flag but verifies email at the tenant level.
+- ~~Restrict OAuth callbackUrl and post-action redirects to same-origin~~ — closes [#63](https://github.com/igortsives/togetherly/issues/63); [`lib/auth/redirects.ts`](../lib/auth/redirects.ts) supplies `sanitizeRedirectPath` (allowlist: `/`, `/review`, `/windows`, `/feedback`) and `isSameOriginUrl`, wired into the NextAuth `redirect` callback, the login page's `callbackUrl`, and `submitBetaFeedbackAction`'s `route` input.

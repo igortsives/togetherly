@@ -8,6 +8,7 @@ import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { AuthProvider } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { credentialsLoginSchema } from "@/lib/auth/schemas";
+import { isSameOriginUrl } from "@/lib/auth/redirects";
 
 declare module "next-auth" {
   interface Session {
@@ -104,6 +105,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       : [])
   ],
   callbacks: {
+    signIn: async ({ account, profile }) => {
+      // Defense against account-linking takeover. With
+      // allowDangerousEmailAccountLinking enabled on Google and
+      // Microsoft, NextAuth links by email match. Restrict that to
+      // emails the provider has actually verified — closes the
+      // "unverified email + matching Togetherly user" takeover path
+      // from issue #38.
+      //
+      // Google supplies an explicit `email_verified` claim. Microsoft
+      // Entra ID has no equivalent at the claim layer, but verifies
+      // emails at the directory/tenant level — accept those by default.
+      if (account?.provider === "google") {
+        const emailVerified =
+          (profile as { email_verified?: boolean } | null | undefined)
+            ?.email_verified;
+        if (emailVerified !== true) {
+          console.warn(
+            "Blocked Google sign-in: profile.email_verified is not true",
+            { providerAccountId: account.providerAccountId }
+          );
+          return false;
+        }
+      }
+      return true;
+    },
+    redirect: async ({ url, baseUrl }) => {
+      // Same-origin enforcement: defense against open-redirect via
+      // crafted callbackUrl. Cross-origin destinations fall back to
+      // the baseUrl root.
+      if (isSameOriginUrl(url, baseUrl)) {
+        try {
+          return new URL(url, baseUrl).toString();
+        } catch {
+          return baseUrl;
+        }
+      }
+      return baseUrl;
+    },
     jwt: async ({ token, user, account }) => {
       if (user?.id) {
         token.sub = user.id;
