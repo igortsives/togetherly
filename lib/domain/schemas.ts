@@ -160,6 +160,19 @@ export const freeWindowSearchInputSchema = z
     }
   });
 
+const optionalScoreSchema = z.preprocess((value) => {
+  if (value === undefined || value === null) return undefined;
+  if (typeof value === "string" && value.trim() === "") return undefined;
+  return value;
+}, z.coerce.number().int().min(1).max(5).optional());
+
+export const betaFeedbackInputSchema = z.object({
+  route: z.string().trim().min(1, "Route is required").max(200),
+  score: optionalScoreSchema,
+  body: z.string().trim().min(1, "Feedback is required").max(4000),
+  allowFollowUp: checkboxFlagSchema
+});
+
 export type ChildInput = z.infer<typeof childInputSchema>;
 export type CalendarInput = z.infer<typeof calendarInputSchema>;
 export type CalendarSourceInput = z.infer<typeof calendarSourceInputSchema>;
@@ -168,3 +181,4 @@ export type EventCandidate = z.output<typeof eventCandidateInputSchema>;
 export type CalendarEventInput = z.input<typeof calendarEventInputSchema>;
 export type CalendarEventNormalized = z.output<typeof calendarEventInputSchema>;
 export type FreeWindowSearchInput = z.infer<typeof freeWindowSearchInputSchema>;
+export type BetaFeedbackInput = z.infer<typeof betaFeedbackInputSchema>;

@@ -33,6 +33,8 @@ import { labelSourceType } from "@/lib/sources/source-metadata";
 
 export const dynamic = "force-dynamic";
 
+type HomeSearchParams = Promise<{ feedback?: string }>;
+
 const lastFetchedFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
@@ -89,9 +91,15 @@ const sourceTargets = [
   }
 ];
 
-export default async function Home() {
+export default async function Home({
+  searchParams
+}: {
+  searchParams?: HomeSearchParams;
+}) {
   const session = await auth();
   const userId = await getCurrentUserId();
+  const resolvedParams = searchParams ? await searchParams : undefined;
+  const feedbackSent = resolvedParams?.feedback === "sent";
   const dashboard = await getFamilyDashboard(userId);
   const timelineData = await getTimelineData();
   const googleConnection = userId
@@ -133,6 +141,7 @@ export default async function Home() {
           <a href="#sources">Sources</a>
           <Link href="/review">Review queue</Link>
           <Link href="/windows">Free windows</Link>
+          <Link href="/feedback?from=/">Send feedback</Link>
         </nav>
         {session?.user ? (
           <div className="sidebarAccount">
@@ -162,6 +171,13 @@ export default async function Home() {
             Add source
           </a>
         </header>
+
+        {feedbackSent ? (
+          <section className="feedbackChip" role="status">
+            <strong>Thanks — feedback received.</strong>
+            <span>We log every note privately. We may follow up if you opted in.</span>
+          </section>
+        ) : null}
 
         {!dashboard.dbAvailable ? (
           <section className="statusBanner" role="status">

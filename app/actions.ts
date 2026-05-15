@@ -6,11 +6,12 @@ import { redirect } from "next/navigation";
 import { signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import {
+  betaFeedbackInputSchema,
   calendarInputSchema,
   calendarSourceInputSchema,
   childInputSchema
 } from "@/lib/domain/schemas";
-import { requireUserFamily } from "@/lib/family/session";
+import { getCurrentUserId, requireUserFamily } from "@/lib/family/session";
 import { runFreeWindowSearch } from "@/lib/matching/search";
 import { refreshSource } from "@/lib/sources/refresh";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
@@ -304,6 +305,38 @@ export async function createOutlookCalendarSourceAction(formData: FormData) {
   }
 
   revalidatePath("/");
+}
+
+export async function submitBetaFeedbackAction(formData: FormData) {
+  await requireUserFamily();
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    throw new Error("Sign in to send feedback.");
+  }
+
+  const input = betaFeedbackInputSchema.parse({
+    route: formData.get("route"),
+    score: formData.get("score"),
+    body: formData.get("body"),
+    allowFollowUp: formData.get("allowFollowUp")
+  });
+
+  await prisma.betaFeedback.create({
+    data: {
+      userId,
+      route: input.route,
+      score: input.score,
+      body: input.body,
+      allowFollowUp: input.allowFollowUp
+    }
+  });
+
+  revalidatePath(input.route);
+  revalidatePath("/feedback");
+
+  const target = input.route.startsWith("/") ? input.route : "/";
+  const separator = target.includes("?") ? "&" : "?";
+  redirect(`${target}${separator}feedback=sent`);
 }
 
 async function ensureCalendarBelongsToCurrentFamily(calendarId: string) {
