@@ -1,0 +1,27 @@
+# dependencies
+node_modules
+
+# next
+.next
+out
+
+# production
+build
+
+# env
+.env
+.env*.local
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# prisma/local data
+*.db
+*.db-journal
+
+# system
+.DS_Store
+tsconfig.tsbuildinfo

@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  APPLE
+}
+
+enum CalendarType {
+  SCHOOL
+  UNIVERSITY
+  CAMP
+  SPORT
+  MUSIC
+  ACTIVITY
+  PARENT
+  CUSTODY
+  OTHER
+}
+
+enum SourceType {
+  URL
+  PDF_UPLOAD
+  ICS
+  GOOGLE_CALENDAR
+  OUTLOOK_CALENDAR
+}
+
+enum ParserType {
+  HTML
+  PDF_TEXT
+  PDF_OCR
+  ICS
+  GOOGLE
+  OUTLOOK
+  UNKNOWN
+}
+
+enum RefreshStatus {
+  OK
+  FAILED
+  CHANGED
+  NEEDS_REVIEW
+}
+
+enum EventCategory {
+  SCHOOL_CLOSED
+  BREAK
+  CLASS_IN_SESSION
+  EXAM_PERIOD
+  ACTIVITY_BUSY
+  OPTIONAL
+  UNKNOWN
+  MANUAL_BLOCK
+}
+
+enum BusyStatus {
+  BUSY
+  FREE
+  CONFIGURABLE
+  UNKNOWN
+}
+
+enum ReviewStatus {
+  PENDING
+  CONFIRMED
+  EDITED
+  REJECTED
+}
+
+enum EventCreator {
+  USER
+  EXTRACTOR
+  PROVIDER_SYNC
+}
+
+model User {
+  id           String       @id @default(cuid())
+  email        String       @unique
+  name         String?
+  authProvider AuthProvider @default(EMAIL)
+  families     Family[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Family {
+  id        String             @id @default(cuid())
+  ownerId   String
+  owner     User               @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  name      String?
+  timezone  String             @default("America/Los_Angeles")
+  children  Child[]
+  calendars Calendar[]
+  searches  FreeWindowSearch[]
+  createdAt DateTime           @default(now())
+  updatedAt DateTime           @updatedAt
+}
+
+model Child {
+  id        String     @id @default(cuid())
+  familyId  String
+  family    Family     @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  nickname  String
+  color     String?
+  calendars Calendar[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model Calendar {
+  id         String           @id @default(cuid())
+  familyId   String
+  childId    String?
+  family     Family           @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  child      Child?           @relation(fields: [childId], references: [id], onDelete: SetNull)
+  name       String
+  type       CalendarType
+  enabled    Boolean          @default(true)
+  timezone   String?
+  sources    CalendarSource[]
+  candidates EventCandidate[]
+  events     CalendarEvent[]
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+}
+
+model CalendarSource {
+  id                 String           @id @default(cuid())
+  calendarId         String
+  calendar           Calendar         @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  sourceType         SourceType
+  sourceUrl          String?
+  uploadedFileKey    String?
+  providerCalendarId String?
+  contentHash        String?
+  parserType         ParserType       @default(UNKNOWN)
+  refreshStatus      RefreshStatus    @default(NEEDS_REVIEW)
+  candidates         EventCandidate[]
+  lastFetchedAt      DateTime?
+  lastParsedAt       DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model EventCandidate {
+  id                  String         @id @default(cuid())
+  calendarSourceId    String
+  calendarId          String
+  calendarSource      CalendarSource @relation(fields: [calendarSourceId], references: [id], onDelete: Cascade)
+  calendar            Calendar       @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  rawTitle            String
+  normalizedTitle     String?
+  category            EventCategory  @default(UNKNOWN)
+  suggestedBusyStatus BusyStatus     @default(UNKNOWN)
+  startAt             DateTime
+  endAt               DateTime
+  allDay              Boolean        @default(true)
+  timezone            String
+  confidence          Decimal        @db.Decimal(3, 2)
+  evidenceText        String?
+  evidenceLocator     String?
+  reviewStatus        ReviewStatus   @default(PENDING)
+  confirmedEvent      CalendarEvent?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+}
+
+model CalendarEvent {
+  id               String          @id @default(cuid())
+  calendarId       String
+  eventCandidateId String?         @unique
+  calendar         Calendar        @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+  eventCandidate   EventCandidate? @relation(fields: [eventCandidateId], references: [id], onDelete: SetNull)
+  title            String
+  category         EventCategory
+  busyStatus       BusyStatus
+  startAt          DateTime
+  endAt            DateTime
+  allDay           Boolean         @default(true)
+  timezone         String
+  sourceConfidence Decimal?        @db.Decimal(3, 2)
+  createdBy        EventCreator    @default(USER)
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
+
+model FreeWindowSearch {
+  id                   String             @id @default(cuid())
+  familyId             String
+  family               Family             @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  startDate            DateTime
+  endDate              DateTime
+  minimumDays          Int
+  includeUnknownAsBusy Boolean            @default(true)
+  includeExamAsBusy    Boolean            @default(true)
+  results              FreeWindowResult[]
+  createdAt            DateTime           @default(now())
+}
+
+model FreeWindowResult {
+  id           String           @id @default(cuid())
+  searchId     String
+  search       FreeWindowSearch @relation(fields: [searchId], references: [id], onDelete: Cascade)
+  startDate    DateTime
+  endDate      DateTime
+  durationDays Int
+  score        Decimal?         @db.Decimal(5, 2)
+  explanation  Json?
+  saved        Boolean          @default(false)
+}
