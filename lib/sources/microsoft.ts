@@ -80,8 +80,13 @@ export async function getMicrosoftConnectionState(
     const calendars = await listMicrosoftCalendars(userId, deps);
     return { linked: true, calendars, error: null };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { linked: true, calendars: [], error: message };
+    console.error("Microsoft connection probe failed", { userId, error });
+    return {
+      linked: true,
+      calendars: [],
+      error:
+        "Couldn't reach Outlook Calendar with the linked account. Try re-linking, then refresh."
+    };
   }
 }
 
@@ -195,9 +200,8 @@ async function refreshMicrosoftAccessToken(
   });
 
   if (!response.ok) {
-    const text = await response.text();
     throw new MicrosoftAccessError(
-      `Failed to refresh Microsoft access token: ${response.status} ${text}`,
+      `Failed to refresh Microsoft access token (status ${response.status})`,
       response.status
     );
   }
@@ -239,9 +243,8 @@ async function callGraphApi(
   });
 
   if (!response.ok) {
-    const text = await response.text();
     throw new MicrosoftAccessError(
-      `Microsoft Graph request failed: ${response.status} ${text}`,
+      `Microsoft Graph request failed (status ${response.status})`,
       response.status
     );
   }

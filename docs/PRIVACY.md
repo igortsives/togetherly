@@ -71,10 +71,11 @@ OAuth access/refresh tokens for Google Calendar (#13, PR #33) and Outlook Calend
 - Tokens never cross into client components or API responses; they are read only inside server-side ingest paths.
 - Logs scrub tokens per [§6 Logging + Telemetry Boundary](#6-logging--telemetry-boundary).
 
-**Tech debt** ([`TECH_DEBT.md`](./TECH_DEBT.md)):
+**At-rest encryption (shipped in PR #37 follow-up):**
 
-- The `access_token` and `refresh_token` columns are stored as **plaintext** in PostgreSQL today. `OAUTH_TOKEN_ENCRYPTION_KEY` is declared in [`.env.example`](../.env.example) but is not yet wired to column-level encryption. Auth.js encrypts session cookies and JWTs using `AUTH_SECRET`, but that does not cover the `Account` table.
-- Resolving this requires either Prisma client-extension encryption or a Postgres-level approach (pgcrypto). Either is a follow-up before any data leaves the private-beta sandbox.
+- The `access_token`, `refresh_token`, and `id_token` columns on `Account` are now encrypted via AES-256-GCM before being written and decrypted on read. The encryption is applied transparently by a Prisma client `$extends` in [`lib/db/prisma.ts`](../lib/db/prisma.ts), so every code path — the NextAuth adapter, the calendar API clients, manual scripts — gets the protection without per-callsite changes.
+- Implementation: [`lib/auth/oauth-tokens.ts`](../lib/auth/oauth-tokens.ts). Encrypted values carry a `v1:` prefix; values without the prefix are treated as legacy plaintext (passthrough) so existing rows continue to work and roll forward to encrypted as the user refreshes tokens.
+- Key: `OAUTH_TOKEN_ENCRYPTION_KEY`. Generate with `openssl rand -base64 32`. Rotating the key invalidates all stored OAuth tokens and forces users to re-link.
 
 ## 2. Minimum-Data Principle
 
@@ -94,15 +95,9 @@ Applies to Google Calendar (#13) and Outlook Calendar (#18). Grounded in [`ARCHI
 
 ### 3.1 At-Rest Encryption
 
-**Target state:**
-
-- All access tokens, refresh tokens, and provider-issued secrets MUST be encrypted before being written to PostgreSQL.
-- The key is read from the `OAUTH_TOKEN_ENCRYPTION_KEY` env var (already declared in [`.env.example`](../.env.example)).
+- All access tokens, refresh tokens, and id_tokens are encrypted with AES-256-GCM before being written to the `Account` table. Encryption is transparent (Prisma `$extends`), so the NextAuth adapter and the calendar API clients all benefit without changes.
 - Decryption happens only in server-side code paths that need to make a provider API call. Tokens MUST NOT cross into client components, API responses, or logs.
-
-**Current state (private beta only):**
-
-- Tokens live in the NextAuth `Account` table as plaintext columns. The "never cross into client/API/logs" rules are enforced today; column-level encryption is not. See [`TECH_DEBT.md`](./TECH_DEBT.md).
+- Provider response bodies are scrubbed from thrown errors and from UI-facing error strings — only the HTTP status code is preserved. The full body is available in server-side logs at debug level only.
 
 ### 3.2 Scope Minimization
 
