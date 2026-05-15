@@ -8,15 +8,18 @@ import {
   Sparkles
 } from "lucide-react";
 import Link from "next/link";
+import { auth } from "@/auth";
 import {
   createCalendarAction,
   createChildAction,
   createPdfSourceAction,
   createUrlSourceAction,
+  signOutAction,
   toggleCalendarAction
 } from "./actions";
 import { Timeline } from "./components/Timeline";
 import { calendarTypeOptions, getFamilyDashboard } from "@/lib/family/dashboard";
+import { getCurrentUserId } from "@/lib/family/session";
 import { getTimelineData } from "@/lib/family/timeline";
 import { labelSourceType } from "@/lib/sources/source-metadata";
 
@@ -41,7 +44,9 @@ const sourceTargets = [
 ];
 
 export default async function Home() {
-  const dashboard = await getFamilyDashboard();
+  const session = await auth();
+  const userId = await getCurrentUserId();
+  const dashboard = await getFamilyDashboard(userId);
   const timelineData = await getTimelineData();
   const children = dashboard.family.children;
   const calendars = dashboard.family.calendars;
@@ -77,6 +82,21 @@ export default async function Home() {
           <Link href="/review">Review queue</Link>
           <Link href="/windows">Free windows</Link>
         </nav>
+        {session?.user ? (
+          <div className="sidebarAccount">
+            <div className="accountIdentity">
+              <strong>{session.user.name || session.user.email}</strong>
+              {session.user.name && session.user.email ? (
+                <span>{session.user.email}</span>
+              ) : null}
+            </div>
+            <form action={signOutAction}>
+              <button className="subtleButton" type="submit">
+                Sign out
+              </button>
+            </form>
+          </div>
+        ) : null}
       </aside>
 
       <section className="workspace">

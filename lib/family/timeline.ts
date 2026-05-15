@@ -6,7 +6,7 @@ import {
   type CalendarType
 } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { ensureDemoFamily } from "@/lib/family/dashboard";
+import { requireUserFamily } from "@/lib/family/session";
 import { requiresParentReview } from "@/lib/domain/event-taxonomy";
 
 export type TimelineBlockKind =
@@ -288,7 +288,7 @@ export async function getTimelineData(
   const range = buildRange(start, end);
 
   try {
-    const family = await ensureDemoFamily();
+    const family = await requireUserFamily();
 
     const children = await prisma.child.findMany({
       where: { familyId: family.id },

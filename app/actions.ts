@@ -3,13 +3,14 @@
 import { RefreshStatus, SourceType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { signOut } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import {
   calendarInputSchema,
   calendarSourceInputSchema,
   childInputSchema
 } from "@/lib/domain/schemas";
-import { ensureDemoFamily } from "@/lib/family/dashboard";
+import { requireUserFamily } from "@/lib/family/session";
 import { runFreeWindowSearch } from "@/lib/matching/search";
 import { refreshHtmlSource } from "@/lib/sources/html-ingest";
 import { refreshIcsSource } from "@/lib/sources/ics-ingest";
@@ -18,7 +19,7 @@ import { parserTypeForSource } from "@/lib/sources/source-metadata";
 import { storeCalendarPdf } from "@/lib/sources/storage";
 
 export async function createChildAction(formData: FormData) {
-  const family = await ensureDemoFamily();
+  const family = await requireUserFamily();
   const input = childInputSchema.parse({
     nickname: formData.get("nickname"),
     color: formData.get("color") || undefined
@@ -36,7 +37,7 @@ export async function createChildAction(formData: FormData) {
 }
 
 export async function createCalendarAction(formData: FormData) {
-  const family = await ensureDemoFamily();
+  const family = await requireUserFamily();
   const input = calendarInputSchema.parse({
     childId: formData.get("childId") || undefined,
     name: formData.get("name"),
@@ -69,7 +70,7 @@ export async function createUrlSourceAction(formData: FormData) {
     refreshStatus: RefreshStatus.NEEDS_REVIEW
   });
 
-  await ensureCalendarBelongsToDemoFamily(input.calendarId);
+  await ensureCalendarBelongsToCurrentFamily(input.calendarId);
 
   const source = await prisma.calendarSource.create({
     data: {
@@ -106,7 +107,7 @@ export async function createPdfSourceAction(formData: FormData) {
     throw new Error("Choose a PDF calendar file before uploading.");
   }
 
-  await ensureCalendarBelongsToDemoFamily(calendarId);
+  await ensureCalendarBelongsToCurrentFamily(calendarId);
   const storedUpload = await storeCalendarPdf(file);
   const input = calendarSourceInputSchema.parse({
     calendarId,
@@ -158,8 +159,12 @@ export async function searchFreeWindowsAction(formData: FormData) {
   redirect(`/windows?searchId=${result.searchId}`);
 }
 
-async function ensureCalendarBelongsToDemoFamily(calendarId: string) {
-  const family = await ensureDemoFamily();
+export async function signOutAction() {
+  await signOut({ redirectTo: "/login" });
+}
+
+async function ensureCalendarBelongsToCurrentFamily(calendarId: string) {
+  const family = await requireUserFamily();
   const calendar = await prisma.calendar.findFirst({
     where: {
       id: calendarId,
