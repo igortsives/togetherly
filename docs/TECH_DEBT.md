@@ -13,6 +13,8 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 - [#64](https://github.com/igortsives/togetherly/issues/64) — Add rate limiting on Credentials sign-in *(P1, Private Beta)*
 - [#65](https://github.com/igortsives/togetherly/issues/65) — Unique constraint on Family.ownerId to prevent duplicate-family race *(P2)*
 - [#66](https://github.com/igortsives/togetherly/issues/66) — Serialize OAuth token refresh per Account *(P2)*
+- [#76](https://github.com/igortsives/togetherly/issues/76) — Microsoft account-linking takeover residual on `common/v2.0` issuer *(P1, Private Beta)*
+- [#77](https://github.com/igortsives/togetherly/issues/77) — Apple sign-in lacks explicit gate in signIn callback *(P2)*
 
 ### Source refresh + change alerts (post-PR #36 follow-ups)
 
