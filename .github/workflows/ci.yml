@@ -5,11 +5,13 @@ on:
   push:
     branches:
       - main
-      - master
 
 jobs:
-  test:
+  validate:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
+      AUTH_SECRET: ci-placeholder-not-a-real-secret
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,20 +19,23 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: npm
 
       - name: Install dependencies
         run: npm ci
 
       - name: Generate Prisma client
-        run: npm run prisma:generate
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
 
       - name: Typecheck
         run: npm run typecheck
 
       - name: Test
-        run: npm run test
+        run: npm test
 
       - name: Build
         run: npm run build
