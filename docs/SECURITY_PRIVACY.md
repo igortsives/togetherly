@@ -1,5 +1,7 @@
 # Security And Privacy
 
+See also: [`PRIVACY.md`](./PRIVACY.md) for the engineering checklist on parent/child data handling, OAuth token handling, retention/deletion, data egress, and logging boundaries.
+
 ## Position
 
 Privacy is not a product blocker for the prototype, but the app handles children’s schedules and OAuth calendar tokens. The MVP should still use a practical security baseline from the beginning.

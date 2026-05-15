@@ -22,6 +22,7 @@ Togetherly helps families find overlapping free time across children’s school,
 - [Source Corpus](./docs/SOURCE_CORPUS.md)
 - [Private Beta Plan](./docs/BETA_PLAN.md)
 - [Security And Privacy](./docs/SECURITY_PRIVACY.md)
+- [Privacy And Child-Data Handling](./docs/PRIVACY.md)
 - [Engineering Setup](./docs/ENGINEERING_SETUP.md)
 - [GitHub Tracking](./docs/GITHUB_TRACKING.md)
 - [Roadmap](./docs/ROADMAP.md)
