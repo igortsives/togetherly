@@ -1,12 +1,13 @@
-import { SourceType } from "@prisma/client";
+import { ReviewStatus, SourceType } from "@prisma/client";
 import {
   CalendarCheck,
   FileUp,
-  Link,
+  Link as LinkIcon,
   Search,
   ShieldCheck,
   Sparkles
 } from "lucide-react";
+import Link from "next/link";
 import {
   createCalendarAction,
   createChildAction,
@@ -21,7 +22,7 @@ export const dynamic = "force-dynamic";
 
 const importOptions = [
   { label: "PDF", detail: "Academic calendar files", icon: FileUp },
-  { label: "URL", detail: "Registrar and school pages", icon: Link },
+  { label: "URL", detail: "Registrar and school pages", icon: LinkIcon },
   { label: "ICS", detail: "Sports and activity feeds", icon: CalendarCheck },
   { label: "Google", detail: "Family calendars", icon: Sparkles },
   { label: "Outlook", detail: "Work and household calendars", icon: ShieldCheck }
@@ -66,7 +67,14 @@ export default async function Home() {
     ? calendars.reduce((total, calendar) => total + calendar.sources.length, 0)
     : 0;
   const pendingReviewCount = dashboard.dbAvailable
-    ? calendars.reduce((total, calendar) => total + calendar.candidates.length, 0)
+    ? calendars.reduce(
+        (total, calendar) =>
+          total +
+          calendar.candidates.filter(
+            (candidate) => candidate.reviewStatus === ReviewStatus.PENDING
+          ).length,
+        0
+      )
     : 0;
 
   return (
@@ -84,7 +92,8 @@ export default async function Home() {
         <nav className="nav">
           <a href="#setup">Setup</a>
           <a href="#sources">Sources</a>
-          <a href="#windows">Free windows</a>
+          <Link href="/review">Review queue</Link>
+          <Link href="/windows">Free windows</Link>
         </nav>
       </aside>
 
@@ -120,10 +129,11 @@ export default async function Home() {
             <span>Imported sources</span>
             <strong>{sourceCount}</strong>
           </div>
-          <div className="metric">
+          <Link className="metric metricLink" href="/review">
             <span>Pending review</span>
             <strong>{pendingReviewCount}</strong>
-          </div>
+            <small>Open review queue →</small>
+          </Link>
         </section>
 
         <section id="setup" className="twoColumn">

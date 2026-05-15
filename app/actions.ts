@@ -2,6 +2,7 @@
 
 import { RefreshStatus, SourceType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import {
   calendarInputSchema,
@@ -9,6 +10,8 @@ import {
   childInputSchema
 } from "@/lib/domain/schemas";
 import { ensureDemoFamily } from "@/lib/family/dashboard";
+import { runFreeWindowSearch } from "@/lib/matching/search";
+import { refreshIcsSource } from "@/lib/sources/ics-ingest";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
 import { storeCalendarPdf } from "@/lib/sources/storage";
 
@@ -66,7 +69,7 @@ export async function createUrlSourceAction(formData: FormData) {
 
   await ensureCalendarBelongsToDemoFamily(input.calendarId);
 
-  await prisma.calendarSource.create({
+  const source = await prisma.calendarSource.create({
     data: {
       calendarId: input.calendarId,
       sourceType: input.sourceType,
@@ -75,6 +78,14 @@ export async function createUrlSourceAction(formData: FormData) {
       refreshStatus: input.refreshStatus
     }
   });
+
+  if (source.sourceType === SourceType.ICS) {
+    try {
+      await refreshIcsSource(source.id);
+    } catch (error) {
+      console.error("ICS extraction failed", { sourceId: source.id, error });
+    }
+  }
 
   revalidatePath("/");
 }
@@ -125,6 +136,12 @@ export async function toggleCalendarAction(formData: FormData) {
   });
 
   revalidatePath("/");
+}
+
+export async function searchFreeWindowsAction(formData: FormData) {
+  const result = await runFreeWindowSearch(formData);
+  revalidatePath("/windows");
+  redirect(`/windows?searchId=${result.searchId}`);
 }
 
 async function ensureCalendarBelongsToDemoFamily(calendarId: string) {

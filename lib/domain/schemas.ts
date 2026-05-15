@@ -132,8 +132,39 @@ export const calendarEventInputSchema = z
     busyStatus: event.busyStatus ?? getDefaultBusyStatus(event.category)
   }));
 
+const checkboxFlagSchema = z
+  .preprocess((value) => {
+    if (typeof value === "boolean") return value;
+    if (value === undefined || value === null) return false;
+    if (typeof value === "string") {
+      return value.length > 0 && value !== "false" && value !== "0";
+    }
+    return false;
+  }, z.boolean());
+
+export const freeWindowSearchInputSchema = z
+  .object({
+    startDate: z.coerce.date(),
+    endDate: z.coerce.date(),
+    minimumDays: z.coerce.number().int().min(1).max(365),
+    includeUnknownAsBusy: checkboxFlagSchema,
+    includeExamAsBusy: checkboxFlagSchema
+  })
+  .superRefine((search, context) => {
+    if (search.endDate <= search.startDate) {
+      context.addIssue({
+        code: "custom",
+        path: ["endDate"],
+        message: "End date must be after start date"
+      });
+    }
+  });
+
 export type ChildInput = z.infer<typeof childInputSchema>;
 export type CalendarInput = z.infer<typeof calendarInputSchema>;
 export type CalendarSourceInput = z.infer<typeof calendarSourceInputSchema>;
 export type EventCandidateInput = z.input<typeof eventCandidateInputSchema>;
+export type EventCandidate = z.output<typeof eventCandidateInputSchema>;
 export type CalendarEventInput = z.input<typeof calendarEventInputSchema>;
+export type CalendarEventNormalized = z.output<typeof calendarEventInputSchema>;
+export type FreeWindowSearchInput = z.infer<typeof freeWindowSearchInputSchema>;

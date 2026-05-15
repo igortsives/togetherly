@@ -607,3 +607,365 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+.metricLink {
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 120ms ease, transform 120ms ease;
+}
+
+.metricLink:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.metricLink small {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+.reviewEmpty {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.reviewEmpty h2 {
+  margin: 0 0 4px;
+  font-size: 1.1rem;
+}
+
+.reviewEmpty p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.reviewEmpty .primaryButton {
+  margin-left: auto;
+}
+
+.reviewGroup {
+  display: grid;
+  gap: 14px;
+}
+
+.reviewGroupMeta {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.reviewList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reviewRow {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fbfcfa;
+  padding: 14px;
+}
+
+.reviewRowHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.reviewRowTitle {
+  display: grid;
+  gap: 4px;
+}
+
+.reviewRowTitle span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.reviewBadges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  background: var(--panel-strong);
+  color: var(--foreground);
+  font-size: 0.74rem;
+  font-weight: 800;
+  padding: 4px 9px;
+  text-transform: capitalize;
+}
+
+.pill-warn {
+  background: #fff0d6;
+  color: var(--amber);
+}
+
+.pill-confidence {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.pill-busy-busy {
+  background: #f4d9dd;
+  color: var(--rose);
+}
+
+.pill-busy-free {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+
+.pill-busy-configurable {
+  background: #e6eef8;
+  color: var(--blue);
+}
+
+.pill-busy-unknown,
+.pill-unknown {
+  background: #fff0d6;
+  color: var(--amber);
+}
+
+.evidenceBlock {
+  display: grid;
+  gap: 4px;
+  border-left: 3px solid var(--accent-soft);
+  background: #ffffff;
+  padding: 8px 12px;
+}
+
+.evidenceBlock p {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 0.9rem;
+}
+
+.evidenceBlock small {
+  color: var(--muted);
+}
+
+.reviewActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.reviewActions form {
+  display: contents;
+}
+
+.reviewActions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 9px 12px;
+}
+
+.reviewEdit summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--accent-strong);
+  cursor: pointer;
+  font-weight: 800;
+  list-style: none;
+}
+
+.reviewEdit summary::-webkit-details-marker {
+  display: none;
+}
+
+.reviewEditForm {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.reviewEditForm label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.reviewEditForm input,
+.reviewEditForm select {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--foreground);
+  padding: 9px 11px;
+}
+
+.reviewEditForm .wideField {
+  grid-column: 1 / -1;
+}
+
+.reviewEditForm button {
+  justify-self: start;
+}
+
+@media (max-width: 920px) {
+  .reviewEditForm {
+    grid-template-columns: 1fr;
+  }
+
+  .reviewEmpty {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .reviewEmpty .primaryButton {
+    margin-left: 0;
+  }
+}
+
+.searchForm {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.searchForm label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.searchForm input[type="date"],
+.searchForm input[type="number"] {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--foreground);
+  padding: 10px 11px;
+}
+
+.searchForm .checkboxField {
+  flex-direction: row;
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.searchForm .checkboxField input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.searchForm .checkboxField span {
+  color: var(--foreground);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.searchForm button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 10px 14px;
+}
+
+.searchForm button:hover {
+  background: var(--accent-strong);
+}
+
+.windowResults {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.windowResult {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.windowResult header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.windowResult header div {
+  display: grid;
+  gap: 4px;
+}
+
+.windowResult header strong {
+  font-size: 1.05rem;
+}
+
+.windowResult header span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.explanation {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 0;
+}
+
+.explanation > div {
+  display: grid;
+  gap: 4px;
+  border-left: 3px solid var(--accent-soft);
+  padding-left: 10px;
+}
+
+.explanation dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.explanation dd {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 0.92rem;
+}
+
+@media (max-width: 920px) {
+  .searchForm,
+  .explanation {
+    grid-template-columns: 1fr;
+  }
+}
