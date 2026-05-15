@@ -28,7 +28,6 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 
 ### Process / tooling
 
-- [#39](https://github.com/igortsives/togetherly/issues/39) — Rename middleware.ts to proxy.ts (Next 16 deprecation) *(P1, Private Beta)*
 - [#47](https://github.com/igortsives/togetherly/issues/47) — GitHub Actions workflow for lint/typecheck/test/build *(P1, Private Beta)*
 - [#48](https://github.com/igortsives/togetherly/issues/48) — Add MICROSOFT to AuthProvider enum and surface on /login *(P2)*
 - [#52](https://github.com/igortsives/togetherly/issues/52) — LLM-assisted extraction for ambiguous HTML/PDF events *(P2)*
@@ -75,6 +74,7 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 
 ## Resolved (kept for context)
 
+- ~~Rename `middleware.ts` to `proxy.ts` (Next 16 deprecation)~~ — closes [#39](https://github.com/igortsives/togetherly/issues/39); the file convention is the only change, matcher syntax is unchanged.
 - ~~Demo-family seam removal~~ — PR #31 (`ensureDemoFamily` replaced with `requireUserFamily`).
 - ~~No OAuth token model in schema~~ — resolved by the NextAuth `Account` table in PR #31; encryption is now [#37](https://github.com/igortsives/togetherly/issues/37).
 - ~~UCLA + Vanderbilt fixtures synthetic~~ — PR #28 (live captures). Saratoga remains via [#19](https://github.com/igortsives/togetherly/issues/19).

@@ -40,7 +40,7 @@ Dashed nodes are not yet implemented. Source refresh fires only when a `Calendar
 
 | Service | Status | Responsibility |
 |---|---|---|
-| Auth service | Shipped (#17, PR #31) | NextAuth v5 + Prisma adapter. Configured in [`auth.ts`](../auth.ts) and gated by [`middleware.ts`](../middleware.ts). Email/password via Credentials provider with bcrypt; Google, Apple, and Microsoft as OAuth providers (Microsoft is linkable but not on the login UI). |
+| Auth service | Shipped (#17, PR #31) | NextAuth v5 + Prisma adapter. Configured in [`auth.ts`](../auth.ts) and gated by [`proxy.ts`](../proxy.ts). Email/password via Credentials provider with bcrypt; Google, Apple, and Microsoft as OAuth providers (Microsoft is linkable but not on the login UI). |
 | Family service | Shipped | Families, children, calendar ownership, calendar tags. Pure helpers in [`lib/family/dashboard.ts`](../lib/family/dashboard.ts); auth-coupled session resolution in [`lib/family/session.ts`](../lib/family/session.ts). |
 | Source service | Shipped (URL/ICS/PDF/Google/Outlook) | URL/PDF/ICS/provider source metadata. Provider-specific ingest orchestrators live in `lib/sources/*-ingest.ts`. |
 | Fetch service | Shipped | URL/ICS via global `fetch`; PDF via the local filesystem under `FILE_STORAGE_ROOT`; Google via Calendar API v3; Microsoft via Graph v1.0. |
@@ -60,7 +60,7 @@ Implemented in [`auth.ts`](../auth.ts) using `next-auth@^5.0.0-beta` with `@auth
   - **Google** — conditional on `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`. Scopes: `openid email profile https://www.googleapis.com/auth/calendar.readonly`. `access_type=offline`, `prompt=consent`, `allowDangerousEmailAccountLinking=true`.
   - **Apple** — conditional on `APPLE_CLIENT_ID`/`APPLE_CLIENT_SECRET`. Sign-in only; Apple Calendar API not used.
   - **Microsoft Entra ID** — conditional on `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET`. Issuer `/common/v2.0` (work + personal accounts). Scopes: `openid email profile offline_access Calendars.Read`. `prompt=consent`, `allowDangerousEmailAccountLinking=true`. Linkable provider, not surfaced on `/login`.
-- **Middleware:** [`middleware.ts`](../middleware.ts) gates every route except `/login`, `/register`, `/api/auth/*`, `/_next/*`, and `/favicon.ico`. Unauthenticated requests redirect to `/login?callbackUrl=...`. Next 16 deprecation note: the file should rename to `proxy.ts` eventually.
+- **Proxy:** [`proxy.ts`](../proxy.ts) gates every route except `/login`, `/register`, `/api/auth/*`, `/_next/*`, and `/favicon.ico`. Unauthenticated requests redirect to `/login?callbackUrl=...`. (Renamed from `middleware.ts` for the Next 16 deprecation — same file convention, just the new name; matcher syntax is unchanged.)
 - **Family resolution seam:** `requireUserFamily()` in [`lib/family/session.ts`](../lib/family/session.ts) is called by every server action and page reader. It lazily creates a `Family` row owned by the signed-in user if one doesn't exist.
 - **Why the file split:** `dashboard.ts` is pure (no `@/auth` import) so the helper tests run under vitest without `server.deps.inline` transformation. `session.ts` is the auth-coupled wrapper.
 
@@ -104,8 +104,8 @@ app/
   actions.ts                        Top-level server actions (sources, search, sign-out, OAuth link, etc.)
   page.tsx                          Dashboard
   globals.css                       Utility CSS (Stitch design integration is #32)
-auth.ts                             NextAuth config (root, imported by middleware + handlers)
-middleware.ts                       Route gating (rename to proxy.ts is a Next 16 follow-up)
+auth.ts                             NextAuth config (root, imported by proxy + handlers)
+proxy.ts                            Route gating (renamed from middleware.ts for Next 16)
 lib/
   auth/schemas.ts                   Zod schemas for credentials login/register
   db/prisma.ts                      Prisma client singleton
