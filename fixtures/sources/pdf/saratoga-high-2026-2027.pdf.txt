@@ -2,16 +2,27 @@ LOS GATOS-SARATOGA UNION HIGH SCHOOL DISTRICT
 2026-2027 INSTRUCTIONAL CALENDAR
 SARATOGA HIGH SCHOOL
 
-Note: This .pdf.txt fixture is a synthetic representation of the text layer
-of a LGSUHSD instructional calendar PDF (linked from
-https://www.lgsuhsd.org/resources/calendars-schedules). Use it to exercise the
-PDF text-layer extractor (issue #7) before live PDFs are available.
+Authoritative URLs:
+  https://www.saratogahigh.org/about-us/calendars-and-schedules
+  https://www.lgsuhsd.org/resources/calendars-schedules
+Captured: 2026-05-14
+
+Note: This .pdf.txt fixture is a HAND-AUTHORED STRUCTURAL EXCERPT, not a
+live capture. A live-capture attempt on 2026-05-14 found that the Saratoga
+High calendars page lists only the 2025-26 LGSUHSD Instructional Calendar
+PDF; the 2026-27 PDF was not yet published. Direct WebFetch of that PDF and
+of the LGSUHSD district calendars page were denied by the sandboxed
+environment, so this slice is deferred until the 2026-27 PDF is published
+and a live capture is permitted. See docs/SOURCE_CORPUS.md for the deferral
+log.
+
 Month-grid layout (with leading "month" header lines and one row per
-significant date) and label wording mirror the district's publishing pattern.
-Dated rows use only well-known anchor dates (federal holidays + the LGSUHSD
-pattern of starting the Wednesday before Labor Day, a full Thanksgiving week
-break, a two-week Winter Break, and ending the first week of June). Verify
-against the live PDF before relying on dated values for production.
+significant date) and label wording mirror the district's published 2025-26
+PDF. Dated rows use only well-known anchor dates (federal holidays + the
+LGSUHSD pattern of starting the Wednesday before Labor Day, a full
+Thanksgiving week break, a two-week Winter Break, and ending the first
+week of June). Verify against the live 2026-27 PDF before relying on dated
+values for production.
 
 ------------------------------------------------------------
 

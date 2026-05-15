@@ -15,7 +15,9 @@ import {
   createUrlSourceAction,
   toggleCalendarAction
 } from "./actions";
+import { Timeline } from "./components/Timeline";
 import { calendarTypeOptions, getFamilyDashboard } from "@/lib/family/dashboard";
+import { getTimelineData } from "@/lib/family/timeline";
 import { labelSourceType } from "@/lib/sources/source-metadata";
 
 export const dynamic = "force-dynamic";
@@ -38,29 +40,9 @@ const sourceTargets = [
   }
 ];
 
-const timelineRows = [
-  {
-    child: "College student",
-    source: "UCLA academic calendar",
-    blocks: [
-      { label: "Finals", start: 10, width: 10, kind: "busy" },
-      { label: "Winter break", start: 27, width: 18, kind: "free" },
-      { label: "Instruction", start: 55, width: 22, kind: "busy" }
-    ]
-  },
-  {
-    child: "High schooler",
-    source: "Saratoga High calendar",
-    blocks: [
-      { label: "School", start: 4, width: 18, kind: "busy" },
-      { label: "Winter break", start: 30, width: 18, kind: "free" },
-      { label: "School", start: 62, width: 20, kind: "busy" }
-    ]
-  }
-];
-
 export default async function Home() {
   const dashboard = await getFamilyDashboard();
+  const timelineData = await getTimelineData();
   const children = dashboard.family.children;
   const calendars = dashboard.family.calendars;
   const sourceCount = dashboard.dbAvailable
@@ -395,33 +377,47 @@ export default async function Home() {
         <section id="windows" className="section timelineSection">
           <div className="sectionHeader">
             <div>
-              <p className="eyebrow">Free-window match</p>
-              <h2>Shared availability appears only after review.</h2>
+              <p className="eyebrow">Shared free-time view</p>
+              <h2>Per-child timeline of confirmed busy and free intervals.</h2>
             </div>
-            <div className="windowBadge">Best match: Dec 23-Dec 29</div>
+            <Link className="primaryButton" href="/windows">
+              <Search size={16} aria-hidden="true" />
+              Search free windows
+            </Link>
           </div>
 
-          <div className="timeline" aria-label="Example free-time timeline">
-            {timelineRows.map((row) => (
-              <div className="timelineRow" key={row.child}>
-                <div className="rowLabel">
-                  <strong>{row.child}</strong>
-                  <span>{row.source}</span>
-                </div>
-                <div className="track">
-                  {row.blocks.map((block, blockIndex) => (
-                    <div
-                      className={`block ${block.kind}`}
-                      key={[row.child, block.label, block.start, blockIndex].join("-")}
-                      style={{ left: `${block.start}%`, width: `${block.width}%` }}
-                    >
-                      {block.label}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
+          {!timelineData.dbAvailable ? (
+            <div className="timelineEmpty" role="status">
+              <strong>Database setup needed</strong>
+              <span>{timelineData.setupError}</span>
+            </div>
+          ) : !timelineData.hasChildren ? (
+            <div className="timelineEmpty" role="status">
+              <strong>No children added yet.</strong>
+              <span>
+                Add a child in <a href="#setup">family setup</a> to start
+                building a per-child timeline.
+              </span>
+            </div>
+          ) : !timelineData.hasEvents ? (
+            <div className="timelineEmpty" role="status">
+              <strong>No confirmed events in the next 120 days.</strong>
+              <span>
+                Import a calendar source and{" "}
+                <Link href="/review">confirm pending events</Link> to populate
+                the timeline.
+              </span>
+              {timelineData.totalPending > 0 ? (
+                <span>
+                  {timelineData.totalPending} candidate
+                  {timelineData.totalPending === 1 ? "" : "s"} waiting in the
+                  review queue.
+                </span>
+              ) : null}
+            </div>
+          ) : (
+            <Timeline data={timelineData} />
+          )}
         </section>
       </section>
     </main>
