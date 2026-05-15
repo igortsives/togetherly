@@ -6,6 +6,10 @@ import {
   ShieldCheck,
   Sparkles
 } from "lucide-react";
+import { createCalendarAction, createChildAction, toggleCalendarAction } from "./actions";
+
+export const dynamic = "force-dynamic";
+import { calendarTypeOptions, getFamilyDashboard } from "@/lib/family/dashboard";
 
 const importOptions = [
   { label: "PDF", detail: "Academic calendar files", icon: FileUp },
@@ -16,16 +20,8 @@ const importOptions = [
 ];
 
 const sourceTargets = [
-  {
-    name: "UCLA",
-    format: "HTML + PDF",
-    status: "Corpus target"
-  },
-  {
-    name: "Vanderbilt",
-    format: "HTML + PDF",
-    status: "Corpus target"
-  },
+  { name: "UCLA", format: "HTML + PDF", status: "Corpus target" },
+  { name: "Vanderbilt", format: "HTML + PDF", status: "Corpus target" },
   {
     name: "Saratoga High / LGSUHSD",
     format: "HTML + linked calendars",
@@ -54,7 +50,14 @@ const timelineRows = [
   }
 ];
 
-export default function Home() {
+export default async function Home() {
+  const dashboard = await getFamilyDashboard();
+  const children = dashboard.family.children;
+  const calendars = dashboard.family.calendars;
+  const pendingReviewCount = dashboard.dbAvailable
+    ? calendars.reduce((total, calendar) => total + calendar.candidates.length, 0)
+    : 0;
+
   return (
     <main className="shell">
       <aside className="sidebar" aria-label="Togetherly navigation">
@@ -68,8 +71,8 @@ export default function Home() {
           </div>
         </div>
         <nav className="nav">
+          <a href="#setup">Setup</a>
           <a href="#sources">Sources</a>
-          <a href="#review">Review</a>
           <a href="#windows">Free windows</a>
         </nav>
       </aside>
@@ -86,22 +89,107 @@ export default function Home() {
           </button>
         </header>
 
+        {!dashboard.dbAvailable ? (
+          <section className="statusBanner" role="status">
+            <strong>Database setup needed</strong>
+            <span>{dashboard.setupError}</span>
+          </section>
+        ) : null}
+
         <section className="summaryGrid" aria-label="Setup summary">
           <div className="metric">
             <span>Children</span>
-            <strong>2</strong>
+            <strong>{children.length}</strong>
           </div>
           <div className="metric">
             <span>Calendar sources</span>
-            <strong>5</strong>
+            <strong>{calendars.length}</strong>
           </div>
           <div className="metric">
             <span>Pending review</span>
-            <strong>12</strong>
+            <strong>{pendingReviewCount}</strong>
           </div>
           <div className="metric">
             <span>Free window target</span>
             <strong>5 days</strong>
+          </div>
+        </section>
+
+        <section id="setup" className="twoColumn">
+          <div className="panel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Family setup</p>
+                <h2>Children</h2>
+              </div>
+            </div>
+            <form action={createChildAction} className="inlineForm">
+              <label>
+                Nickname
+                <input name="nickname" placeholder="College student" required />
+              </label>
+              <label>
+                Color
+                <input name="color" placeholder="#167c6c" />
+              </label>
+              <button type="submit">Add child</button>
+            </form>
+            <div className="entityList">
+              {children.map((child) => (
+                <div className="entityItem" key={child.id}>
+                  <span
+                    className="colorDot"
+                    style={{ background: child.color || "var(--accent)" }}
+                  />
+                  <div>
+                    <strong>{child.nickname}</strong>
+                    <span>{child.calendars.length} calendars</span>
+                  </div>
+                </div>
+              ))}
+              {children.length === 0 ? <p className="emptyState">No children yet.</p> : null}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Calendar setup</p>
+                <h2>Calendars</h2>
+              </div>
+            </div>
+            <form action={createCalendarAction} className="calendarForm">
+              <label>
+                Calendar name
+                <input name="name" placeholder="UCLA academic calendar" required />
+              </label>
+              <label>
+                Child
+                <select name="childId" defaultValue="">
+                  <option value="">Family / parent calendar</option>
+                  {children.map((child) => (
+                    <option key={child.id} value={child.id}>
+                      {child.nickname}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Type
+                <select name="type" defaultValue="SCHOOL">
+                  {calendarTypeOptions.map((type) => (
+                    <option key={type} value={type}>
+                      {type.replaceAll("_", " ").toLowerCase()}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Timezone
+                <input name="timezone" placeholder={dashboard.family.timezone} />
+              </label>
+              <button type="submit">Add calendar</button>
+            </form>
           </div>
         </section>
 
@@ -127,7 +215,36 @@ export default function Home() {
         </section>
 
         <section className="twoColumn">
-          <div id="review" className="panel">
+          <div className="panel">
+            <div className="sectionHeader compact">
+              <div>
+                <p className="eyebrow">Active calendars</p>
+                <h2>Family schedule inputs</h2>
+              </div>
+            </div>
+            <div className="sourceList">
+              {calendars.map((calendar) => (
+                <div className="sourceItem" key={calendar.id}>
+                  <div>
+                    <strong>{calendar.name}</strong>
+                    <span>
+                      {calendar.child?.nickname || "Family"} · {calendar.type.toLowerCase()}
+                    </span>
+                  </div>
+                  <form action={toggleCalendarAction}>
+                    <input name="calendarId" type="hidden" value={calendar.id} />
+                    <input name="enabled" type="hidden" value={String(calendar.enabled)} />
+                    <button className="subtleButton" type="submit">
+                      {calendar.enabled ? "Enabled" : "Disabled"}
+                    </button>
+                  </form>
+                </div>
+              ))}
+              {calendars.length === 0 ? <p className="emptyState">No calendars yet.</p> : null}
+            </div>
+          </div>
+
+          <div className="panel">
             <div className="sectionHeader compact">
               <div>
                 <p className="eyebrow">Source corpus</p>
@@ -144,29 +261,6 @@ export default function Home() {
                   <em>{source.status}</em>
                 </div>
               ))}
-            </div>
-          </div>
-
-          <div className="panel">
-            <div className="sectionHeader compact">
-              <div>
-                <p className="eyebrow">Review queue</p>
-                <h2>Trust before automation</h2>
-              </div>
-            </div>
-            <div className="reviewItem">
-              <span className="confidence high">94%</span>
-              <div>
-                <strong>Winter break</strong>
-                <p>Dec 21-Jan 4 from UCLA annual academic calendar</p>
-              </div>
-            </div>
-            <div className="reviewItem">
-              <span className="confidence medium">72%</span>
-              <div>
-                <strong>Exam period</strong>
-                <p>Needs parent confirmation before matching</p>
-              </div>
             </div>
           </div>
         </section>
