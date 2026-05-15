@@ -1,0 +1,71 @@
+LOS GATOS-SARATOGA UNION HIGH SCHOOL DISTRICT
+2026-2027 INSTRUCTIONAL CALENDAR
+SARATOGA HIGH SCHOOL
+
+Note: This .pdf.txt fixture is a synthetic representation of the text layer
+of a LGSUHSD instructional calendar PDF (linked from
+https://www.lgsuhsd.org/resources/calendars-schedules). Use it to exercise the
+PDF text-layer extractor (issue #7) before live PDFs are available.
+Month-grid layout (with leading "month" header lines and one row per
+significant date) and label wording mirror the district's publishing pattern.
+Dated rows use only well-known anchor dates (federal holidays + the LGSUHSD
+pattern of starting the Wednesday before Labor Day, a full Thanksgiving week
+break, a two-week Winter Break, and ending the first week of June). Verify
+against the live PDF before relying on dated values for production.
+
+------------------------------------------------------------
+
+LEGEND
+  H = Holiday / No School
+  S = Staff Development / No School
+  M = Minimum Day
+  X = Last Day of Grading Period
+
+AUGUST 2026
+  W 8/12  First Day of School
+  M 8/31  Back-to-School Night
+
+SEPTEMBER 2026
+  M 9/07  Labor Day                                       H
+
+OCTOBER 2026
+  F 10/9  Staff Development Day                           S
+  F 10/16 End of Quarter 1                                X
+  M 10/19 Start of Quarter 2
+
+NOVEMBER 2026
+  M 11/09 Parent Conference Week begins                   M
+  W 11/11 Veterans Day                                    H
+  F 11/13 Parent Conference Week ends                     M
+  M 11/23 Thanksgiving Break begins                       H
+  F 11/27 Thanksgiving Break ends                         H
+
+DECEMBER 2026
+  F 12/18 End of Semester 1                               X
+  M 12/21 Winter Break begins                             H
+
+JANUARY 2027
+  F 01/01 Winter Break ends                               H
+  M 01/04 School resumes / Start of Quarter 3
+  M 01/18 Martin Luther King Jr. Day                      H
+
+FEBRUARY 2027
+  F 02/12 Lincoln's Birthday Observance                   H
+  M 02/15 Presidents Day                                  H
+
+MARCH 2027
+  F 03/12 End of Quarter 3                                X
+  M 03/15 Start of Quarter 4
+
+APRIL 2027
+  M 04/05 Spring Break begins                             H
+  F 04/09 Spring Break ends                               H
+
+MAY 2027
+  M 05/31 Memorial Day                                    H
+
+JUNE 2027
+  F 06/04 Last Day of School / End of Semester 2 / Graduation X
+
+------------------------------------------------------------
+Captured: 2026-05-14 (structure modeled offline; see docs/SOURCE_CORPUS.md)

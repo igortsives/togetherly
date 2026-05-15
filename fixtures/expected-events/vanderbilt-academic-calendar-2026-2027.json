@@ -1,0 +1,144 @@
+{
+  "$schema": "../expected-events.schema.md",
+  "source": {
+    "slug": "vanderbilt-academic-calendar-2026-2027",
+    "name": "Vanderbilt University Undergraduate Academic Calendar 2026-2027",
+    "authoritativeUrl": "https://registrar.vanderbilt.edu/calendars/2026-27.php",
+    "fixtureFiles": [
+      "fixtures/sources/html/vanderbilt-academic-calendar-2026-2027.html",
+      "fixtures/sources/pdf/vanderbilt-academic-calendar-2026-2027.pdf.txt"
+    ],
+    "sourceTimezone": "America/Chicago",
+    "capturedAt": "2026-05-14",
+    "captureMethod": "structural-excerpt",
+    "notes": "Dates below mirror the canonical Vanderbilt undergraduate semester pattern but were authored offline. Re-verify against the live registrar page before relying on these in production extractor tests."
+  },
+  "events": [
+    {
+      "rawTitle": "Classes begin",
+      "category": "CLASS_IN_SESSION",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2026-08-26T00:00:00.000Z",
+      "endAt": "2026-08-27T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Classes begin')"
+    },
+    {
+      "rawTitle": "Labor Day (university holiday)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2026-09-07T00:00:00.000Z",
+      "endAt": "2026-09-08T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Labor Day')"
+    },
+    {
+      "rawTitle": "Fall Break",
+      "category": "BREAK",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2026-10-15T00:00:00.000Z",
+      "endAt": "2026-10-17T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Fall Break')"
+    },
+    {
+      "rawTitle": "Thanksgiving Break",
+      "category": "BREAK",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2026-11-25T00:00:00.000Z",
+      "endAt": "2026-11-28T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Thanksgiving Break')"
+    },
+    {
+      "rawTitle": "Final Examinations",
+      "category": "EXAM_PERIOD",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2026-12-07T00:00:00.000Z",
+      "endAt": "2026-12-17T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Final Examinations')"
+    },
+    {
+      "rawTitle": "Winter Break (university closed)",
+      "category": "BREAK",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2026-12-17T00:00:00.000Z",
+      "endAt": "2027-01-11T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#winter-break > dl > dt:contains('Winter Break')"
+    },
+    {
+      "rawTitle": "Classes begin",
+      "category": "CLASS_IN_SESSION",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2027-01-11T00:00:00.000Z",
+      "endAt": "2027-01-12T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#spring-2027 > dl > dt:contains('Classes begin')"
+    },
+    {
+      "rawTitle": "Martin Luther King Jr. Day (university holiday)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2027-01-18T00:00:00.000Z",
+      "endAt": "2027-01-19T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#spring-2027 > dl > dt:contains('Martin Luther King')"
+    },
+    {
+      "rawTitle": "Spring Break",
+      "category": "BREAK",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2027-03-06T00:00:00.000Z",
+      "endAt": "2027-03-15T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#spring-2027 > dl > dt:contains('Spring Break')"
+    },
+    {
+      "rawTitle": "Good Friday observance (no classes)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2027-03-26T00:00:00.000Z",
+      "endAt": "2027-03-27T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#spring-2027 > dl > dt:contains('Good Friday')"
+    },
+    {
+      "rawTitle": "Final Examinations",
+      "category": "EXAM_PERIOD",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2027-04-29T00:00:00.000Z",
+      "endAt": "2027-05-08T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#spring-2027 > dl > dt:contains('Final Examinations')"
+    },
+    {
+      "rawTitle": "Commencement",
+      "category": "OPTIONAL",
+      "suggestedBusyStatus": "CONFIGURABLE",
+      "startAt": "2027-05-14T00:00:00.000Z",
+      "endAt": "2027-05-15T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#spring-2027 > dl > dt:contains('Commencement')"
+    },
+    {
+      "rawTitle": "Memorial Day (university holiday)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2027-05-31T00:00:00.000Z",
+      "endAt": "2027-06-01T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#summer-2027 > dl > dt:contains('Memorial Day')"
+    },
+    {
+      "rawTitle": "Independence Day (observed)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2027-07-05T00:00:00.000Z",
+      "endAt": "2027-07-06T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#summer-2027 > dl > dt:contains('Independence Day')"
+    }
+  ]
+}

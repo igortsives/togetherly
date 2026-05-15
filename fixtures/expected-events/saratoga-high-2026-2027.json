@@ -1,0 +1,135 @@
+{
+  "$schema": "../expected-events.schema.md",
+  "source": {
+    "slug": "saratoga-high-2026-2027",
+    "name": "Saratoga High School (LGSUHSD) Instructional Calendar 2026-2027",
+    "authoritativeUrl": "https://www.lgsuhsd.org/resources/calendars-schedules",
+    "fixtureFiles": [
+      "fixtures/sources/html/saratoga-high-2026-2027.html",
+      "fixtures/sources/pdf/saratoga-high-2026-2027.pdf.txt"
+    ],
+    "sourceTimezone": "America/Los_Angeles",
+    "capturedAt": "2026-05-14",
+    "captureMethod": "structural-excerpt",
+    "notes": "Dates below mirror the canonical LGSUHSD K-12 calendar pattern (start the Wednesday before Labor Day, full Thanksgiving week off, two-week Winter Break, one-week Spring Break in April, last day in early June). Authored offline; re-verify against the live LGSUHSD instructional calendar PDF before relying on these in production extractor tests."
+  },
+  "events": [
+    {
+      "rawTitle": "First Day of School",
+      "category": "CLASS_IN_SESSION",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2026-08-12T00:00:00.000Z",
+      "endAt": "2026-08-13T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('First Day of School')"
+    },
+    {
+      "rawTitle": "Labor Day (no school)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2026-09-07T00:00:00.000Z",
+      "endAt": "2026-09-08T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Labor Day')"
+    },
+    {
+      "rawTitle": "Staff Development Day (no school)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2026-10-09T00:00:00.000Z",
+      "endAt": "2026-10-10T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Staff Development Day')"
+    },
+    {
+      "rawTitle": "Veterans Day (no school)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2026-11-11T00:00:00.000Z",
+      "endAt": "2026-11-12T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Veterans Day')"
+    },
+    {
+      "rawTitle": "Thanksgiving Break",
+      "category": "BREAK",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2026-11-23T00:00:00.000Z",
+      "endAt": "2026-11-28T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Thanksgiving Break')"
+    },
+    {
+      "rawTitle": "Winter Break",
+      "category": "BREAK",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2026-12-21T00:00:00.000Z",
+      "endAt": "2027-01-02T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Winter Break')"
+    },
+    {
+      "rawTitle": "Martin Luther King Jr. Day (no school)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2027-01-18T00:00:00.000Z",
+      "endAt": "2027-01-19T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Martin Luther King')"
+    },
+    {
+      "rawTitle": "Lincoln's Birthday observance (no school)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2027-02-12T00:00:00.000Z",
+      "endAt": "2027-02-13T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains(\"Lincoln's Birthday\")"
+    },
+    {
+      "rawTitle": "Presidents Day (no school)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2027-02-15T00:00:00.000Z",
+      "endAt": "2027-02-16T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Presidents Day')"
+    },
+    {
+      "rawTitle": "Spring Break",
+      "category": "BREAK",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2027-04-05T00:00:00.000Z",
+      "endAt": "2027-04-10T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Spring Break')"
+    },
+    {
+      "rawTitle": "Memorial Day (no school)",
+      "category": "SCHOOL_CLOSED",
+      "suggestedBusyStatus": "FREE",
+      "startAt": "2027-05-31T00:00:00.000Z",
+      "endAt": "2027-06-01T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Memorial Day')"
+    },
+    {
+      "rawTitle": "Last Day of School",
+      "category": "CLASS_IN_SESSION",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2027-06-04T00:00:00.000Z",
+      "endAt": "2027-06-05T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Last Day of School')"
+    },
+    {
+      "rawTitle": "Graduation",
+      "category": "OPTIONAL",
+      "suggestedBusyStatus": "CONFIGURABLE",
+      "startAt": "2027-06-04T00:00:00.000Z",
+      "endAt": "2027-06-05T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "ul.important-dates > li:contains('Graduation')"
+    }
+  ]
+}

@@ -1,0 +1,102 @@
+<!--
+  Synthetic structural excerpt modeled on https://registrar.ucla.edu/calendars/annual-academic-calendar
+  This file is a HAND-AUTHORED FIXTURE that mirrors UCLA registrar page structure
+  (h2 quarter headings + table rows with "Event" and "Date" columns) for parser
+  development. It is NOT a verbatim copy of the live page. Quarter framing,
+  selectors, and ordering reproduce the public registrar layout so HTML extractors
+  (#6) can be exercised, while the dated rows use only well-known anchor dates
+  (federal holidays + canonical UCLA quarter-system patterns). Verify and refresh
+  against the live registrar HTML before relying on dated values for production.
+
+  Source: UCLA Office of the Registrar - Annual Academic Calendar
+  Captured: 2026-05-14 (structure modeled offline; see docs/SOURCE_CORPUS.md)
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Annual Academic Calendar | UCLA Registrar</title>
+  </head>
+  <body>
+    <main id="main-content">
+      <article class="calendar-article">
+        <header>
+          <h1>Annual Academic Calendar</h1>
+          <p class="lead">Key dates for the 2026-2027 academic year on the quarter system.</p>
+        </header>
+
+        <section id="fall-2026" aria-labelledby="fall-2026-heading">
+          <h2 id="fall-2026-heading">Fall Quarter 2026</h2>
+          <table class="calendar-table">
+            <thead>
+              <tr><th scope="col">Event</th><th scope="col">Date</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Instruction begins</td><td>Thursday, September 24, 2026</td></tr>
+              <tr><td>Veterans Day (university holiday)</td><td>Wednesday, November 11, 2026</td></tr>
+              <tr><td>Thanksgiving holiday</td><td>Thursday-Friday, November 26-27, 2026</td></tr>
+              <tr><td>Instruction ends</td><td>Friday, December 4, 2026</td></tr>
+              <tr><td>Final examinations</td><td>Saturday-Friday, December 5-11, 2026</td></tr>
+              <tr><td>Quarter ends</td><td>Friday, December 11, 2026</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="winter-2027" aria-labelledby="winter-2027-heading">
+          <h2 id="winter-2027-heading">Winter Quarter 2027</h2>
+          <table class="calendar-table">
+            <thead>
+              <tr><th scope="col">Event</th><th scope="col">Date</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Instruction begins</td><td>Monday, January 4, 2027</td></tr>
+              <tr><td>Martin Luther King Jr. holiday</td><td>Monday, January 18, 2027</td></tr>
+              <tr><td>Presidents Day holiday</td><td>Monday, February 15, 2027</td></tr>
+              <tr><td>Instruction ends</td><td>Friday, March 12, 2027</td></tr>
+              <tr><td>Final examinations</td><td>Saturday-Friday, March 13-19, 2027</td></tr>
+              <tr><td>Quarter ends</td><td>Friday, March 19, 2027</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="spring-2027" aria-labelledby="spring-2027-heading">
+          <h2 id="spring-2027-heading">Spring Quarter 2027</h2>
+          <table class="calendar-table">
+            <thead>
+              <tr><th scope="col">Event</th><th scope="col">Date</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Instruction begins</td><td>Monday, March 29, 2027</td></tr>
+              <tr><td>Cesar Chavez holiday</td><td>Friday, April 2, 2027</td></tr>
+              <tr><td>Memorial Day holiday</td><td>Monday, May 31, 2027</td></tr>
+              <tr><td>Instruction ends</td><td>Friday, June 4, 2027</td></tr>
+              <tr><td>Final examinations</td><td>Saturday-Friday, June 5-11, 2027</td></tr>
+              <tr><td>Quarter ends</td><td>Friday, June 11, 2027</td></tr>
+              <tr><td>Commencement</td><td>Friday-Sunday, June 11-13, 2027</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <section id="summer-2027" aria-labelledby="summer-2027-heading">
+          <h2 id="summer-2027-heading">Summer Sessions 2027</h2>
+          <table class="calendar-table">
+            <thead>
+              <tr><th scope="col">Event</th><th scope="col">Date</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Session A instruction begins</td><td>Monday, June 21, 2027</td></tr>
+              <tr><td>Independence Day holiday (observed)</td><td>Monday, July 5, 2027</td></tr>
+              <tr><td>Session A ends</td><td>Friday, July 30, 2027</td></tr>
+              <tr><td>Session C instruction begins</td><td>Monday, August 2, 2027</td></tr>
+              <tr><td>Session C ends</td><td>Friday, September 10, 2027</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <footer class="calendar-footnotes">
+          <p><a href="https://registrar.ucla.edu/portals/50/documents/calendar/academiccalendar26-27.pdf">Download the 2026-2027 PDF</a></p>
+        </footer>
+      </article>
+    </main>
+  </body>
+</html>

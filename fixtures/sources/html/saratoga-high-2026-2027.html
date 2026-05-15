@@ -1,0 +1,75 @@
+<!--
+  Synthetic structural excerpt modeled on
+  https://www.lgsuhsd.org/resources/calendars-schedules and the linked
+  Saratoga High School / LGSUHSD instructional calendar PDFs.
+
+  This file is a HAND-AUTHORED FIXTURE that mirrors the layout the district
+  publishes (an ordered list of dated rows under "Important Dates" and a
+  one-row-per-day table for the instructional calendar). It is NOT a verbatim
+  copy of the live page. K-12 academic year framing and ordering reproduce
+  the district's structure for parser development; dated rows use only
+  well-known anchor dates (federal holidays + the LGSUHSD pattern of starting
+  the Wednesday before Labor Day, taking the full Thanksgiving week,
+  taking two weeks for Winter Break, and ending the first week of June).
+  Verify and refresh against the live LGSUHSD instructional calendar PDF
+  before relying on dated values for production.
+
+  Source: Los Gatos-Saratoga Union High School District / Saratoga High School
+  Captured: 2026-05-14 (structure modeled offline; see docs/SOURCE_CORPUS.md)
+-->
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>2026-2027 Instructional Calendar | Saratoga High School</title>
+  </head>
+  <body>
+    <main id="main">
+      <article>
+        <header>
+          <h1>2026-2027 Instructional Calendar</h1>
+          <p>Saratoga High School follows the Los Gatos-Saratoga Union High School District instructional calendar.</p>
+        </header>
+
+        <section aria-labelledby="important-dates">
+          <h2 id="important-dates">Important Dates</h2>
+          <ul class="important-dates">
+            <li><strong>Wednesday, August 12, 2026</strong> &mdash; First Day of School</li>
+            <li><strong>Monday, September 7, 2026</strong> &mdash; Labor Day (no school)</li>
+            <li><strong>Friday, October 9, 2026</strong> &mdash; Staff Development Day (no school)</li>
+            <li><strong>Monday, November 9 - Friday, November 13, 2026</strong> &mdash; Parent Conferences (minimum days)</li>
+            <li><strong>Wednesday, November 11, 2026</strong> &mdash; Veterans Day (no school)</li>
+            <li><strong>Monday, November 23 - Friday, November 27, 2026</strong> &mdash; Thanksgiving Break</li>
+            <li><strong>Monday, December 21, 2026 - Friday, January 1, 2027</strong> &mdash; Winter Break</li>
+            <li><strong>Monday, January 18, 2027</strong> &mdash; Martin Luther King Jr. Day (no school)</li>
+            <li><strong>Monday, February 15, 2027</strong> &mdash; Presidents Day (no school)</li>
+            <li><strong>Friday, February 12, 2027</strong> &mdash; Lincoln's Birthday observance (no school)</li>
+            <li><strong>Monday, April 5 - Friday, April 9, 2027</strong> &mdash; Spring Break</li>
+            <li><strong>Monday, May 31, 2027</strong> &mdash; Memorial Day (no school)</li>
+            <li><strong>Friday, June 4, 2027</strong> &mdash; Last Day of School</li>
+            <li><strong>Friday, June 4, 2027</strong> &mdash; Graduation</li>
+          </ul>
+        </section>
+
+        <section aria-labelledby="grading-periods">
+          <h2 id="grading-periods">Grading Periods</h2>
+          <table class="grading-periods">
+            <thead>
+              <tr><th scope="col">Period</th><th scope="col">Start</th><th scope="col">End</th></tr>
+            </thead>
+            <tbody>
+              <tr><td>Quarter 1</td><td>Wednesday, August 12, 2026</td><td>Friday, October 16, 2026</td></tr>
+              <tr><td>Semester 1 / Quarter 2</td><td>Monday, October 19, 2026</td><td>Friday, December 18, 2026</td></tr>
+              <tr><td>Quarter 3</td><td>Monday, January 4, 2027</td><td>Friday, March 12, 2027</td></tr>
+              <tr><td>Semester 2 / Quarter 4</td><td>Monday, March 15, 2027</td><td>Friday, June 4, 2027</td></tr>
+            </tbody>
+          </table>
+        </section>
+
+        <footer>
+          <p><a href="https://www.lgsuhsd.org/resources/calendars-schedules">District calendars and schedules</a></p>
+        </footer>
+      </article>
+    </main>
+  </body>
+</html>
