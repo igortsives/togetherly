@@ -13,9 +13,11 @@ import {
   createCalendarAction,
   createChildAction,
   createGoogleCalendarSourceAction,
+  createOutlookCalendarSourceAction,
   createPdfSourceAction,
   createUrlSourceAction,
   linkGoogleAccountAction,
+  linkMicrosoftAccountAction,
   signOutAction,
   toggleCalendarAction
 } from "./actions";
@@ -24,6 +26,7 @@ import { calendarTypeOptions, getFamilyDashboard } from "@/lib/family/dashboard"
 import { getCurrentUserId } from "@/lib/family/session";
 import { getTimelineData } from "@/lib/family/timeline";
 import { getGoogleConnectionState } from "@/lib/sources/google";
+import { getMicrosoftConnectionState } from "@/lib/sources/microsoft";
 import { labelSourceType } from "@/lib/sources/source-metadata";
 
 export const dynamic = "force-dynamic";
@@ -53,6 +56,9 @@ export default async function Home() {
   const timelineData = await getTimelineData();
   const googleConnection = userId
     ? await getGoogleConnectionState(userId)
+    : { linked: false as const };
+  const microsoftConnection = userId
+    ? await getMicrosoftConnectionState(userId)
     : { linked: false as const };
   const children = dashboard.family.children;
   const calendars = dashboard.family.calendars;
@@ -365,6 +371,69 @@ export default async function Home() {
                   </select>
                 </label>
                 <button type="submit">Import Google calendar</button>
+              </form>
+            )}
+
+            {!microsoftConnection.linked ? (
+              <form action={linkMicrosoftAccountAction} className="sourceForm">
+                <div>
+                  <p className="eyebrow">Outlook</p>
+                  <h3>Connect an Outlook calendar</h3>
+                </div>
+                <p className="emptyState">
+                  Sign in with Microsoft to list and import calendars from your work
+                  or personal Microsoft account. You stay signed in to Togetherly; this
+                  only adds Microsoft as a linked provider.
+                </p>
+                <button type="submit">Connect Microsoft account</button>
+              </form>
+            ) : microsoftConnection.error ? (
+              <div className="sourceForm">
+                <div>
+                  <p className="eyebrow">Outlook</p>
+                  <h3>Connection error</h3>
+                </div>
+                <p className="emptyState">{microsoftConnection.error}</p>
+                <form action={linkMicrosoftAccountAction}>
+                  <button className="subtleButton" type="submit">
+                    Re-link Microsoft account
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <form action={createOutlookCalendarSourceAction} className="sourceForm">
+                <div>
+                  <p className="eyebrow">Outlook</p>
+                  <h3>Import an Outlook calendar</h3>
+                </div>
+                <label>
+                  Target calendar
+                  <select name="calendarId" required defaultValue="">
+                    <option disabled value="">
+                      Choose calendar
+                    </option>
+                    {calendars.map((calendar) => (
+                      <option key={calendar.id} value={calendar.id}>
+                        {calendar.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="wideField">
+                  Outlook calendar
+                  <select name="providerCalendarId" required defaultValue="">
+                    <option disabled value="">
+                      Choose Outlook calendar
+                    </option>
+                    {microsoftConnection.calendars.map((calendar) => (
+                      <option key={calendar.id} value={calendar.id}>
+                        {calendar.name}
+                        {calendar.isDefaultCalendar ? " (default)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button type="submit">Import Outlook calendar</button>
               </form>
             )}
           </div>
