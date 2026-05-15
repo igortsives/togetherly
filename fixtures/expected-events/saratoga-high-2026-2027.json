@@ -11,7 +11,7 @@
     "sourceTimezone": "America/Los_Angeles",
     "capturedAt": "2026-05-14",
     "captureMethod": "structural-excerpt",
-    "notes": "Dates below mirror the canonical LGSUHSD K-12 calendar pattern (start the Wednesday before Labor Day, full Thanksgiving week off, two-week Winter Break, one-week Spring Break in April, last day in early June). Authored offline; re-verify against the live LGSUHSD instructional calendar PDF before relying on these in production extractor tests."
+    "notes": "Live-capture attempt on 2026-05-14: a WebFetch of https://www.saratogahigh.org/about-us/calendars-and-schedules succeeded but listed only the 2025-26 LGSUHSD Instructional Calendar PDF; the district has not yet published a 2026-27 instructional calendar on the Saratoga High calendars page. Direct WebFetch of the PDF (https://resources.finalsite.net/images/v1738342645/lgsuhsdorg/ycrbjiwrpj3qjbephko9/2025-26_LGSUHSD_Instructional_Calendar_-_Board_Approved_1282025.pdf) and of https://www.lgsuhsd.org/resources/calendars-schedules were denied by the sandboxed environment. Dates below therefore mirror the canonical LGSUHSD K-12 calendar pattern (start the Wednesday before Labor Day, full Thanksgiving week off, two-week Winter Break, one-week Spring Break in April, last day in early June) and remain a structural excerpt. Re-verify against the live LGSUHSD 2026-27 PDF before relying on these in production extractor tests."
   },
   "events": [
     {

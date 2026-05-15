@@ -58,31 +58,61 @@ Do not commit copyrighted source snapshots unless allowed. For private beta deve
 
 | Source slug | Institution | Format(s) | Authoritative URL | Last fetched | Capture method | Caveats |
 |---|---|---|---|---|---|---|
-| `ucla-academic-calendar-2026-2027` | UCLA | HTML, PDF text-layer | https://registrar.ucla.edu/calendars/annual-academic-calendar (PDF: https://registrar.ucla.edu/portals/50/documents/calendar/academiccalendar26-27.pdf) | 2026-05-14 | Structural excerpt (offline) | Network egress blocked in the fixture-authoring environment; HTML and PDF excerpts mirror the registrar's quarter-table layout. Dates use canonical UCLA quarter-system anchors and known federal holidays. Re-verify against live registrar HTML/PDF before depending on dated values. |
-| `vanderbilt-academic-calendar-2026-2027` | Vanderbilt | HTML, PDF text-layer | https://registrar.vanderbilt.edu/calendars/2026-27.php (PDF: https://registrar.vanderbilt.edu/documents/26.27_Owen_Academic_Calendar.pdf) | 2026-05-14 | Structural excerpt (offline) | Same network-egress caveat as UCLA. Vanderbilt registrar uses semester structure; the Owen PDF is a representative professional-school PDF and is the closest single-document target. Owen and undergraduate dates differ in detail; the fixture reflects the undergraduate side. |
-| `saratoga-high-2026-2027` | Saratoga High School / LGSUHSD | HTML, PDF text-layer | https://www.lgsuhsd.org/resources/calendars-schedules (district calendars page) and https://www.saratogahigh.org/about-us/calendars-and-schedules (SHS calendars) | 2026-05-14 | Structural excerpt (offline) | Same network-egress caveat. SHS publishes Red/Blue rotation calendars; this fixture covers the all-school instructional calendar only. District also publishes prior-year and following-year calendars; only 2026-2027 is captured here. |
+| `ucla-academic-calendar-2026-2027` | UCLA | HTML, PDF text-layer | https://registrar.ucla.edu/calendars/annual-academic-calendar | 2026-05-14 | Live fetch (WebFetch summary) | Dates verified against a live WebFetch of the registrar page on 2026-05-14. WebFetch returned markdown-summarized content rather than raw DOM, so the HTML fixture wraps the same dated rows in semantic HTML and is not a byte-for-byte DOM capture; event labels and dates match the live registrar. The PDF text-layer fixture is derived from the same WebFetch (the binary PDF at `/portals/50/documents/calendar/academiccalendar26-27.pdf` was not fetched separately). Winter Break and Spring Break between quarters are inferred from the gap between `Quarter ends` and the next `Quarter begins`. |
+| `vanderbilt-academic-calendar-2026-2027` | Vanderbilt | HTML, PDF text-layer | https://registrar.vanderbilt.edu/calendars/2026-27-academic.php | 2026-05-14 | Live fetch (WebFetch summary) | Dates verified against a live WebFetch of the "Term Dates and Holidays" page on 2026-05-14. The companion `/calendars/2026-27-undergraduate.php` detail page rendered with no date payload via WebFetch (likely JS-rendered), so the summary page is the authoritative source for this fixture. WebFetch returned markdown-summarized content; the HTML fixture wraps the same dated rows in semantic HTML and is not a byte-for-byte DOM capture. Winter Break is inferred from the gap between Fall exam window end (Dec 19, 2026) and Spring `First day of classes` (Jan 11, 2027). Vanderbilt's published "Thanksgiving holidays in most schools" window spans Nov 21-29 (Sat-Sun); we encode it verbatim. |
+| `saratoga-high-2026-2027` | Saratoga High School / LGSUHSD | HTML, PDF text-layer | https://www.saratogahigh.org/about-us/calendars-and-schedules and https://www.lgsuhsd.org/resources/calendars-schedules | 2026-05-14 | Structural excerpt (live capture deferred) | Live-capture attempt on 2026-05-14: WebFetch of the Saratoga High calendars page succeeded but listed only the 2025-26 LGSUHSD Instructional Calendar PDF (https://resources.finalsite.net/images/v1738342645/lgsuhsdorg/ycrbjiwrpj3qjbephko9/2025-26_LGSUHSD_Instructional_Calendar_-_Board_Approved_1282025.pdf); the district has not yet published a 2026-27 instructional calendar on that page. Direct WebFetch of the PDF and of the LGSUHSD district calendars page were denied by the sandboxed environment. The fixture remains a structural excerpt using canonical LGSUHSD K-12 anchors until the 2026-27 PDF is published and a live capture is permitted. |
 
-### Network-egress caveat
+### Capture-method log (2026-05-14)
 
-This corpus slice was authored in a sandboxed environment that denied
-outbound HTTP, `WebFetch`, and `WebSearch`. The fixture files in
-`fixtures/sources/html/` and `fixtures/sources/pdf/` are therefore
-**hand-authored structural excerpts** rather than verbatim captures, as
-authorized by the "small excerpt fixtures or generated mock fixtures"
-guidance above. Each fixture's leading comment marks it as such. A follow-up
-task should re-capture each authoritative URL with live tooling (`curl`,
-`fetch`, or `WebFetch`), diff it against the structural excerpt, and update
-the corresponding `fixtures/expected-events/<slug>.json` file. Track the
-re-capture work in issue #19 follow-ups (or a new issue if #19 has closed).
+- **UCLA** - Live fetch via Claude Code `WebFetch` against
+  `https://registrar.ucla.edu/calendars/annual-academic-calendar`. WebFetch
+  returned a markdown table that mirrors the registrar's quarter sections;
+  event labels and dates are reproduced verbatim in the HTML and `.pdf.txt`
+  fixtures. The binary PDF at
+  `https://registrar.ucla.edu/portals/50/documents/calendar/academiccalendar26-27.pdf`
+  was not fetched separately; pursue a direct PDF fetch when the PDF
+  extractor (#7) lands.
+- **Vanderbilt** - Live fetch via `WebFetch` against
+  `https://registrar.vanderbilt.edu/calendars/2026-27.php` to discover the
+  per-school calendar URLs, then against
+  `https://registrar.vanderbilt.edu/calendars/2026-27-academic.php` (Term
+  Dates and Holidays). The companion `/calendars/2026-27-undergraduate.php`
+  detail page returned section headers but no date payload via WebFetch
+  (likely JS-rendered); document this as a known limitation for the HTML
+  extractor. The Owen / Law / Med / Divinity professional-school PDFs were
+  not enumerated in this slice.
+- **Saratoga High / LGSUHSD** - Partial live capture. `WebFetch` against
+  `https://www.saratogahigh.org/about-us/calendars-and-schedules` succeeded
+  and confirmed only a 2025-26 LGSUHSD Instructional Calendar PDF is
+  currently linked. Direct `WebFetch` of the PDF and of
+  `https://www.lgsuhsd.org/resources/calendars-schedules` was denied by the
+  sandboxed environment. The 2026-27 instructional calendar is therefore
+  deferred until the district posts the PDF and a live PDF/page fetch is
+  permitted. Track follow-up under issue #19 (and the planned PDF-extractor
+  issue #7) when the source becomes available.
 
 ### Sources not yet captured in this slice
 
 - **UCLA subscribable Google calendar (ICS)** - UCLA does not publish a
   single canonical ICS feed for the annual academic calendar. Deferred.
-- **Vanderbilt Owen / Law / Med separate PDFs** - the registrar links one
-  PDF per professional school. The fixture covers the undergraduate
-  calendar only; capturing the professional-school PDFs is queued behind
-  the undergraduate work.
+- **UCLA 2026-27 binary PDF** - `https://registrar.ucla.edu/portals/50/documents/calendar/academiccalendar26-27.pdf`
+  was not fetched as a binary in this slice. The `.pdf.txt` fixture is
+  derived from the registrar HTML page. Direct PDF capture is queued behind
+  the PDF extractor (#7).
+- **Vanderbilt undergraduate detail page** - `https://registrar.vanderbilt.edu/calendars/2026-27-undergraduate.php`
+  rendered with no date payload through `WebFetch` (likely JS-rendered).
+  The Term Dates and Holidays summary page was used as the authoritative
+  source for the 2026-2027 fixture.
+- **Vanderbilt Owen / Law / Med / Divinity / Nursing separate PDFs** - the
+  registrar links one PDF per professional school. The fixture covers the
+  undergraduate calendar only; capturing the professional-school PDFs is
+  queued behind the undergraduate work.
+- **Saratoga High / LGSUHSD 2026-2027 instructional calendar PDF** - the
+  district had not posted the 2026-27 PDF on the Saratoga High calendars
+  page as of 2026-05-14, and direct WebFetch of the 2025-26 PDF and of the
+  LGSUHSD district calendars page was denied by the sandboxed environment.
+  The Saratoga fixture remains a structural excerpt pending publication of
+  the 2026-27 PDF and a permitted live capture.
 - **Saratoga High Red/Blue rotation calendar** - SHS publishes a separate
   bell-rotation calendar that drives day-of-week class scheduling. Out of
   scope for MVP per `docs/PARSING_STRATEGY.md` ("Room-level school bell

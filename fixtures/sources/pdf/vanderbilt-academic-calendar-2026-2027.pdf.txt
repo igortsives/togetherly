@@ -1,47 +1,41 @@
 VANDERBILT UNIVERSITY
 OFFICE OF THE UNIVERSITY REGISTRAR
-ACADEMIC CALENDAR 2026-2027 (UNDERGRADUATE)
+2026-2027 UNDERGRADUATE ACADEMIC CALENDAR (TERM DATES AND HOLIDAYS)
 
-Note: This .pdf.txt fixture is a synthetic representation of the text layer
-of a Vanderbilt registrar academic calendar PDF (modeled on the format used at
-https://registrar.vanderbilt.edu/calendars/2026-27.php and the Owen 2026-27 PDF).
-Use it to exercise the PDF text-layer extractor (issue #7) before live PDFs
-are available. Two-column layout, sentence ordering, and label wording mirror
-the Vanderbilt registrar publishing pattern. Dated rows use only well-known
-anchor dates (federal holidays + the Vanderbilt semester pattern). Verify
-against the live PDF before relying on dated values for production.
+Source URL: https://registrar.vanderbilt.edu/calendars/2026-27-academic.php
+Index URL:  https://registrar.vanderbilt.edu/calendars/2026-27.php
+Captured: 2026-05-14
 
-------------------------------------------------------------
-
-FALL SEMESTER 2026
-  Move-in / Welcome Week Begins ............ Tuesday, August 18, 2026
-  Classes Begin ............................ Wednesday, August 26, 2026
-  Labor Day (university holiday) ........... Monday, September 7, 2026
-  Fall Break ............................... Thursday-Friday, October 15-16, 2026
-  Thanksgiving Break ....................... Wednesday-Friday, November 25-27, 2026
-  Classes End .............................. Friday, December 4, 2026
-  Reading Days ............................. Saturday-Sunday, December 5-6, 2026
-  Final Examinations ....................... Monday-Wednesday, December 7-16, 2026
-
-WINTER BREAK (UNIVERSITY CLOSED)
-  Winter Break ............................. Thursday, December 17, 2026 - Sunday, January 10, 2027
-
-SPRING SEMESTER 2027
-  Classes Begin ............................ Monday, January 11, 2027
-  Martin Luther King Jr. Day ............... Monday, January 18, 2027
-  Spring Break ............................. Saturday, March 6 - Sunday, March 14, 2027
-  Good Friday Observance ................... Friday, March 26, 2027
-  Classes End .............................. Monday, April 26, 2027
-  Reading Days ............................. Tuesday-Wednesday, April 27-28, 2027
-  Final Examinations ....................... Thursday, April 29 - Friday, May 7, 2027
-  Commencement ............................. Friday, May 14, 2027
-
-SUMMER SESSIONS 2027
-  Maymester ................................ Monday, May 17 - Friday, June 4, 2027
-  Memorial Day (university holiday) ........ Monday, May 31, 2027
-  Summer Session I ......................... Monday, June 7 - Friday, July 9, 2027
-  Independence Day (observed) .............. Monday, July 5, 2027
-  Summer Session II ........................ Monday, July 12 - Friday, August 13, 2027
+This .pdf.txt fixture is a text-layer representation derived from a live
+WebFetch of the Vanderbilt registrar "Term Dates and Holidays" page on
+2026-05-14. Vanderbilt does not publish a single canonical undergraduate
+academic-calendar PDF; the registrar instead surfaces the dates on the HTML
+page above. This file reformats those dated rows into the plain-text,
+two-column shape that pdf-parse would emit so the PDF extractor (#7) can be
+exercised. Event labels and dates match the live registrar page.
 
 ------------------------------------------------------------
-Captured: 2026-05-14 (structure modeled offline; see docs/SOURCE_CORPUS.md)
+
+FALL 2026
+  First day of classes for undergraduate schools .... Aug 26, Wed
+  Fall break for undergraduate students ............. Oct 22-23, Thur-Fri
+  Thanksgiving holidays in most schools ............. Nov 21-Nov 29, Sat-Sun
+  Undergraduate classes end ......................... Dec 10, Thur
+  Undergraduate examinations and reading days ....... Dec 11-19, Fri-Sat
+
+SPRING 2027
+  First day of classes for undergraduate schools .... Jan 11, Mon
+  Martin Luther King, Jr. Holiday - classes do not meet . Jan 18, Mon
+  Spring Break ...................................... Mar 13-21, Sat-Sun
+  Undergraduate classes end ......................... Apr 26, Mon
+  Undergraduate examinations and reading days ....... Apr 27-May 6, Tues-Thurs
+  Commencement ...................................... May 14, Fri
+
+SUMMER 2027
+  Maymester begins .................................. May 10, Mon
+  First-half and full-term summer classes begin ..... June 8, Tues
+  Juneteenth Holiday - Classes do not meet .......... June 18, Fri
+  Summer semester ends .............................. Aug 13, Fri
+
+------------------------------------------------------------
+Captured: 2026-05-14 (live WebFetch of registrar HTML; see docs/SOURCE_CORPUS.md)

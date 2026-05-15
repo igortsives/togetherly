@@ -3,82 +3,82 @@
   "source": {
     "slug": "vanderbilt-academic-calendar-2026-2027",
     "name": "Vanderbilt University Undergraduate Academic Calendar 2026-2027",
-    "authoritativeUrl": "https://registrar.vanderbilt.edu/calendars/2026-27.php",
+    "authoritativeUrl": "https://registrar.vanderbilt.edu/calendars/2026-27-academic.php",
     "fixtureFiles": [
       "fixtures/sources/html/vanderbilt-academic-calendar-2026-2027.html",
       "fixtures/sources/pdf/vanderbilt-academic-calendar-2026-2027.pdf.txt"
     ],
     "sourceTimezone": "America/Chicago",
     "capturedAt": "2026-05-14",
-    "captureMethod": "structural-excerpt",
-    "notes": "Dates below mirror the canonical Vanderbilt undergraduate semester pattern but were authored offline. Re-verify against the live registrar page before relying on these in production extractor tests."
+    "captureMethod": "live-fetch",
+    "notes": "Dates verified against a live WebFetch of https://registrar.vanderbilt.edu/calendars/2026-27-academic.php (the 'Term Dates and Holidays' page linked from the 2026-27 index) on 2026-05-14. The companion detail page /calendars/2026-27-undergraduate.php rendered with no date payload via WebFetch (likely JS-rendered), so the Term Dates and Holidays summary page is the authoritative source. Winter Break is inferred from the gap between the Fall exam window end (Dec 19, 2026) and the Spring first day of classes (Jan 11, 2027). Vanderbilt's published 'Thanksgiving holidays in most schools' window is unusually long (Nov 21-29, Sat-Sun); we encode it verbatim and let downstream callers narrow if needed."
   },
   "events": [
     {
-      "rawTitle": "Classes begin",
+      "rawTitle": "First day of classes for undergraduate schools",
       "category": "CLASS_IN_SESSION",
       "suggestedBusyStatus": "BUSY",
       "startAt": "2026-08-26T00:00:00.000Z",
       "endAt": "2026-08-27T00:00:00.000Z",
       "allDay": true,
-      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Classes begin')"
+      "evidenceLocator": "section#fall-2026 > dl > dt:contains('First day of classes')"
     },
     {
-      "rawTitle": "Labor Day (university holiday)",
-      "category": "SCHOOL_CLOSED",
-      "suggestedBusyStatus": "FREE",
-      "startAt": "2026-09-07T00:00:00.000Z",
-      "endAt": "2026-09-08T00:00:00.000Z",
-      "allDay": true,
-      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Labor Day')"
-    },
-    {
-      "rawTitle": "Fall Break",
+      "rawTitle": "Fall break for undergraduate students",
       "category": "BREAK",
       "suggestedBusyStatus": "FREE",
-      "startAt": "2026-10-15T00:00:00.000Z",
-      "endAt": "2026-10-17T00:00:00.000Z",
+      "startAt": "2026-10-22T00:00:00.000Z",
+      "endAt": "2026-10-24T00:00:00.000Z",
       "allDay": true,
-      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Fall Break')"
+      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Fall break')"
     },
     {
-      "rawTitle": "Thanksgiving Break",
+      "rawTitle": "Thanksgiving holidays in most schools",
       "category": "BREAK",
       "suggestedBusyStatus": "FREE",
-      "startAt": "2026-11-25T00:00:00.000Z",
-      "endAt": "2026-11-28T00:00:00.000Z",
+      "startAt": "2026-11-21T00:00:00.000Z",
+      "endAt": "2026-11-30T00:00:00.000Z",
       "allDay": true,
-      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Thanksgiving Break')"
+      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Thanksgiving')"
     },
     {
-      "rawTitle": "Final Examinations",
+      "rawTitle": "Undergraduate classes end",
+      "category": "CLASS_IN_SESSION",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2026-12-10T00:00:00.000Z",
+      "endAt": "2026-12-11T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Undergraduate classes end')"
+    },
+    {
+      "rawTitle": "Undergraduate examinations and reading days",
       "category": "EXAM_PERIOD",
       "suggestedBusyStatus": "BUSY",
-      "startAt": "2026-12-07T00:00:00.000Z",
-      "endAt": "2026-12-17T00:00:00.000Z",
+      "startAt": "2026-12-11T00:00:00.000Z",
+      "endAt": "2026-12-20T00:00:00.000Z",
       "allDay": true,
-      "evidenceLocator": "section#fall-2026 > dl > dt:contains('Final Examinations')"
+      "evidenceLocator": "section#fall-2026 > dl > dt:contains('examinations and reading days')"
     },
     {
-      "rawTitle": "Winter Break (university closed)",
+      "rawTitle": "Winter Break (between Fall and Spring semesters)",
       "category": "BREAK",
       "suggestedBusyStatus": "FREE",
-      "startAt": "2026-12-17T00:00:00.000Z",
+      "startAt": "2026-12-20T00:00:00.000Z",
       "endAt": "2027-01-11T00:00:00.000Z",
       "allDay": true,
-      "evidenceLocator": "section#winter-break > dl > dt:contains('Winter Break')"
+      "evidenceLocator": "Inferred from gap between Fall exam window end (Dec 19, 2026) and Spring 'First day of classes' (Jan 11, 2027)"
     },
     {
-      "rawTitle": "Classes begin",
+      "rawTitle": "First day of classes for undergraduate schools",
       "category": "CLASS_IN_SESSION",
       "suggestedBusyStatus": "BUSY",
       "startAt": "2027-01-11T00:00:00.000Z",
       "endAt": "2027-01-12T00:00:00.000Z",
       "allDay": true,
-      "evidenceLocator": "section#spring-2027 > dl > dt:contains('Classes begin')"
+      "evidenceLocator": "section#spring-2027 > dl > dt:contains('First day of classes')"
     },
     {
-      "rawTitle": "Martin Luther King Jr. Day (university holiday)",
+      "rawTitle": "Martin Luther King, Jr. Holiday - classes do not meet",
       "category": "SCHOOL_CLOSED",
       "suggestedBusyStatus": "FREE",
       "startAt": "2027-01-18T00:00:00.000Z",
@@ -90,28 +90,28 @@
       "rawTitle": "Spring Break",
       "category": "BREAK",
       "suggestedBusyStatus": "FREE",
-      "startAt": "2027-03-06T00:00:00.000Z",
-      "endAt": "2027-03-15T00:00:00.000Z",
+      "startAt": "2027-03-13T00:00:00.000Z",
+      "endAt": "2027-03-22T00:00:00.000Z",
       "allDay": true,
       "evidenceLocator": "section#spring-2027 > dl > dt:contains('Spring Break')"
     },
     {
-      "rawTitle": "Good Friday observance (no classes)",
-      "category": "SCHOOL_CLOSED",
-      "suggestedBusyStatus": "FREE",
-      "startAt": "2027-03-26T00:00:00.000Z",
-      "endAt": "2027-03-27T00:00:00.000Z",
+      "rawTitle": "Undergraduate classes end",
+      "category": "CLASS_IN_SESSION",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2027-04-26T00:00:00.000Z",
+      "endAt": "2027-04-27T00:00:00.000Z",
       "allDay": true,
-      "evidenceLocator": "section#spring-2027 > dl > dt:contains('Good Friday')"
+      "evidenceLocator": "section#spring-2027 > dl > dt:contains('Undergraduate classes end')"
     },
     {
-      "rawTitle": "Final Examinations",
+      "rawTitle": "Undergraduate examinations and reading days",
       "category": "EXAM_PERIOD",
       "suggestedBusyStatus": "BUSY",
-      "startAt": "2027-04-29T00:00:00.000Z",
-      "endAt": "2027-05-08T00:00:00.000Z",
+      "startAt": "2027-04-27T00:00:00.000Z",
+      "endAt": "2027-05-07T00:00:00.000Z",
       "allDay": true,
-      "evidenceLocator": "section#spring-2027 > dl > dt:contains('Final Examinations')"
+      "evidenceLocator": "section#spring-2027 > dl > dt:contains('examinations and reading days')"
     },
     {
       "rawTitle": "Commencement",
@@ -123,22 +123,40 @@
       "evidenceLocator": "section#spring-2027 > dl > dt:contains('Commencement')"
     },
     {
-      "rawTitle": "Memorial Day (university holiday)",
-      "category": "SCHOOL_CLOSED",
-      "suggestedBusyStatus": "FREE",
-      "startAt": "2027-05-31T00:00:00.000Z",
-      "endAt": "2027-06-01T00:00:00.000Z",
+      "rawTitle": "Maymester begins",
+      "category": "CLASS_IN_SESSION",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2027-05-10T00:00:00.000Z",
+      "endAt": "2027-05-11T00:00:00.000Z",
       "allDay": true,
-      "evidenceLocator": "section#summer-2027 > dl > dt:contains('Memorial Day')"
+      "evidenceLocator": "section#summer-2027 > dl > dt:contains('Maymester begins')"
     },
     {
-      "rawTitle": "Independence Day (observed)",
+      "rawTitle": "First-half and full-term summer classes begin",
+      "category": "CLASS_IN_SESSION",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2027-06-08T00:00:00.000Z",
+      "endAt": "2027-06-09T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#summer-2027 > dl > dt:contains('summer classes begin')"
+    },
+    {
+      "rawTitle": "Juneteenth Holiday - Classes do not meet",
       "category": "SCHOOL_CLOSED",
       "suggestedBusyStatus": "FREE",
-      "startAt": "2027-07-05T00:00:00.000Z",
-      "endAt": "2027-07-06T00:00:00.000Z",
+      "startAt": "2027-06-18T00:00:00.000Z",
+      "endAt": "2027-06-19T00:00:00.000Z",
       "allDay": true,
-      "evidenceLocator": "section#summer-2027 > dl > dt:contains('Independence Day')"
+      "evidenceLocator": "section#summer-2027 > dl > dt:contains('Juneteenth')"
+    },
+    {
+      "rawTitle": "Summer semester ends",
+      "category": "CLASS_IN_SESSION",
+      "suggestedBusyStatus": "BUSY",
+      "startAt": "2027-08-13T00:00:00.000Z",
+      "endAt": "2027-08-14T00:00:00.000Z",
+      "allDay": true,
+      "evidenceLocator": "section#summer-2027 > dl > dt:contains('Summer semester ends')"
     }
   ]
 }
