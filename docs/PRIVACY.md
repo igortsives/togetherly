@@ -119,7 +119,11 @@ Export to provider calendars (`EXP-001`, `EXP-002` in PRD § 7.8) is P1. When th
 
 Both the Google and Microsoft providers are configured with `allowDangerousEmailAccountLinking: true`. This lets an existing Togetherly user (who signed up with credentials, Google, or another OAuth) link the *other* provider by re-signing in, as long as the two providers report the same email address.
 
-The takeover risk from an unverified provider email is closed by a `signIn` callback in `auth.ts`: Google sign-ins are rejected unless `profile.email_verified === true`. Microsoft Entra ID does not surface an equivalent per-claim verification flag, but verifies email at the directory/tenant level, so we accept those by default. Future mitigations to consider when productionizing:
+The Google takeover path is closed by a `signIn` callback in `auth.ts` that rejects Google sign-ins unless `profile.email_verified === true`.
+
+**Microsoft retains a residual takeover surface.** The provider is configured against the multi-tenant `common/v2.0` issuer, which accepts personal Microsoft accounts where email is not directory-verified. Combined with `allowDangerousEmailAccountLinking: true`, an attacker who controls an MSA at the matching email could silently link into an existing Togetherly user. Closing this is tracked in [#76](https://github.com/igortsives/togetherly/issues/76); options include switching to a tenant-scoped issuer, checking the `xms_edov` claim, or removing the dangerous-linking flag for Microsoft entirely.
+
+Future mitigations to consider when productionizing:
 
 - Require fresh re-authentication before linking.
 - Require explicit confirmation in-product before linking a new provider.
