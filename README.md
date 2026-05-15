@@ -31,7 +31,7 @@ Sign in at `/login` with the seeded demo user (`beta-parent@togetherly.local` / 
 | Route | Purpose |
 |---|---|
 | `/` | Family setup, sources panel (URL/ICS/PDF/Google/Outlook), per-child timeline |
-| `/login`, `/register` | Auth surfaces (gated by [`middleware.ts`](./middleware.ts)) |
+| `/login`, `/register` | Auth surfaces (gated by [`proxy.ts`](./proxy.ts)) |
 | `/review` | Confirm / edit / reject extracted candidates before they affect matching |
 | `/windows` | Free-window search form and results with conflict explanations |
 

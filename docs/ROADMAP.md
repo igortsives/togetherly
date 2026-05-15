@@ -41,7 +41,7 @@ Status legend: ✅ shipped · 🟡 partial / in progress · ⬜ not started.
 - ⬜ OAuth token at-rest encryption (must land before public launch) — [#37](https://github.com/igortsives/togetherly/issues/37).
 - ⬜ Tighten OAuth account linking (must land before public launch) — [#38](https://github.com/igortsives/togetherly/issues/38).
 - ⬜ GitHub Actions CI gating PRs — [#47](https://github.com/igortsives/togetherly/issues/47).
-- ⬜ Next 16 `middleware.ts → proxy.ts` rename — [#39](https://github.com/igortsives/togetherly/issues/39).
+- ✅ Next 16 `middleware.ts → proxy.ts` rename — [#39](https://github.com/igortsives/togetherly/issues/39).
 
 ## Phase 3: Hardening — ⬜ Not started
 
