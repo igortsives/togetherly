@@ -4,7 +4,11 @@ import { auth, signIn } from "@/auth";
 import { sanitizeRedirectPath } from "@/lib/auth/redirects";
 
 type Props = {
-  searchParams: Promise<{ callbackUrl?: string; error?: string }>;
+  searchParams: Promise<{
+    callbackUrl?: string;
+    error?: string;
+    registered?: string;
+  }>;
 };
 
 const googleEnabled = Boolean(
@@ -50,6 +54,13 @@ export default async function LoginPage({ searchParams }: Props) {
           <h1>Sign in</h1>
           <p>Use the email and password you registered with, or continue with a provider.</p>
         </header>
+
+        {params.registered ? (
+          <p className="authNotice" role="status">
+            If the email is new, we&apos;ve created your account. Sign in below
+            to continue.
+          </p>
+        ) : null}
 
         {params.error ? (
           <p className="authError" role="alert">
