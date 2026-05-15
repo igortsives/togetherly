@@ -13,6 +13,7 @@ import { ensureDemoFamily } from "@/lib/family/dashboard";
 import { runFreeWindowSearch } from "@/lib/matching/search";
 import { refreshHtmlSource } from "@/lib/sources/html-ingest";
 import { refreshIcsSource } from "@/lib/sources/ics-ingest";
+import { extractAndPersistPdf } from "@/lib/sources/pdf-ingest";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
 import { storeCalendarPdf } from "@/lib/sources/storage";
 
@@ -115,7 +116,7 @@ export async function createPdfSourceAction(formData: FormData) {
     refreshStatus: RefreshStatus.NEEDS_REVIEW
   });
 
-  await prisma.calendarSource.create({
+  const source = await prisma.calendarSource.create({
     data: {
       calendarId: input.calendarId,
       sourceType: input.sourceType,
@@ -125,6 +126,12 @@ export async function createPdfSourceAction(formData: FormData) {
       refreshStatus: input.refreshStatus
     }
   });
+
+  try {
+    await extractAndPersistPdf({ calendarSourceId: source.id });
+  } catch (error) {
+    console.error("PDF extraction failed", { sourceId: source.id, error });
+  }
 
   revalidatePath("/");
 }
