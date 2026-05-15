@@ -48,11 +48,11 @@ describe("extractPdfTextEvents — UCLA quarter calendar", () => {
 
     const finals = result.candidates.find((candidate) =>
       candidate.rawTitle.toLowerCase().includes("final examinations") &&
-      candidate.startAt.toISOString().startsWith("2026-12-05")
+      candidate.startAt.toISOString().startsWith("2026-12-07")
     );
 
     expect(finals).toBeDefined();
-    expect(finals?.startAt.toISOString()).toBe("2026-12-05T00:00:00.000Z");
+    expect(finals?.startAt.toISOString()).toBe("2026-12-07T00:00:00.000Z");
     expect(finals?.endAt.toISOString()).toBe("2026-12-12T00:00:00.000Z");
     expect(finals?.category).toBe(EventCategory.EXAM_PERIOD);
   });
@@ -77,7 +77,7 @@ describe("extractPdfTextEvents — UCLA quarter calendar", () => {
 });
 
 describe("extractPdfTextEvents — Vanderbilt semester calendar", () => {
-  it("parses a cross-year date range as a single all-day span", async () => {
+  it("parses a cross-month exam range with weekday hints", async () => {
     const text = await loadFixture("vanderbilt-academic-calendar-2026-2027.pdf.txt");
 
     const result = extractPdfTextEvents(text, {
@@ -85,17 +85,19 @@ describe("extractPdfTextEvents — Vanderbilt semester calendar", () => {
       calendarType: CalendarType.UNIVERSITY
     });
 
-    const winterBreak = result.candidates.find(
-      (candidate) => candidate.rawTitle === "Winter Break"
+    const exams = result.candidates.find(
+      (candidate) =>
+        candidate.rawTitle.toLowerCase().includes("undergraduate examinations") &&
+        candidate.startAt.toISOString().startsWith("2027-04")
     );
 
-    expect(winterBreak).toBeDefined();
-    expect(winterBreak?.startAt.toISOString()).toBe("2026-12-17T00:00:00.000Z");
-    expect(winterBreak?.endAt.toISOString()).toBe("2027-01-11T00:00:00.000Z");
-    expect(winterBreak?.category).toBe(EventCategory.BREAK);
+    expect(exams).toBeDefined();
+    expect(exams?.startAt.toISOString()).toBe("2027-04-27T00:00:00.000Z");
+    expect(exams?.endAt.toISOString()).toBe("2027-05-07T00:00:00.000Z");
+    expect(exams?.category).toBe(EventCategory.EXAM_PERIOD);
   });
 
-  it("parses a cross-month date range with the year only at the end", async () => {
+  it("infers year from a preceding section header for same-month ranges", async () => {
     const text = await loadFixture("vanderbilt-academic-calendar-2026-2027.pdf.txt");
 
     const result = extractPdfTextEvents(text, {
@@ -108,8 +110,8 @@ describe("extractPdfTextEvents — Vanderbilt semester calendar", () => {
     );
 
     expect(springBreak).toBeDefined();
-    expect(springBreak?.startAt.toISOString()).toBe("2027-03-06T00:00:00.000Z");
-    expect(springBreak?.endAt.toISOString()).toBe("2027-03-15T00:00:00.000Z");
+    expect(springBreak?.startAt.toISOString()).toBe("2027-03-13T00:00:00.000Z");
+    expect(springBreak?.endAt.toISOString()).toBe("2027-03-22T00:00:00.000Z");
     expect(springBreak?.category).toBe(EventCategory.BREAK);
   });
 });

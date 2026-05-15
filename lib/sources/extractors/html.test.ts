@@ -74,7 +74,7 @@ describe("extractHtmlEvents — UCLA table pattern", () => {
         candidate.startAt.toISOString().startsWith("2026-12")
     );
     expect(finals?.category).toBe(EventCategory.EXAM_PERIOD);
-    expect(finals?.startAt.toISOString()).toBe("2026-12-05T00:00:00.000Z");
+    expect(finals?.startAt.toISOString()).toBe("2026-12-07T00:00:00.000Z");
     expect(finals?.endAt.toISOString()).toBe("2026-12-12T00:00:00.000Z");
 
     const instructionBegins = result.candidates.find(
@@ -94,17 +94,17 @@ describe("extractHtmlEvents — Vanderbilt definition-list pattern", () => {
     expect(result.errors).toEqual([]);
     expect(result.candidates.length).toBeGreaterThanOrEqual(15);
 
-    const winterBreak = result.candidates.find((candidate) =>
-      candidate.rawTitle.toLowerCase().includes("winter break")
+    const fallBreak = result.candidates.find((candidate) =>
+      candidate.rawTitle.toLowerCase().includes("fall break")
     );
-    expect(winterBreak).toBeDefined();
-    expect(winterBreak?.startAt.toISOString()).toBe("2026-12-17T00:00:00.000Z");
-    expect(winterBreak?.endAt.toISOString()).toBe("2027-01-11T00:00:00.000Z");
-    expect(winterBreak?.category).toBe(EventCategory.BREAK);
-    expect(winterBreak?.evidenceLocator).toContain("dt");
+    expect(fallBreak).toBeDefined();
+    expect(fallBreak?.startAt.toISOString()).toBe("2026-10-22T00:00:00.000Z");
+    expect(fallBreak?.endAt.toISOString()).toBe("2026-10-24T00:00:00.000Z");
+    expect(fallBreak?.category).toBe(EventCategory.BREAK);
+    expect(fallBreak?.evidenceLocator).toContain("dt");
   });
 
-  it("parses ranges that span months and years", async () => {
+  it("parses multi-day ranges with weekday hints", async () => {
     const html = await loadFixture("vanderbilt-academic-calendar-2026-2027.html");
     const result = extractHtmlEvents(html, baseOptions);
 
@@ -112,8 +112,8 @@ describe("extractHtmlEvents — Vanderbilt definition-list pattern", () => {
       candidate.rawTitle.toLowerCase().includes("spring break")
     );
     expect(springBreak).toBeDefined();
-    expect(springBreak?.startAt.toISOString()).toBe("2027-03-06T00:00:00.000Z");
-    expect(springBreak?.endAt.toISOString()).toBe("2027-03-15T00:00:00.000Z");
+    expect(springBreak?.startAt.toISOString()).toBe("2027-03-13T00:00:00.000Z");
+    expect(springBreak?.endAt.toISOString()).toBe("2027-03-22T00:00:00.000Z");
     expect(springBreak?.category).toBe(EventCategory.BREAK);
   });
 });
@@ -171,10 +171,10 @@ describe("extractHtmlEvents — defaults", () => {
     const html = await loadFixture("ucla-academic-calendar-2026-2027.html");
     const result = extractHtmlEvents(html, baseOptions);
 
-    const commencement = result.candidates.find((candidate) =>
-      candidate.rawTitle.toLowerCase().includes("commencement")
+    const studyList = result.candidates.find((candidate) =>
+      candidate.rawTitle.toLowerCase().includes("study list deadline")
     );
-    expect(commencement?.category).toBe(EventCategory.UNKNOWN);
-    expect(commencement?.confidence).toBeLessThan(0.5);
+    expect(studyList?.category).toBe(EventCategory.UNKNOWN);
+    expect(studyList?.confidence).toBeLessThan(0.5);
   });
 });

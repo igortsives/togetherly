@@ -72,7 +72,8 @@ const MONTH_INDEX_BY_NAME = new Map<string, number>(
   })
 );
 
-const WEEKDAY_PATTERN = "(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday)";
+const WEEKDAY_PATTERN =
+  "(?:Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday|Mon|Tues|Tue|Wed|Thurs|Thur|Thu|Fri|Sat|Sun)";
 const WEEKDAY_RANGE_PATTERN = `${WEEKDAY_PATTERN}(?:\\s*[-\\u2013]\\s*${WEEKDAY_PATTERN})?`;
 const MONTH_PATTERN =
   "(?:January|February|March|April|May|June|July|August|September|October|November|December|Sept|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Oct|Nov|Dec)";
@@ -98,6 +99,23 @@ const DATE_SINGLE_FULL = new RegExp(
 );
 
 const DATE_NUMERIC_SHORT = /\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/;
+
+const DATE_RANGE_SAME_MONTH_NO_YEAR = new RegExp(
+  `(${MONTH_PATTERN})\\s+(\\d{1,2})\\s*[-\\u2013]\\s*(\\d{1,2})(?:\\s*,\\s*${WEEKDAY_RANGE_PATTERN})?`,
+  "i"
+);
+
+const DATE_RANGE_CROSS_MONTH_NO_YEAR = new RegExp(
+  `(${MONTH_PATTERN})\\s+(\\d{1,2})\\s*[-\\u2013]\\s*(${MONTH_PATTERN})\\s+(\\d{1,2})(?:\\s*,\\s*${WEEKDAY_RANGE_PATTERN})?`,
+  "i"
+);
+
+const DATE_SINGLE_NO_YEAR = new RegExp(
+  `(${MONTH_PATTERN})\\s+(\\d{1,2})(?:\\s*,\\s*${WEEKDAY_PATTERN})?`,
+  "i"
+);
+
+const FOUR_DIGIT_YEAR = /\b\d{4}\b/;
 
 const SECTION_HEADER_YEAR = new RegExp(
   `\\b(${MONTH_PATTERN})\\s+(\\d{4})\\b|\\b(?:FALL|WINTER|SPRING|SUMMER)\\s+(?:QUARTER|SEMESTER|SESSION|TERM)?\\s*(\\d{4})\\b|\\b(\\d{4})\\s*[-\\u2013]\\s*(\\d{4})\\b`,
@@ -284,6 +302,36 @@ function parseDateRanges(text: string, sectionYear: number | null): ParsedDateRa
       Number.parseInt(monthRaw, 10),
       Number.parseInt(dayRaw, 10)
     );
+    ranges.push({ start, end: addOneDay(start), matchedText: matched });
+    return ranges;
+  }
+
+  if (sectionYear === null || FOUR_DIGIT_YEAR.test(text)) {
+    return ranges;
+  }
+
+  const crossMonthNoYear = DATE_RANGE_CROSS_MONTH_NO_YEAR.exec(text);
+  if (crossMonthNoYear) {
+    const [matched, startMonth, startDay, endMonth, endDay] = crossMonthNoYear;
+    const start = buildDate(String(sectionYear), startMonth, startDay);
+    const end = buildDate(String(sectionYear), endMonth, endDay);
+    ranges.push({ start, end: addOneDay(end), matchedText: matched });
+    return ranges;
+  }
+
+  const sameMonthNoYear = DATE_RANGE_SAME_MONTH_NO_YEAR.exec(text);
+  if (sameMonthNoYear) {
+    const [matched, month, startDay, endDay] = sameMonthNoYear;
+    const start = buildDate(String(sectionYear), month, startDay);
+    const end = buildDate(String(sectionYear), month, endDay);
+    ranges.push({ start, end: addOneDay(end), matchedText: matched });
+    return ranges;
+  }
+
+  const singleNoYear = DATE_SINGLE_NO_YEAR.exec(text);
+  if (singleNoYear) {
+    const [matched, month, day] = singleNoYear;
+    const start = buildDate(String(sectionYear), month, day);
     ranges.push({ start, end: addOneDay(start), matchedText: matched });
   }
 
