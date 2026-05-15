@@ -12,8 +12,10 @@ import { auth } from "@/auth";
 import {
   createCalendarAction,
   createChildAction,
+  createGoogleCalendarSourceAction,
   createPdfSourceAction,
   createUrlSourceAction,
+  linkGoogleAccountAction,
   signOutAction,
   toggleCalendarAction
 } from "./actions";
@@ -21,6 +23,7 @@ import { Timeline } from "./components/Timeline";
 import { calendarTypeOptions, getFamilyDashboard } from "@/lib/family/dashboard";
 import { getCurrentUserId } from "@/lib/family/session";
 import { getTimelineData } from "@/lib/family/timeline";
+import { getGoogleConnectionState } from "@/lib/sources/google";
 import { labelSourceType } from "@/lib/sources/source-metadata";
 
 export const dynamic = "force-dynamic";
@@ -48,6 +51,9 @@ export default async function Home() {
   const userId = await getCurrentUserId();
   const dashboard = await getFamilyDashboard(userId);
   const timelineData = await getTimelineData();
+  const googleConnection = userId
+    ? await getGoogleConnectionState(userId)
+    : { linked: false as const };
   const children = dashboard.family.children;
   const calendars = dashboard.family.calendars;
   const sourceCount = dashboard.dbAvailable
@@ -298,6 +304,69 @@ export default async function Home() {
               </label>
               <button type="submit">Upload PDF</button>
             </form>
+
+            {!googleConnection.linked ? (
+              <form action={linkGoogleAccountAction} className="sourceForm">
+                <div>
+                  <p className="eyebrow">Google</p>
+                  <h3>Connect a Google Calendar</h3>
+                </div>
+                <p className="emptyState">
+                  Sign in with Google to list and import calendars from your Google
+                  account. You stay signed in to Togetherly; this only adds Google as
+                  a linked provider.
+                </p>
+                <button type="submit">Connect Google account</button>
+              </form>
+            ) : googleConnection.error ? (
+              <div className="sourceForm">
+                <div>
+                  <p className="eyebrow">Google</p>
+                  <h3>Connection error</h3>
+                </div>
+                <p className="emptyState">{googleConnection.error}</p>
+                <form action={linkGoogleAccountAction}>
+                  <button className="subtleButton" type="submit">
+                    Re-link Google account
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <form action={createGoogleCalendarSourceAction} className="sourceForm">
+                <div>
+                  <p className="eyebrow">Google</p>
+                  <h3>Import a Google Calendar</h3>
+                </div>
+                <label>
+                  Target calendar
+                  <select name="calendarId" required defaultValue="">
+                    <option disabled value="">
+                      Choose calendar
+                    </option>
+                    {calendars.map((calendar) => (
+                      <option key={calendar.id} value={calendar.id}>
+                        {calendar.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="wideField">
+                  Google calendar
+                  <select name="providerCalendarId" required defaultValue="">
+                    <option disabled value="">
+                      Choose Google calendar
+                    </option>
+                    {googleConnection.calendars.map((calendar) => (
+                      <option key={calendar.id} value={calendar.id}>
+                        {calendar.summary}
+                        {calendar.primary ? " (primary)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <button type="submit">Import Google calendar</button>
+              </form>
+            )}
           </div>
         </section>
 

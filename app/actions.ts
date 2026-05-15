@@ -3,7 +3,7 @@
 import { RefreshStatus, SourceType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { signOut } from "@/auth";
+import { signIn, signOut } from "@/auth";
 import { prisma } from "@/lib/db/prisma";
 import {
   calendarInputSchema,
@@ -12,6 +12,7 @@ import {
 } from "@/lib/domain/schemas";
 import { requireUserFamily } from "@/lib/family/session";
 import { runFreeWindowSearch } from "@/lib/matching/search";
+import { refreshGoogleSource } from "@/lib/sources/google-ingest";
 import { refreshHtmlSource } from "@/lib/sources/html-ingest";
 import { refreshIcsSource } from "@/lib/sources/ics-ingest";
 import { extractAndPersistPdf } from "@/lib/sources/pdf-ingest";
@@ -161,6 +162,58 @@ export async function searchFreeWindowsAction(formData: FormData) {
 
 export async function signOutAction() {
   await signOut({ redirectTo: "/login" });
+}
+
+export async function linkGoogleAccountAction() {
+  await signIn("google", { redirectTo: "/" });
+}
+
+export async function createGoogleCalendarSourceAction(formData: FormData) {
+  const calendarId = String(formData.get("calendarId") || "");
+  const providerCalendarId = String(formData.get("providerCalendarId") || "");
+
+  const input = calendarSourceInputSchema.parse({
+    calendarId,
+    sourceType: SourceType.GOOGLE_CALENDAR,
+    providerCalendarId,
+    parserType: parserTypeForSource(SourceType.GOOGLE_CALENDAR),
+    refreshStatus: RefreshStatus.NEEDS_REVIEW
+  });
+
+  await ensureCalendarBelongsToCurrentFamily(input.calendarId);
+
+  const existing = await prisma.calendarSource.findFirst({
+    where: {
+      calendarId: input.calendarId,
+      sourceType: SourceType.GOOGLE_CALENDAR,
+      providerCalendarId: input.providerCalendarId
+    },
+    select: { id: true }
+  });
+  if (existing) {
+    throw new Error("This Google calendar is already imported into the selected calendar.");
+  }
+
+  const source = await prisma.calendarSource.create({
+    data: {
+      calendarId: input.calendarId,
+      sourceType: input.sourceType,
+      providerCalendarId: input.providerCalendarId,
+      parserType: input.parserType,
+      refreshStatus: input.refreshStatus
+    }
+  });
+
+  try {
+    await refreshGoogleSource({ calendarSourceId: source.id });
+  } catch (error) {
+    console.error("Google Calendar extraction failed", {
+      sourceId: source.id,
+      error
+    });
+  }
+
+  revalidatePath("/");
 }
 
 async function ensureCalendarBelongsToCurrentFamily(calendarId: string) {
