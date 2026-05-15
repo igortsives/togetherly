@@ -360,24 +360,249 @@ a {
 .block {
   position: absolute;
   top: 8px;
-  display: grid;
-  min-width: 74px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 22px;
   height: 36px;
-  place-items: center;
+  overflow: hidden;
+  border: 1px solid transparent;
   border-radius: 8px;
   font-size: 0.78rem;
   font-weight: 800;
   padding: 0 8px;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.block .blockGlyph {
+  font-size: 0.9rem;
+  line-height: 1;
+}
+
+.block .blockLabel {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .block.busy {
   background: #f4d9dd;
+  border-color: #e7b9c0;
   color: var(--rose);
 }
 
 .block.free {
   background: var(--accent-soft);
+  border-color: #b6dccf;
   color: var(--accent-strong);
+}
+
+.block.exam {
+  background: #fff0d6;
+  border-color: #ecd29a;
+  color: var(--amber);
+}
+
+.block.optional {
+  background: #e6eef8;
+  border-color: #c2d4ec;
+  color: var(--blue);
+}
+
+.block.unknown {
+  background: #efeae0;
+  border-color: #d5cdb9;
+  color: var(--amber);
+}
+
+.block.low-confidence {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.55) 0,
+    rgba(255, 255, 255, 0.55) 4px,
+    transparent 4px,
+    transparent 8px
+  );
+}
+
+.block.low-confidence::after {
+  content: "!";
+  display: grid;
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(27, 29, 27, 0.18);
+  color: var(--foreground);
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.timelineWrapper {
+  display: grid;
+  gap: 12px;
+  margin-top: 22px;
+}
+
+.timelineHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
+.timelineHeader span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.timelineScale {
+  position: relative;
+  height: 18px;
+  margin-left: 204px;
+}
+
+.monthTick {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.timelineOverlayRow .track {
+  height: 36px;
+  background:
+    linear-gradient(90deg, rgba(27, 29, 27, 0.04) 1px, transparent 1px) 0 0 /
+      12.5% 100%,
+    transparent;
+}
+
+.windowOverlay {
+  position: absolute;
+  top: 4px;
+  display: grid;
+  height: 28px;
+  align-content: center;
+  justify-content: center;
+  border: 1.5px dashed var(--blue);
+  border-radius: 8px;
+  background: rgba(52, 95, 146, 0.12);
+  color: var(--blue);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.windowOverlay span {
+  padding: 0 8px;
+}
+
+.trackEmpty {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.rowLabel strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rowBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.timelineLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.timelineLegend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legendSwatch {
+  display: inline-grid;
+  width: 22px;
+  height: 16px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  line-height: 1;
+  padding: 0;
+}
+
+.legendSwatch.windowOverlay {
+  position: static;
+  width: 32px;
+  height: 16px;
+  background: rgba(52, 95, 146, 0.12);
+  border-color: var(--blue);
+}
+
+.legendSwatch.lowConfidence {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(27, 29, 27, 0.12) 0,
+    rgba(27, 29, 27, 0.12) 3px,
+    transparent 3px,
+    transparent 6px
+  );
+  color: var(--foreground);
+}
+
+.timelineEmpty {
+  display: grid;
+  gap: 8px;
+  margin-top: 18px;
+  padding: 18px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: #fbfcfa;
+  color: var(--muted);
+}
+
+.timelineEmpty strong {
+  color: var(--foreground);
+}
+
+.timelineEmpty a {
+  color: var(--accent-strong);
+  font-weight: 800;
+}
+
+@media (max-width: 920px) {
+  .timelineScale {
+    margin-left: 0;
+  }
 }
 
 @media (max-width: 920px) {
