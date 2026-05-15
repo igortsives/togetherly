@@ -38,7 +38,7 @@ Status legend: ✅ shipped · 🟡 partial / in progress · ⬜ not started.
 - ⬜ Beta feedback capture — [#46](https://github.com/igortsives/togetherly/issues/46).
 - ⬜ Source refresh scheduler — [#40](https://github.com/igortsives/togetherly/issues/40).
 - ⬜ Saved-window invalidation on source change — [#41](https://github.com/igortsives/togetherly/issues/41).
-- ⬜ OAuth token at-rest encryption (must land before public launch) — [#37](https://github.com/igortsives/togetherly/issues/37).
+- ✅ OAuth token at-rest encryption — [#37](https://github.com/igortsives/togetherly/issues/37).
 - ⬜ Tighten OAuth account linking (must land before public launch) — [#38](https://github.com/igortsives/togetherly/issues/38).
 - ⬜ GitHub Actions CI gating PRs — [#47](https://github.com/igortsives/togetherly/issues/47).
 - ✅ Next 16 `middleware.ts → proxy.ts` rename — [#39](https://github.com/igortsives/togetherly/issues/39).

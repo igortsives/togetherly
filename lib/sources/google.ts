@@ -79,8 +79,13 @@ export async function getGoogleConnectionState(
     const calendars = await listGoogleCalendars(userId, deps);
     return { linked: true, calendars, error: null };
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return { linked: true, calendars: [], error: message };
+    console.error("Google connection probe failed", { userId, error });
+    return {
+      linked: true,
+      calendars: [],
+      error:
+        "Couldn't reach Google Calendar with the linked account. Try re-linking, then refresh."
+    };
   }
 }
 
@@ -196,9 +201,8 @@ async function refreshGoogleAccessToken(
   });
 
   if (!response.ok) {
-    const text = await response.text();
     throw new GoogleAccessError(
-      `Failed to refresh Google access token: ${response.status} ${text}`,
+      `Failed to refresh Google access token (status ${response.status})`,
       response.status
     );
   }
@@ -237,9 +241,8 @@ async function callGoogleApi(
   });
 
   if (!response.ok) {
-    const text = await response.text();
     throw new GoogleAccessError(
-      `Google Calendar API request failed: ${response.status} ${text}`,
+      `Google Calendar API request failed (status ${response.status})`,
       response.status
     );
   }

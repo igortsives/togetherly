@@ -36,7 +36,9 @@ APPLE_CLIENT_SECRET=
 MICROSOFT_CLIENT_ID=
 MICROSOFT_CLIENT_SECRET=
 
-# Reserved for future column-level encryption of provider tokens
+# Required when any OAuth provider is enabled — encrypts access/refresh/id_token columns
+# in the Account table. Generate with: openssl rand -base64 32
+# Rotating this key invalidates every linked OAuth account (users must re-link).
 OAUTH_TOKEN_ENCRYPTION_KEY=
 
 # Local PDF blob storage root (defaults to ./storage)

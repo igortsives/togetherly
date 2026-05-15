@@ -6,11 +6,15 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 
 ### Security / privacy (must be resolved before public launch)
 
-- [#37](https://github.com/igortsives/togetherly/issues/37) — Encrypt OAuth access/refresh tokens at rest *(P0, Private Beta)*
 - [#38](https://github.com/igortsives/togetherly/issues/38) — Harden OAuth account linking before public launch *(P0, Private Beta)*
 - [#42](https://github.com/igortsives/togetherly/issues/42) — In-product OAuth disconnect for Google and Microsoft *(P1, Private Beta)*
 - [#43](https://github.com/igortsives/togetherly/issues/43) — In-product account deletion flow *(P1, Private Beta)*
 - [#49](https://github.com/igortsives/togetherly/issues/49) — Push family-ownership check into refreshSource() *(P2)*
+- [#62](https://github.com/igortsives/togetherly/issues/62) — Fix account enumeration on /register *(P1, Private Beta)*
+- [#63](https://github.com/igortsives/togetherly/issues/63) — Restrict OAuth callbackUrl and post-action redirects to same-origin *(P1, Private Beta)*
+- [#64](https://github.com/igortsives/togetherly/issues/64) — Add rate limiting on Credentials sign-in *(P1, Private Beta)*
+- [#65](https://github.com/igortsives/togetherly/issues/65) — Unique constraint on Family.ownerId to prevent duplicate-family race *(P2)*
+- [#66](https://github.com/igortsives/togetherly/issues/66) — Serialize OAuth token refresh per Account *(P2)*
 
 ### Source refresh + change alerts (post-PR #36 follow-ups)
 
@@ -76,7 +80,8 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 
 - ~~Rename `middleware.ts` to `proxy.ts` (Next 16 deprecation)~~ — closes [#39](https://github.com/igortsives/togetherly/issues/39); the file convention is the only change, matcher syntax is unchanged.
 - ~~Demo-family seam removal~~ — PR #31 (`ensureDemoFamily` replaced with `requireUserFamily`).
-- ~~No OAuth token model in schema~~ — resolved by the NextAuth `Account` table in PR #31; encryption is now [#37](https://github.com/igortsives/togetherly/issues/37).
+- ~~Encrypt OAuth access/refresh tokens at rest~~ — closes [#37](https://github.com/igortsives/togetherly/issues/37); AES-256-GCM via Prisma `$extends` in [`lib/db/prisma.ts`](../lib/db/prisma.ts), legacy plaintext rolls forward on refresh.
+- ~~Provider response bodies leaking into thrown errors / UI~~ — closes [#67](https://github.com/igortsives/togetherly/issues/67); scrubbed in both Google and Microsoft clients.
 - ~~UCLA + Vanderbilt fixtures synthetic~~ — PR #28 (live captures). Saratoga remains via [#19](https://github.com/igortsives/togetherly/issues/19).
 - ~~ICS extractor pinned to system local time for all-day events~~ — PR #22 UTC-anchored all-day dates.
 - ~~HTML and PDF extractor tests pinned to synthetic fixture dates~~ — PR #30 merge realigned expectations against the live captures from #28.
