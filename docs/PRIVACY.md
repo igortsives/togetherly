@@ -63,13 +63,18 @@ These tables store extracted and confirmed event content (title, dates, category
 
 ### 1.6 OAuth Tokens
 
-OAuth access/refresh tokens for Google Calendar (#13) and Outlook Calendar (#18) are not yet modeled in `schema.prisma`. When that schema is added, it MUST:
+OAuth access/refresh tokens for Google Calendar (#13, PR #33) and Outlook Calendar (#18, PR #34) live in the NextAuth `Account` table introduced by the auth migration in PR #31. The fields used by the calendar integrations are `access_token`, `refresh_token`, `expires_at`, `scope`, and `token_type`. Rotation happens inline in [`lib/sources/google.ts`](../lib/sources/google.ts) and [`lib/sources/microsoft.ts`](../lib/sources/microsoft.ts) when a token is within 60 seconds of expiry.
 
-- Encrypt all token columns at rest using `OAUTH_TOKEN_ENCRYPTION_KEY` (already in [`.env.example`](../.env.example)).
-- Cascade-delete on user/family deletion (see [§4](#4-data-retention--deletion)).
-- Never be returned by any API route or rendered to a page.
+**Current handling:**
 
-This is tracked under [Open Questions](#9-open-questions) until the token schema lands.
+- Cascade-delete on `User.id` is wired (`Account.userId` has `onDelete: Cascade`). Deleting the parent removes all linked OAuth accounts.
+- Tokens never cross into client components or API responses; they are read only inside server-side ingest paths.
+- Logs scrub tokens per [§6 Logging + Telemetry Boundary](#6-logging--telemetry-boundary).
+
+**Tech debt** ([`TECH_DEBT.md`](./TECH_DEBT.md)):
+
+- The `access_token` and `refresh_token` columns are stored as **plaintext** in PostgreSQL today. `OAUTH_TOKEN_ENCRYPTION_KEY` is declared in [`.env.example`](../.env.example) but is not yet wired to column-level encryption. Auth.js encrypts session cookies and JWTs using `AUTH_SECRET`, but that does not cover the `Account` table.
+- Resolving this requires either Prisma client-extension encryption or a Postgres-level approach (pgcrypto). Either is a follow-up before any data leaves the private-beta sandbox.
 
 ## 2. Minimum-Data Principle
 
@@ -89,9 +94,15 @@ Applies to Google Calendar (#13) and Outlook Calendar (#18). Grounded in [`ARCHI
 
 ### 3.1 At-Rest Encryption
 
+**Target state:**
+
 - All access tokens, refresh tokens, and provider-issued secrets MUST be encrypted before being written to PostgreSQL.
 - The key is read from the `OAUTH_TOKEN_ENCRYPTION_KEY` env var (already declared in [`.env.example`](../.env.example)).
 - Decryption happens only in server-side code paths that need to make a provider API call. Tokens MUST NOT cross into client components, API responses, or logs.
+
+**Current state (private beta only):**
+
+- Tokens live in the NextAuth `Account` table as plaintext columns. The "never cross into client/API/logs" rules are enforced today; column-level encryption is not. See [`TECH_DEBT.md`](./TECH_DEBT.md).
 
 ### 3.2 Scope Minimization
 
@@ -104,9 +115,19 @@ Export to provider calendars (`EXP-001`, `EXP-002` in PRD § 7.8) is P1. When th
 
 ### 3.3 Rotation, Disconnect, Deletion
 
-- Refresh tokens are rotated by the provider; we store the latest refresh token and never log either token value.
-- "Disconnect" MUST: revoke the token with the provider, delete the encrypted token row, leave imported `CalendarEvent` rows in place (parent can delete those separately), and set the related `CalendarSource.refreshStatus` to a terminal state.
-- On user deletion (see [§4](#4-data-retention--deletion)), all OAuth token rows for that user cascade-delete along with `Family` records.
+- Refresh tokens are rotated by the provider; we store the latest refresh token and never log either token value. Rotation lives in `ensureGoogleAccessToken` and `ensureMicrosoftAccessToken`.
+- "Disconnect" MUST: revoke the token with the provider, delete the linked `Account` row, leave imported `CalendarEvent` rows in place (parent can delete those separately), and set the related `CalendarSource.refreshStatus` to a terminal state. **The in-product disconnect UX is not yet built** — today the only path is operator-side Prisma access. Tracked in [`TECH_DEBT.md`](./TECH_DEBT.md).
+- On user deletion (see [§4](#4-data-retention--deletion)), all `Account` rows for that user cascade-delete via the `Account.userId` foreign key.
+
+### 3.4 Email-Based Account Linking Trade-Off
+
+Both the Google and Microsoft providers are configured with `allowDangerousEmailAccountLinking: true`. This lets an existing Togetherly user (who signed up with credentials, Google, or another OAuth) link the *other* provider by re-signing in, as long as the two providers report the same email address.
+
+The trade-off: anyone who controls the linked-provider account at the matching email could take over the existing Togetherly user. This is acceptable for the private-beta cohort but **must be revisited before public launch** (per `TECH_DEBT.md`). Mitigations to consider when revisiting:
+
+- Require fresh re-authentication before linking.
+- Require explicit confirmation in-product before linking a new provider.
+- Tie linking to a verified email signal rather than the raw email claim.
 
 ## 4. Data Retention + Deletion
 
@@ -139,10 +160,11 @@ Deletion endpoints are a Phase 3 deliverable per [`ARCHITECTURE.md`](./ARCHITECT
 When a parent invokes account deletion (Phase 3), the request MUST:
 
 1. Revoke any active OAuth tokens with Google and Microsoft.
-2. Delete the `User` row, which cascades to all `Family`, `Child`, `Calendar`, `CalendarSource`, `EventCandidate`, `CalendarEvent`, and `FreeWindowSearch` records.
+2. Delete the `User` row, which cascades to all `Family`, `Child`, `Calendar`, `CalendarSource`, `EventCandidate`, `CalendarEvent`, `FreeWindowSearch`, and `Account` records.
 3. Delete uploaded files referenced by `CalendarSource.uploadedFileKey`.
-4. Drop any encrypted OAuth token rows tied to the user.
-5. Best-effort scrub of audit/log entries that contain identifiers tied to the user (see [§6](#6-logging--telemetry-boundary)).
+4. Best-effort scrub of audit/log entries that contain identifiers tied to the user (see [§6](#6-logging--telemetry-boundary)).
+
+In-product deletion is not yet implemented. The current cascade behavior makes a Prisma-side "delete user → cascade to family → cascade to everything else" approach feasible, but the provider-token-revocation step and uploaded-file cleanup are operator-only today.
 
 ### 4.4 Export Before Delete (Courtesy)
 
@@ -215,6 +237,6 @@ Decisions not yet made. PR authors should not pick a side here without recording
 - What is the published data retention window after account deletion, if any? Today the requirement is immediate cascade delete; a future commitment (e.g., "purged within 30 days from backups") is undecided.
 - What is the export format for the "export before delete" courtesy? ICS, JSON, both?
 - Which LLM provider will be used for LLM-assisted extraction, and what is its retention/training policy? Until decided, the LLM path remains disabled in production.
-- Do we need a separate `OAuthToken` model now (to lock in the encryption story) or wait until #13/#18 land?
+- ~~Do we need a separate `OAuthToken` model now (to lock in the encryption story) or wait until #13/#18 land?~~ **Resolved**: tokens live in the NextAuth `Account` table; column-level encryption is now a `TECH_DEBT.md` item rather than an open product question.
 - Do we need a parent-controlled "lock" on a child record (preventing accidental deletion when shared families arrive in a future phase)?
 - How are operator/admin reads of family data audited during the private beta?
