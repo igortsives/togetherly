@@ -15,6 +15,7 @@ import { runFreeWindowSearch } from "@/lib/matching/search";
 import { refreshGoogleSource } from "@/lib/sources/google-ingest";
 import { refreshHtmlSource } from "@/lib/sources/html-ingest";
 import { refreshIcsSource } from "@/lib/sources/ics-ingest";
+import { refreshMicrosoftSource } from "@/lib/sources/microsoft-ingest";
 import { extractAndPersistPdf } from "@/lib/sources/pdf-ingest";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
 import { storeCalendarPdf } from "@/lib/sources/storage";
@@ -168,6 +169,10 @@ export async function linkGoogleAccountAction() {
   await signIn("google", { redirectTo: "/" });
 }
 
+export async function linkMicrosoftAccountAction() {
+  await signIn("microsoft-entra-id", { redirectTo: "/" });
+}
+
 export async function createGoogleCalendarSourceAction(formData: FormData) {
   const calendarId = String(formData.get("calendarId") || "");
   const providerCalendarId = String(formData.get("providerCalendarId") || "");
@@ -208,6 +213,56 @@ export async function createGoogleCalendarSourceAction(formData: FormData) {
     await refreshGoogleSource({ calendarSourceId: source.id });
   } catch (error) {
     console.error("Google Calendar extraction failed", {
+      sourceId: source.id,
+      error
+    });
+  }
+
+  revalidatePath("/");
+}
+
+export async function createOutlookCalendarSourceAction(formData: FormData) {
+  const calendarId = String(formData.get("calendarId") || "");
+  const providerCalendarId = String(formData.get("providerCalendarId") || "");
+
+  const input = calendarSourceInputSchema.parse({
+    calendarId,
+    sourceType: SourceType.OUTLOOK_CALENDAR,
+    providerCalendarId,
+    parserType: parserTypeForSource(SourceType.OUTLOOK_CALENDAR),
+    refreshStatus: RefreshStatus.NEEDS_REVIEW
+  });
+
+  await ensureCalendarBelongsToCurrentFamily(input.calendarId);
+
+  const existing = await prisma.calendarSource.findFirst({
+    where: {
+      calendarId: input.calendarId,
+      sourceType: SourceType.OUTLOOK_CALENDAR,
+      providerCalendarId: input.providerCalendarId
+    },
+    select: { id: true }
+  });
+  if (existing) {
+    throw new Error(
+      "This Outlook calendar is already imported into the selected calendar."
+    );
+  }
+
+  const source = await prisma.calendarSource.create({
+    data: {
+      calendarId: input.calendarId,
+      sourceType: input.sourceType,
+      providerCalendarId: input.providerCalendarId,
+      parserType: input.parserType,
+      refreshStatus: input.refreshStatus
+    }
+  });
+
+  try {
+    await refreshMicrosoftSource({ calendarSourceId: source.id });
+  } catch (error) {
+    console.error("Outlook Calendar extraction failed", {
       sourceId: source.id,
       error
     });

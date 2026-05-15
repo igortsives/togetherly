@@ -4,6 +4,7 @@ import NextAuth, { type DefaultSession } from "next-auth";
 import Apple from "next-auth/providers/apple";
 import Credentials from "next-auth/providers/credentials";
 import Google from "next-auth/providers/google";
+import MicrosoftEntraID from "next-auth/providers/microsoft-entra-id";
 import { AuthProvider } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { credentialsLoginSchema } from "@/lib/auth/schemas";
@@ -21,6 +22,9 @@ const googleEnabled = Boolean(
 );
 const appleEnabled = Boolean(
   process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET
+);
+const microsoftEnabled = Boolean(
+  process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET
 );
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
@@ -77,6 +81,24 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           Apple({
             clientId: process.env.APPLE_CLIENT_ID!,
             clientSecret: process.env.APPLE_CLIENT_SECRET!
+          })
+        ]
+      : []),
+    ...(microsoftEnabled
+      ? [
+          MicrosoftEntraID({
+            clientId: process.env.MICROSOFT_CLIENT_ID!,
+            clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
+            issuer:
+              "https://login.microsoftonline.com/common/v2.0",
+            allowDangerousEmailAccountLinking: true,
+            authorization: {
+              params: {
+                scope:
+                  "openid email profile offline_access Calendars.Read",
+                prompt: "consent"
+              }
+            }
           })
         ]
       : [])
