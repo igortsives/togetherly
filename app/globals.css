@@ -607,3 +607,135 @@ a {
     grid-template-columns: 1fr;
   }
 }
+
+.searchForm {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.searchForm label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.searchForm input[type="date"],
+.searchForm input[type="number"] {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--foreground);
+  padding: 10px 11px;
+}
+
+.searchForm .checkboxField {
+  flex-direction: row;
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.searchForm .checkboxField input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+}
+
+.searchForm .checkboxField span {
+  color: var(--foreground);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.searchForm button {
+  grid-column: 1 / -1;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--accent);
+  color: #ffffff;
+  cursor: pointer;
+  font-weight: 800;
+  padding: 10px 14px;
+}
+
+.searchForm button:hover {
+  background: var(--accent-strong);
+}
+
+.windowResults {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.windowResult {
+  display: grid;
+  gap: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.windowResult header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.windowResult header div {
+  display: grid;
+  gap: 4px;
+}
+
+.windowResult header strong {
+  font-size: 1.05rem;
+}
+
+.windowResult header span {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.explanation {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin: 0;
+}
+
+.explanation > div {
+  display: grid;
+  gap: 4px;
+  border-left: 3px solid var(--accent-soft);
+  padding-left: 10px;
+}
+
+.explanation dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.explanation dd {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 0.92rem;
+}
+
+@media (max-width: 920px) {
+  .searchForm,
+  .explanation {
+    grid-template-columns: 1fr;
+  }
+}

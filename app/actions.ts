@@ -2,6 +2,7 @@
 
 import { RefreshStatus, SourceType } from "@prisma/client";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import {
   calendarInputSchema,
@@ -9,6 +10,7 @@ import {
   childInputSchema
 } from "@/lib/domain/schemas";
 import { ensureDemoFamily } from "@/lib/family/dashboard";
+import { runFreeWindowSearch } from "@/lib/matching/search";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
 import { storeCalendarPdf } from "@/lib/sources/storage";
 
@@ -125,6 +127,12 @@ export async function toggleCalendarAction(formData: FormData) {
   });
 
   revalidatePath("/");
+}
+
+export async function searchFreeWindowsAction(formData: FormData) {
+  const result = await runFreeWindowSearch(formData);
+  revalidatePath("/windows");
+  redirect(`/windows?searchId=${result.searchId}`);
 }
 
 async function ensureCalendarBelongsToDemoFamily(calendarId: string) {

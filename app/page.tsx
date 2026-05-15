@@ -84,7 +84,7 @@ export default async function Home() {
         <nav className="nav">
           <a href="#setup">Setup</a>
           <a href="#sources">Sources</a>
-          <a href="#windows">Free windows</a>
+          <a href="/windows">Free windows</a>
         </nav>
       </aside>
 
