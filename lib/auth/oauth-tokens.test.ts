@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   OAuthTokenDecryptError,
@@ -8,8 +9,10 @@ import {
   resetOAuthTokenKeyCache
 } from "./oauth-tokens";
 
-const TEST_KEY = "test-encryption-key-for-vitest-32bytes-long-padding-here";
-const OTHER_KEY = "completely-different-key-for-mismatch-tests-32bytes-here";
+// Valid base64-encoded 32-byte keys, generated once per test run.
+// Equivalent to `openssl rand -base64 32`.
+const TEST_KEY = randomBytes(32).toString("base64");
+const OTHER_KEY = randomBytes(32).toString("base64");
 
 describe("oauth-tokens encryption", () => {
   beforeEach(() => {
@@ -113,6 +116,53 @@ describe("oauth-tokens encryption", () => {
       delete process.env.OAUTH_TOKEN_ENCRYPTION_KEY;
       resetOAuthTokenKeyCache();
       expect(decryptToken("legacy-plaintext")).toBe("legacy-plaintext");
+    });
+
+    it("throws OAuthTokenKeyError with the required-message when the env var is missing entirely", () => {
+      delete process.env.OAUTH_TOKEN_ENCRYPTION_KEY;
+      resetOAuthTokenKeyCache();
+      expect(() => encryptToken("anything")).toThrow(
+        /OAUTH_TOKEN_ENCRYPTION_KEY is required/
+      );
+    });
+  });
+
+  describe("weak key rejection", () => {
+    it("rejects a weak short key like 'password' and reports byte count", () => {
+      process.env.OAUTH_TOKEN_ENCRYPTION_KEY = "password";
+      resetOAuthTokenKeyCache();
+
+      // 'password' base64-decodes to 6 bytes ("\xa6\xab\x95\xb1\xeb\xdc"), which
+      // is well below the 32-byte minimum. The previous SHA-256 fallback would
+      // have silently masked this.
+      expect(() => encryptToken("anything")).toThrow(OAuthTokenKeyError);
+      expect(() => encryptToken("anything")).toThrow(
+        /must be at least 32 bytes of random data \(base64-encoded\)\. Got 6 bytes\./
+      );
+      expect(() => encryptToken("anything")).toThrow(/openssl rand -base64 32/);
+    });
+
+    it("rejects an empty-after-trim key as missing, not as too-short", () => {
+      // Whitespace-only env vars should hit the "required" path, not the
+      // bytes-too-short path. This guards the precedence between the two checks.
+      process.env.OAUTH_TOKEN_ENCRYPTION_KEY = "   ";
+      resetOAuthTokenKeyCache();
+
+      expect(() => encryptToken("anything")).toThrow(OAuthTokenKeyError);
+      expect(() => encryptToken("anything")).toThrow(
+        /OAUTH_TOKEN_ENCRYPTION_KEY is required/
+      );
+    });
+
+    it("accepts a real `openssl rand -base64 32`-style key", () => {
+      const strongKey = randomBytes(32).toString("base64");
+      process.env.OAUTH_TOKEN_ENCRYPTION_KEY = strongKey;
+      resetOAuthTokenKeyCache();
+
+      const plaintext = "ya29.example-token";
+      const encrypted = encryptToken(plaintext);
+      expect(isEncrypted(encrypted)).toBe(true);
+      expect(decryptToken(encrypted)).toBe(plaintext);
     });
   });
 });
