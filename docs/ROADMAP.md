@@ -28,19 +28,32 @@ Status legend: ✅ shipped · 🟡 partial / in progress · ⬜ not started.
 - ✅ Email/password registration + Google login + Login with Apple (#17, PR #31).
 - ✅ Google Calendar integration (#13, PR #33).
 - ✅ Outlook Calendar integration (#18, PR #34).
-- 🟡 UCLA/Vanderbilt/Saratoga parser fixtures: UCLA + Vanderbilt are live captures (PR #28); Saratoga is still a structural excerpt pending the 2026-27 LGSUHSD PDF (#19 partial).
+- 🟡 UCLA/Vanderbilt/Saratoga parser fixtures: UCLA + Vanderbilt are live captures (PR #28); Saratoga is still a structural excerpt pending the 2026-27 LGSUHSD PDF ([#19](https://github.com/igortsives/togetherly/issues/19) partial).
 - ✅ Free-window explanation UI (`MAT-004` conflict explanations live on `/windows`).
-- ⬜ Saved windows + share/export to provider calendars (P1 in [`MVP_SPEC.md`](./MVP_SPEC.md)).
-- ⬜ Source refresh + change-alert pipeline (#12). Extractors fire only on source creation today; no scheduler.
-- ⬜ Beta feedback capture (in-app form + storage).
+- ✅ Source refresh + change-alert pipeline (#12, PR #36). Manual Refresh button per source; scheduler is the follow-up [#40](https://github.com/igortsives/togetherly/issues/40).
+- ⬜ Saved windows + share/export to provider calendars — [#45](https://github.com/igortsives/togetherly/issues/45).
+- ⬜ In-product OAuth disconnect — [#42](https://github.com/igortsives/togetherly/issues/42).
+- ⬜ In-product account deletion — [#43](https://github.com/igortsives/togetherly/issues/43).
+- ⬜ Bulk-confirm in review queue — [#44](https://github.com/igortsives/togetherly/issues/44).
+- ⬜ Beta feedback capture — [#46](https://github.com/igortsives/togetherly/issues/46).
+- ⬜ Source refresh scheduler — [#40](https://github.com/igortsives/togetherly/issues/40).
+- ⬜ Saved-window invalidation on source change — [#41](https://github.com/igortsives/togetherly/issues/41).
+- ⬜ OAuth token at-rest encryption (must land before public launch) — [#37](https://github.com/igortsives/togetherly/issues/37).
+- ⬜ Tighten OAuth account linking (must land before public launch) — [#38](https://github.com/igortsives/togetherly/issues/38).
+- ⬜ GitHub Actions CI gating PRs — [#47](https://github.com/igortsives/togetherly/issues/47).
+- ⬜ Next 16 `middleware.ts → proxy.ts` rename — [#39](https://github.com/igortsives/togetherly/issues/39).
 
 ## Phase 3: Hardening — ⬜ Not started
 
-- ⬜ Better parser confidence scoring (LLM-assisted extraction per [`PARSING_STRATEGY.md`](./PARSING_STRATEGY.md)).
+- ⬜ LLM-assisted extraction for ambiguous HTML/PDF — [#52](https://github.com/igortsives/togetherly/issues/52).
 - ⬜ Expanded source corpus beyond the three initial targets.
 - ⬜ Error recovery + unsupported-source flow in-product.
-- ⬜ OAuth disconnect UX + account-deletion path (`PRIVACY.md` §4).
-- ⬜ Column-level encryption for OAuth tokens via `OAUTH_TOKEN_ENCRYPTION_KEY` ([`TECH_DEBT.md`](./TECH_DEBT.md)).
+- ⬜ Provider webhooks for near-real-time change detection — [#50](https://github.com/igortsives/togetherly/issues/50).
+- ⬜ Incremental Google/Outlook sync via syncToken / delta — [#56](https://github.com/igortsives/togetherly/issues/56).
+- ⬜ Source-provenance display on the dashboard timeline — [#51](https://github.com/igortsives/togetherly/issues/51).
+- ⬜ Push family-ownership check into `refreshSource()` — [#49](https://github.com/igortsives/togetherly/issues/49).
+- ⬜ Playwright E2E coverage — [#53](https://github.com/igortsives/togetherly/issues/53).
+- ⬜ Prisma 7 config migration — [#54](https://github.com/igortsives/togetherly/issues/54).
 - ⬜ Performance tuning for large calendars (Google/Outlook accounts with thousands of events).
 - ⬜ Accessibility pass beyond the existing color-isn't-the-only-signal commitment.
 
@@ -55,17 +68,17 @@ Status legend: ✅ shipped · 🟡 partial / in progress · ⬜ not started.
 | Milestone | Status | Outcome |
 |---|---|---|
 | MVP Prototype | ✅ Complete | Import, review, and match calendars locally end to end. |
-| Private Beta | 🟡 Nearly there | Invited families can use real accounts and real calendars. Remaining: source refresh (#12), saved windows / export, Saratoga corpus close-out (#19), beta-feedback capture. |
+| Private Beta | 🟡 Nearly there | Invited families can use real accounts and real calendars. Source refresh ([#12](https://github.com/igortsives/togetherly/issues/12)) shipped in PR #36. Open items under the `Private Beta` milestone on GitHub track the remaining work. |
 | Parser Confidence | 🟡 Foundation in place | Deterministic parsers + fixtures shipped. LLM-assist + confidence-band tuning pending. |
 | Beta Decision | ⬜ Pending | Decide whether to expand, pivot to calendar assistant, or deepen integrations after early-user feedback. |
 
 ## What's Open Right Now
 
-Tracked as GitHub issues unless noted:
+Live tracking lives on GitHub. Quick links:
 
-- [#11](https://github.com/igortsives/togetherly/issues/11) Parser corpus research follow-up.
-- [#12](https://github.com/igortsives/togetherly/issues/12) Source refresh and change alerts (P1).
-- [#15](https://github.com/igortsives/togetherly/issues/15) MVP launch readiness checklist (P1).
-- [#19](https://github.com/igortsives/togetherly/issues/19) Saratoga corpus live capture (partial).
-- [#32](https://github.com/igortsives/togetherly/issues/32) Stitch design integration (P1).
-- See [`docs/TECH_DEBT.md`](./TECH_DEBT.md) for items not yet filed as issues.
+- [`Private Beta` milestone](https://github.com/igortsives/togetherly/milestone/2) — everything that should land before invited families come on.
+- [`priority:P0` open issues](https://github.com/igortsives/togetherly/issues?q=is%3Aopen+label%3Apriority%3AP0) — security/launch blockers.
+- [`priority:P1` open issues](https://github.com/igortsives/togetherly/issues?q=is%3Aopen+label%3Apriority%3AP1) — important after MVP core.
+- [`priority:P2` open issues](https://github.com/igortsives/togetherly/issues?q=is%3Aopen+label%3Apriority%3AP2) — later / stretch.
+
+See [`docs/TECH_DEBT.md`](./TECH_DEBT.md) for the index of debt-related issues grouped by theme, plus a few documentation-only items that intentionally don't have issues.
