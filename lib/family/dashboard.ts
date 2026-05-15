@@ -1,5 +1,6 @@
 import { CalendarType, Prisma, type Family } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { isUniqueConstraintError } from "@/lib/auth/register";
 
 export type DashboardFamily = Awaited<ReturnType<typeof getFamilyDashboard>>;
 
@@ -37,21 +38,34 @@ export class UnauthenticatedError extends Error {
 }
 
 export async function resolveFamilyForUser(userId: string): Promise<Family> {
-  const existing = await prisma.family.findFirst({
-    where: { ownerId: userId },
-    orderBy: { createdAt: "asc" }
+  const existing = await prisma.family.findUnique({
+    where: { ownerId: userId }
   });
 
   if (existing) {
     return existing;
   }
 
-  return prisma.family.create({
-    data: {
-      ownerId: userId,
-      timezone: FALLBACK_TIMEZONE
+  // Race-safe create. The `ownerId` unique constraint added in
+  // migration 20260515234500_family_owner_unique (issue #65) means
+  // two concurrent requests for a new user can both pass the
+  // findUnique above, but only one of the create calls will win —
+  // the loser sees `P2002`. Re-read and return the winning row.
+  try {
+    return await prisma.family.create({
+      data: {
+        ownerId: userId,
+        timezone: FALLBACK_TIMEZONE
+      }
+    });
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return prisma.family.findUniqueOrThrow({
+        where: { ownerId: userId }
+      });
     }
-  });
+    throw error;
+  }
 }
 
 export async function getFamilyDashboard(userId: string | null) {
