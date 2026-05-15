@@ -11,13 +11,74 @@ import { prisma } from "@/lib/db/prisma";
 import { requireUserFamily } from "@/lib/family/session";
 import {
   buildCalendarEventInputFromCandidate,
+  candidateConfidenceNumber,
   type CandidateOverrides
 } from "@/lib/review/candidates";
 import { calendarEventInputSchema } from "@/lib/domain/schemas";
+import { requiresParentReview } from "@/lib/domain/event-taxonomy";
 
 export async function confirmCandidateAction(formData: FormData) {
   const candidateId = String(formData.get("candidateId") || "");
   await confirmCandidate(candidateId, {}, ReviewStatus.CONFIRMED);
+}
+
+export async function bulkConfirmCandidatesAction(formData: FormData) {
+  const candidateIds = Array.from(
+    new Set(
+      formData
+        .getAll("candidateId")
+        .map((value) => String(value ?? "").trim())
+        .filter((value) => value.length > 0)
+    )
+  );
+
+  if (candidateIds.length === 0) {
+    return;
+  }
+
+  const candidates = await loadCandidatesForCurrentFamily(candidateIds);
+
+  const eligible = candidates.filter(
+    (candidate) =>
+      candidate.reviewStatus === ReviewStatus.PENDING &&
+      !requiresParentReview(candidate.category, candidateConfidenceNumber(candidate))
+  );
+
+  if (eligible.length === 0) {
+    return;
+  }
+
+  const operations = eligible.flatMap((candidate) => {
+    const parsed = calendarEventInputSchema.parse(
+      buildCalendarEventInputFromCandidate(candidate, {})
+    );
+    return [
+      prisma.calendarEvent.create({
+        data: {
+          calendarId: parsed.calendarId,
+          eventCandidateId: parsed.eventCandidateId,
+          title: parsed.title,
+          category: parsed.category,
+          busyStatus: parsed.busyStatus,
+          startAt: parsed.startAt,
+          endAt: parsed.endAt,
+          allDay: parsed.allDay,
+          timezone: parsed.timezone,
+          sourceConfidence: parsed.sourceConfidence,
+          createdBy: EventCreator.EXTRACTOR
+        }
+      }),
+      prisma.eventCandidate.update({
+        where: { id: candidate.id },
+        data: { reviewStatus: ReviewStatus.CONFIRMED }
+      })
+    ];
+  });
+
+  await prisma.$transaction(operations);
+
+  revalidatePath("/review");
+  revalidatePath("/");
 }
 
 export async function rejectCandidateAction(formData: FormData) {
@@ -120,6 +181,16 @@ async function ensureCandidateBelongsToCurrentFamily(candidateId: string) {
   }
 
   return candidate;
+}
+
+async function loadCandidatesForCurrentFamily(candidateIds: string[]) {
+  const family = await requireUserFamily();
+  return prisma.eventCandidate.findMany({
+    where: {
+      id: { in: candidateIds },
+      calendar: { familyId: family.id }
+    }
+  });
 }
 
 function optionalString(value: FormDataEntryValue | null): string | undefined {
