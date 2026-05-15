@@ -1,6 +1,20 @@
 import { PrismaClient } from "@prisma/client";
 import { decryptToken, encryptToken } from "@/lib/auth/oauth-tokens";
 
+/**
+ * Scope note: this $extends block wraps direct `account.*` queries only.
+ * If you load Account rows via a related-record include (e.g.
+ * `prisma.user.findFirst({ include: { accounts: true } })`), the rows
+ * come back UN-DECRYPTED because the wrap is keyed on the `account`
+ * model, not on `user`. For OAuth token reads, use a direct query like
+ * `prisma.account.findFirst({ where: { userId, provider } })` — see
+ * `lib/sources/google.ts` and `lib/sources/microsoft.ts` for the pattern.
+ *
+ * The wrap also only matches `typeof value === "string"`, so a Prisma
+ * `data: { access_token: { set: "..." } }` update would skip encryption.
+ * Use direct string assignment when writing token fields.
+ */
+
 const ENCRYPTED_ACCOUNT_FIELDS = ["access_token", "refresh_token", "id_token"] as const;
 type EncryptedAccountField = (typeof ENCRYPTED_ACCOUNT_FIELDS)[number];
 
@@ -24,7 +38,16 @@ function decryptAccountReadRow<T extends Record<string, unknown> | null | undefi
     if (typeof value === "string" && value.length > 0) {
       try {
         next[field] = decryptToken(value);
-      } catch {
+      } catch (error) {
+        // Surface misconfiguration loudly: a wrong/rotated key would
+        // otherwise silently null every account row. The user-facing
+        // behaviour stays the same (null token → "no linked account"
+        // re-link prompt) but operators get a signal.
+        console.warn("OAuth token decrypt failed for Account row", {
+          field,
+          accountId: next.id,
+          reason: error instanceof Error ? error.message : String(error)
+        });
         next[field] = null;
       }
     }
