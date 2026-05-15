@@ -1,12 +1,23 @@
 import { readFile } from "node:fs/promises";
-import { createRequire } from "node:module";
 import path from "node:path";
 import { ParserType, ReviewStatus } from "@prisma/client";
+import pdfParseModule from "pdf-parse";
 import { prisma } from "@/lib/db/prisma";
 import {
   extractPdfTextEvents,
   type PdfTextExtractionError
 } from "@/lib/sources/extractors/pdf";
+
+type PdfParseFn = (
+  data: Buffer | Uint8Array
+) => Promise<{ text?: string; numpages?: number }>;
+
+// pdf-parse is a CommonJS module (`module.exports = fn`). Different bundlers
+// surface that as either the bare function or `{ default: fn }`, so we resolve
+// both shapes once at module load.
+const pdfParse: PdfParseFn =
+  (pdfParseModule as unknown as { default?: PdfParseFn }).default ??
+  (pdfParseModule as unknown as PdfParseFn);
 
 const MIN_TEXT_LAYER_LENGTH = 20;
 
@@ -37,8 +48,6 @@ export async function readPdfText(uploadedFileKey: string): Promise<PdfReadResul
       `Unable to read PDF at ${uploadedFileKey}: ${error instanceof Error ? error.message : String(error)}`
     );
   }
-
-  const pdfParse = await loadPdfParse();
 
   try {
     const parsed = await pdfParse(buffer);
@@ -121,25 +130,3 @@ export async function extractAndPersistPdf(args: {
   return { candidatesInserted: candidates.length, errors };
 }
 
-type PdfParseFn = (
-  data: Buffer | Uint8Array
-) => Promise<{ text?: string; numpages?: number }>;
-
-async function loadPdfParse(): Promise<PdfParseFn> {
-  try {
-    const require = createRequire(import.meta.url);
-    const moduleName = ["pdf", "parse"].join("-");
-    const imported = require(moduleName) as PdfParseFn | { default: PdfParseFn };
-    if (typeof imported === "function") {
-      return imported;
-    }
-    if (typeof imported.default === "function") {
-      return imported.default;
-    }
-    throw new Error("pdf-parse module did not expose a callable function.");
-  } catch (error) {
-    throw new Error(
-      `pdf-parse is required for PDF ingestion but could not be loaded: ${error instanceof Error ? error.message : String(error)}`
-    );
-  }
-}
