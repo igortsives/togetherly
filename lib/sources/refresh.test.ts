@@ -1,8 +1,41 @@
-import { RefreshStatus } from "@prisma/client";
-import { describe, expect, it } from "vitest";
+import { RefreshStatus, SourceType } from "@prisma/client";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/db/prisma", () => ({
+  prisma: {
+    calendarSource: {
+      findUniqueOrThrow: vi.fn(),
+      update: vi.fn()
+    },
+    eventCandidate: {
+      findMany: vi.fn()
+    }
+  }
+}));
+
+vi.mock("@/lib/sources/google-ingest", () => ({
+  refreshGoogleSource: vi.fn()
+}));
+vi.mock("@/lib/sources/html-ingest", () => ({
+  refreshHtmlSource: vi.fn()
+}));
+vi.mock("@/lib/sources/ics-ingest", () => ({
+  refreshIcsSource: vi.fn()
+}));
+vi.mock("@/lib/sources/microsoft-ingest", () => ({
+  refreshMicrosoftSource: vi.fn()
+}));
+vi.mock("@/lib/sources/pdf-ingest", () => ({
+  extractAndPersistPdf: vi.fn()
+}));
+
+import { prisma } from "@/lib/db/prisma";
+import { refreshHtmlSource } from "@/lib/sources/html-ingest";
 import {
   hashCandidateSet,
+  refreshSource,
   resolveRefreshStatus,
+  SourceFamilyMismatchError,
   type CandidateSnapshotInput
 } from "./refresh";
 
@@ -138,5 +171,71 @@ describe("resolveRefreshStatus", () => {
         candidatesAfter: 4
       })
     ).toBe(RefreshStatus.CHANGED);
+  });
+});
+
+describe("refreshSource family ownership", () => {
+  const mockFindUniqueOrThrow =
+    prisma.calendarSource.findUniqueOrThrow as unknown as ReturnType<
+      typeof vi.fn
+    >;
+  const mockUpdate = prisma.calendarSource.update as unknown as ReturnType<
+    typeof vi.fn
+  >;
+  const mockFindMany = prisma.eventCandidate.findMany as unknown as ReturnType<
+    typeof vi.fn
+  >;
+  const mockRefreshHtmlSource = refreshHtmlSource as unknown as ReturnType<
+    typeof vi.fn
+  >;
+
+  function makeSource(familyId: string) {
+    return {
+      id: "source-1",
+      calendarId: "calendar-1",
+      sourceType: SourceType.URL,
+      sourceUrl: "https://example.com/calendar",
+      lastParsedAt: null,
+      refreshStatus: RefreshStatus.NEEDS_REVIEW,
+      calendar: { familyId }
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFindMany.mockResolvedValue([]);
+    mockUpdate.mockResolvedValue({});
+    mockRefreshHtmlSource.mockResolvedValue(undefined);
+  });
+
+  it("throws SourceFamilyMismatchError when the source belongs to a different family", async () => {
+    mockFindUniqueOrThrow.mockResolvedValue(makeSource("family-other"));
+
+    await expect(refreshSource("source-1", "family-expected")).rejects.toBeInstanceOf(
+      SourceFamilyMismatchError
+    );
+
+    expect(mockRefreshHtmlSource).not.toHaveBeenCalled();
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("dispatches to the per-type orchestrator when the source belongs to the expected family", async () => {
+    mockFindUniqueOrThrow.mockResolvedValue(makeSource("family-expected"));
+
+    const outcome = await refreshSource("source-1", "family-expected");
+
+    expect(mockRefreshHtmlSource).toHaveBeenCalledWith("source-1");
+    expect(outcome.sourceId).toBe("source-1");
+  });
+
+  it("loads the calendar relation so familyId can be checked", async () => {
+    mockFindUniqueOrThrow.mockResolvedValue(makeSource("family-expected"));
+
+    await refreshSource("source-1", "family-expected");
+
+    expect(mockFindUniqueOrThrow).toHaveBeenCalledWith({
+      where: { id: "source-1" },
+      include: { calendar: { select: { familyId: true } } }
+    });
   });
 });
