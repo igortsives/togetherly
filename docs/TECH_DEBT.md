@@ -19,12 +19,10 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 - [#44](https://github.com/igortsives/togetherly/issues/44) — Bulk-confirm high-confidence candidates in review queue *(P1)*
 - [#45](https://github.com/igortsives/togetherly/issues/45) — Export selected free windows to Google or Outlook Calendar *(P1)*
 - [#46](https://github.com/igortsives/togetherly/issues/46) — In-product beta feedback capture *(P1)*
-- [#51](https://github.com/igortsives/togetherly/issues/51) — Surface source provenance in the dashboard *(P2)*
 
 ### Process / tooling
 
 - [#47](https://github.com/igortsives/togetherly/issues/47) — GitHub Actions workflow for lint/typecheck/test/build *(P1, Private Beta)*
-- [#48](https://github.com/igortsives/togetherly/issues/48) — Add MICROSOFT to AuthProvider enum and surface on /login *(P2)*
 - [#52](https://github.com/igortsives/togetherly/issues/52) — LLM-assisted extraction for ambiguous HTML/PDF events *(P2)*
 - [#53](https://github.com/igortsives/togetherly/issues/53) — Add Playwright E2E test setup *(P2)*
 
@@ -96,3 +94,5 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 - ~~Microsoft account-linking residual~~ — closes [#76](https://github.com/igortsives/togetherly/issues/76); `allowDangerousEmailAccountLinking: true` removed from the Microsoft Entra ID provider config. Cross-provider linking now happens only via the in-product "Connect Microsoft" flow on the dashboard, which uses the existing session and can't be triggered by an attacker controlling a matching-email MSA.
 - ~~Credentials login timing channel~~ — closes [#86](https://github.com/igortsives/togetherly/issues/86); `authorize` always runs `bcrypt.compare` (against `TIMING_DUMMY_HASH` when the email is unregistered) so the "no such email" and "wrong password" paths have the same wall-clock cost. Dummy hash precomputed at module load (~250ms cold-start cost per process).
 - ~~Test-infra debt sweep~~ — closes [#78](https://github.com/igortsives/togetherly/issues/78), [#80](https://github.com/igortsives/togetherly/issues/80), [#92](https://github.com/igortsives/togetherly/issues/92), [#104](https://github.com/igortsives/togetherly/issues/104). The auth `signIn`/`redirect` callbacks and the Credentials `authorize` body are extracted to [`lib/auth/callbacks.ts`](../lib/auth/callbacks.ts) with full unit coverage. Action-level tests added for `bulkConfirmCandidatesAction` (cross-family scoping + eligibility filter) and `submitBetaFeedbackAction` (auth gate + redirect sanitization + insert payload). Route-handler tests added for `/api/internal/refresh-sources` (503/401/200 paths). Stray `vi.clearAllMocks()` swapped to `vi.resetAllMocks()`.
+- ~~Microsoft on /login + AuthProvider enum~~ — closes [#48](https://github.com/igortsives/togetherly/issues/48); migration `20260516040000_auth_provider_microsoft` adds `MICROSOFT` to the `AuthProvider` enum, `mapAuthProvider` maps `microsoft-entra-id → AuthProvider.MICROSOFT`, and `/login` surfaces a "Continue with Microsoft" button when `MICROSOFT_CLIENT_ID/SECRET` are configured.
+- ~~Source provenance on timeline~~ — closes [#51](https://github.com/igortsives/togetherly/issues/51); `TimelineBlock` now carries `calendarName` + `sourceLabel`, derived in `getTimelineData` from the candidate→source relation. The `Timeline` component's tooltip surfaces the originating calendar + provider on every block. Side-panel drilldown deferred as a follow-up.

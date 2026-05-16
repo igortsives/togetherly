@@ -126,6 +126,8 @@ function mapAuthProvider(provider: string): AuthProvider | null {
       return AuthProvider.GOOGLE;
     case "apple":
       return AuthProvider.APPLE;
+    case "microsoft-entra-id":
+      return AuthProvider.MICROSOFT;
     case "credentials":
       return AuthProvider.EMAIL;
     default:

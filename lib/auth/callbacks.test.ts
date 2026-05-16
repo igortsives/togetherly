@@ -42,6 +42,13 @@ beforeEach(() => {
   mockRecordFailed.mockResolvedValue(undefined);
 });
 
+// Note: `mapAuthProvider` is private to auth.ts; the
+// microsoft-entra-id → MICROSOFT mapping is exercised end-to-end
+// through the actual Microsoft sign-in flow. It is also asserted
+// indirectly via the e2e expectation that the database stores
+// AuthProvider.MICROSOFT for Microsoft sign-ups (manual smoke
+// during PR validation).
+
 describe("signInCallback", () => {
   it("rejects Google sign-ins when profile.email_verified is missing", async () => {
     expect(
