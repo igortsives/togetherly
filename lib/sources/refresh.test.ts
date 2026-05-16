@@ -1,17 +1,34 @@
 import { RefreshStatus, SourceType } from "@prisma/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/db/prisma", () => ({
-  prisma: {
+vi.mock("@/lib/db/prisma", () => {
+  const stub = {
     calendarSource: {
       findUniqueOrThrow: vi.fn(),
       update: vi.fn()
     },
     eventCandidate: {
       findMany: vi.fn()
-    }
-  }
-}));
+    },
+    freeWindowSearch: {
+      updateMany: vi.fn()
+    },
+    $executeRaw: vi.fn()
+  } as {
+    calendarSource: {
+      findUniqueOrThrow: ReturnType<typeof vi.fn>;
+      update: ReturnType<typeof vi.fn>;
+    };
+    eventCandidate: { findMany: ReturnType<typeof vi.fn> };
+    freeWindowSearch: { updateMany: ReturnType<typeof vi.fn> };
+    $executeRaw: ReturnType<typeof vi.fn>;
+    $transaction: ReturnType<typeof vi.fn>;
+  };
+  stub.$transaction = vi
+    .fn()
+    .mockImplementation(async (cb: (tx: typeof stub) => unknown) => cb(stub));
+  return { prisma: stub };
+});
 
 vi.mock("@/lib/sources/google-ingest", () => ({
   refreshGoogleSource: vi.fn()
@@ -185,6 +202,11 @@ describe("refreshSource family ownership", () => {
   const mockFindMany = prisma.eventCandidate.findMany as unknown as ReturnType<
     typeof vi.fn
   >;
+  const mockFreeWindowUpdateMany = (
+    prisma as unknown as {
+      freeWindowSearch: { updateMany: ReturnType<typeof vi.fn> };
+    }
+  ).freeWindowSearch.updateMany;
   const mockRefreshHtmlSource = refreshHtmlSource as unknown as ReturnType<
     typeof vi.fn
   >;
@@ -202,9 +224,16 @@ describe("refreshSource family ownership", () => {
   }
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
+    const txMock = (
+      prisma as unknown as { $transaction: ReturnType<typeof vi.fn> }
+    ).$transaction;
+    txMock.mockImplementation(async (cb: (tx: typeof prisma) => unknown) =>
+      cb(prisma)
+    );
     mockFindMany.mockResolvedValue([]);
     mockUpdate.mockResolvedValue({});
+    mockFreeWindowUpdateMany.mockResolvedValue({ count: 0 });
     mockRefreshHtmlSource.mockResolvedValue(undefined);
   });
 
@@ -237,5 +266,70 @@ describe("refreshSource family ownership", () => {
       where: { id: "source-1" },
       include: { calendar: { select: { familyId: true } } }
     });
+  });
+
+  it("marks free-window searches stale when the candidate set changed", async () => {
+    mockFindUniqueOrThrow.mockResolvedValue(makeSource("family-expected"));
+    // First snapshot (before): empty; second (after): one candidate.
+    // Different hashes → changeDetected true → updateMany fires.
+    mockFindMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([
+        {
+          rawTitle: "Spring Break",
+          startAt: new Date("2027-03-13T00:00:00.000Z"),
+          endAt: new Date("2027-03-22T00:00:00.000Z"),
+          allDay: true,
+          category: "BREAK",
+          suggestedBusyStatus: "FREE",
+          evidenceLocator: "uid"
+        }
+      ]);
+
+    const outcome = await refreshSource("source-1", "family-expected");
+
+    expect(outcome.changeDetected).toBe(true);
+    expect(mockFreeWindowUpdateMany).toHaveBeenCalledWith({
+      where: { familyId: "family-expected", stale: false },
+      data: { stale: true }
+    });
+  });
+
+  it("does NOT mark searches stale when the candidate set is unchanged", async () => {
+    const sameCandidate = {
+      rawTitle: "Spring Break",
+      startAt: new Date("2027-03-13T00:00:00.000Z"),
+      endAt: new Date("2027-03-22T00:00:00.000Z"),
+      allDay: true,
+      category: "BREAK",
+      suggestedBusyStatus: "FREE",
+      evidenceLocator: "uid"
+    };
+    const stableSource = {
+      ...makeSource("family-expected"),
+      lastParsedAt: new Date("2026-01-01T00:00:00.000Z")
+    };
+    mockFindUniqueOrThrow.mockResolvedValue(stableSource);
+    mockFindMany
+      .mockResolvedValueOnce([sameCandidate])
+      .mockResolvedValueOnce([sameCandidate]);
+
+    const outcome = await refreshSource("source-1", "family-expected");
+
+    expect(outcome.changeDetected).toBe(false);
+    expect(mockFreeWindowUpdateMany).not.toHaveBeenCalled();
+  });
+
+  it("writes lastFetchedAt on successful refresh", async () => {
+    mockFindUniqueOrThrow.mockResolvedValue(makeSource("family-expected"));
+
+    await refreshSource("source-1", "family-expected");
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "source-1" },
+        data: expect.objectContaining({ lastFetchedAt: expect.any(Date) })
+      })
+    );
   });
 });

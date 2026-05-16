@@ -6,6 +6,7 @@ import {
   type CalendarSource
 } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { withSourceLock, type ExtendedTxClient } from "@/lib/db/locks";
 import { refreshGoogleSource } from "@/lib/sources/google-ingest";
 import { refreshHtmlSource } from "@/lib/sources/html-ingest";
 import { refreshIcsSource } from "@/lib/sources/ics-ingest";
@@ -38,50 +39,79 @@ export async function refreshSource(
   sourceId: string,
   expectedFamilyId: string
 ): Promise<RefreshOutcome> {
-  const source = await prisma.calendarSource.findUniqueOrThrow({
-    where: { id: sourceId },
-    include: { calendar: { select: { familyId: true } } }
-  });
-
-  if (source.calendar.familyId !== expectedFamilyId) {
-    throw new SourceFamilyMismatchError(sourceId);
-  }
-
-  const isFirstRefresh = source.lastParsedAt === null;
-  const beforeSnapshot = await snapshotCandidatesForSource(sourceId);
-
-  try {
-    await dispatchToOrchestrator(source);
-  } catch (error) {
-    await prisma.calendarSource.update({
+  // Serialize concurrent refreshes of the same source (issue #40).
+  // A second caller blocks on the Postgres advisory lock until the
+  // winner commits, then proceeds — typically finding the candidate
+  // set already current.
+  //
+  // The lock-holding `$transaction` is used for the family-ownership
+  // check, the before/after candidate snapshots, the `lastFetchedAt`
+  // / refreshStatus write, and the staleness fan-out. The actual
+  // ingest work in `dispatchToOrchestrator` happens on a separate
+  // connection (ingest modules use their own `$transaction([...])`
+  // for the candidate-set rewrite). That's fine: the advisory lock
+  // is held across the dispatch call so concurrent callers still
+  // serialize, and the ingest write commits before the lock-holding
+  // tx commits, so the next lock-acquirer sees the durable state.
+  return withSourceLock(sourceId, async (tx) => {
+    const source = await tx.calendarSource.findUniqueOrThrow({
       where: { id: sourceId },
-      data: { refreshStatus: RefreshStatus.FAILED, lastFetchedAt: new Date() }
+      include: { calendar: { select: { familyId: true } } }
     });
-    throw error;
-  }
 
-  const afterSnapshot = await snapshotCandidatesForSource(sourceId);
+    if (source.calendar.familyId !== expectedFamilyId) {
+      throw new SourceFamilyMismatchError(sourceId);
+    }
 
-  const refreshStatus = resolveRefreshStatus({
-    isFirstRefresh,
-    beforeHash: beforeSnapshot.hash,
-    afterHash: afterSnapshot.hash,
-    candidatesBefore: beforeSnapshot.candidates.length,
-    candidatesAfter: afterSnapshot.candidates.length
+    const isFirstRefresh = source.lastParsedAt === null;
+    const beforeSnapshot = await snapshotCandidatesForSource(sourceId, tx);
+
+    try {
+      await dispatchToOrchestrator(source);
+    } catch (error) {
+      await tx.calendarSource.update({
+        where: { id: sourceId },
+        data: { refreshStatus: RefreshStatus.FAILED, lastFetchedAt: new Date() }
+      });
+      throw error;
+    }
+
+    const afterSnapshot = await snapshotCandidatesForSource(sourceId, tx);
+
+    const refreshStatus = resolveRefreshStatus({
+      isFirstRefresh,
+      beforeHash: beforeSnapshot.hash,
+      afterHash: afterSnapshot.hash,
+      candidatesBefore: beforeSnapshot.candidates.length,
+      candidatesAfter: afterSnapshot.candidates.length
+    });
+
+    await tx.calendarSource.update({
+      where: { id: sourceId },
+      data: { refreshStatus, lastFetchedAt: new Date() }
+    });
+
+    const changeDetected = beforeSnapshot.hash !== afterSnapshot.hash;
+
+    // Invalidate saved free-window searches when the underlying
+    // candidate set actually changed (issue #41). Coarse-brush —
+    // mark every search for this family stale rather than narrowing
+    // by date overlap. Refinement is tracked as a follow-up.
+    if (changeDetected) {
+      await tx.freeWindowSearch.updateMany({
+        where: { familyId: expectedFamilyId, stale: false },
+        data: { stale: true }
+      });
+    }
+
+    return {
+      sourceId,
+      refreshStatus,
+      candidatesBefore: beforeSnapshot.candidates.length,
+      candidatesAfter: afterSnapshot.candidates.length,
+      changeDetected
+    };
   });
-
-  await prisma.calendarSource.update({
-    where: { id: sourceId },
-    data: { refreshStatus }
-  });
-
-  return {
-    sourceId,
-    refreshStatus,
-    candidatesBefore: beforeSnapshot.candidates.length,
-    candidatesAfter: afterSnapshot.candidates.length,
-    changeDetected: beforeSnapshot.hash !== afterSnapshot.hash
-  };
 }
 
 async function dispatchToOrchestrator(source: CalendarSource): Promise<void> {
@@ -122,9 +152,10 @@ export type CandidateSnapshot = {
 };
 
 export async function snapshotCandidatesForSource(
-  sourceId: string
+  sourceId: string,
+  client: ExtendedTxClient | typeof prisma = prisma
 ): Promise<CandidateSnapshot> {
-  const rows = await prisma.eventCandidate.findMany({
+  const rows = await client.eventCandidate.findMany({
     where: { calendarSourceId: sourceId, reviewStatus: ReviewStatus.PENDING },
     select: {
       rawTitle: true,

@@ -5,36 +5,33 @@ import { prisma } from "@/lib/db/prisma";
  * `lib/db/prisma.ts`. `Prisma.TransactionClient` from `@prisma/client`
  * matches the base client, not the `$extends`-wrapped one we actually
  * use, so consumers that need a `tx` parameter type should import
- * `AccountTxClient` from here.
+ * `ExtendedTxClient` from here.
  */
-export type AccountTxClient = Parameters<
+export type ExtendedTxClient = Parameters<
   Parameters<typeof prisma.$transaction>[0]
 >[0];
 
+/** Backwards-compatible alias for the OAuth refresh path. */
+export type AccountTxClient = ExtendedTxClient;
+
 /**
- * Serializes OAuth token-refresh per `Account` row to avoid concurrent
- * refreshers racing through the provider's token endpoint with the
- * same `refresh_token` (issue #66).
- *
- * Implemented as a Postgres transaction-scoped advisory lock keyed by
- * a deterministic hash of the account id. The lock is released
+ * Serializes work against a `(namespace, key)` pair via a Postgres
+ * transaction-scoped advisory lock. The lock is released
  * automatically when the surrounding `$transaction` commits or rolls
  * back — no manual unlock path to leak.
  *
- * The id is a CUID string; `pg_advisory_xact_lock` only accepts
- * integers, so we hash the id to a `bigint` via the standard
- * `('x' || md5(...))::bit(64)::bigint` pattern and namespace the
- * lock space with a fixed prefix to avoid collisions with unrelated
- * advisory locks future code might add.
+ * `key` is a string (CUIDs, account IDs, …); we hash it to a
+ * `bigint` via the standard `('x' || md5(...))::bit(64)::bigint`
+ * pattern. The namespace is folded into the hash input so unrelated
+ * advisory locks across the app land in different 64-bit slots.
  */
-const LOCK_NAMESPACE = "oauth-token-refresh";
-
-export async function withAccountLock<T>(
-  accountId: string,
-  fn: (tx: AccountTxClient) => Promise<T>
+export async function withAdvisoryLock<T>(
+  namespace: string,
+  key: string,
+  fn: (tx: ExtendedTxClient) => Promise<T>
 ): Promise<T> {
   return prisma.$transaction(async (tx) => {
-    const lockKey = `${LOCK_NAMESPACE}:${accountId}`;
+    const lockKey = `${namespace}:${key}`;
     await tx.$executeRaw`
       SELECT pg_advisory_xact_lock(
         ('x' || substr(md5(${lockKey}), 1, 16))::bit(64)::bigint
@@ -42,4 +39,21 @@ export async function withAccountLock<T>(
     `;
     return fn(tx);
   });
+}
+
+/** OAuth token-refresh lock (issue #66). */
+export async function withAccountLock<T>(
+  accountId: string,
+  fn: (tx: ExtendedTxClient) => Promise<T>
+): Promise<T> {
+  return withAdvisoryLock("oauth-token-refresh", accountId, fn);
+}
+
+/** CalendarSource refresh lock (issue #40). Prevents two refreshers
+ * from racing the same source's candidate-set rewrite. */
+export async function withSourceLock<T>(
+  sourceId: string,
+  fn: (tx: ExtendedTxClient) => Promise<T>
+): Promise<T> {
+  return withAdvisoryLock("source-refresh", sourceId, fn);
 }

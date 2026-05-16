@@ -198,6 +198,13 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
             </div>
           </div>
 
+          {search?.stale ? (
+            <p className="authNotice" role="status">
+              A source has changed since this search ran. Re-run to refresh
+              these results.
+            </p>
+          ) : null}
+
           {!search ? (
             <p className="emptyState">No search results yet.</p>
           ) : search.results.length === 0 ? (
