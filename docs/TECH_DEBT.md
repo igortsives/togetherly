@@ -29,7 +29,6 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 
 - [#19](https://github.com/igortsives/togetherly/issues/19) — Parser corpus fixtures for UCLA, Vanderbilt, and Saratoga/LGSUHSD *(Saratoga capture still deferred — see PR #28)*
 - [#11](https://github.com/igortsives/togetherly/issues/11) — Parser corpus research follow-up
-- [#15](https://github.com/igortsives/togetherly/issues/15) — MVP launch readiness checklist
 - [#32](https://github.com/igortsives/togetherly/issues/32) — Stitch design integration
 
 ## Documentation-only items (intentionally not filed as issues)
@@ -100,3 +99,4 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 - ~~Vercel Cron registration~~ — closes [#101](https://github.com/igortsives/togetherly/issues/101); `vercel.json` adds a daily 04:00 UTC cron firing `/api/internal/refresh-sources`. The route handler accepts either `CRON_SECRET` (auto-set by Vercel) or `SCHEDULER_SECRET` (legacy local-dev name) for backwards compat.
 - ~~Per-source scheduler backoff~~ — closes [#100](https://github.com/igortsives/togetherly/issues/100); `CalendarSource.failedAttempts INT` added (migration `20260516050000_source_failed_attempts`); `refreshSource` increments on failure, resets to 0 on success; the scheduler skips sources where `failedAttempts >= MAX_FAILED_ATTEMPTS = 10`. Manual refresh still works and clears the counter on next success.
 - ~~Widen Microsoft dead-grant detection~~ — closes [#95](https://github.com/igortsives/togetherly/issues/95); `isInvalidGrant` in [`lib/sources/microsoft.ts`](../lib/sources/microsoft.ts) now matches `interaction_required` / `consent_required` plus `error_codes` containing `70008`, `50173`, or `700082` — all paths that surface "refresh token dead, re-link required."
+- ~~Launch readiness checklist~~ — closes [#15](https://github.com/igortsives/togetherly/issues/15); [`docs/LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md) lays out the explicit out-of-scope items, the minimum parser/source coverage required to invite a family, the accuracy + review requirements, the support policy for failed sources, and a pre-launch ops checklist. Reviewed before each cohort expansion.

@@ -55,8 +55,10 @@ Excluded:
 
 ## Beta Readiness Checklist
 
+The full, operational version of this checklist — covering infrastructure, migrations, auth/privacy, source pipeline, observability, and pre-launch ops — lives in [`LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md). The high-level bar is:
+
 - Product docs approved.
-- Source corpus has passing parser tests for at least UCLA, Vanderbilt, and Saratoga/LGSUHSD examples.
+- Source corpus has passing parser tests for at least UCLA, Vanderbilt, and (where the cohort needs them) Saratoga/LGSUHSD examples.
 - Auth and OAuth token storage reviewed.
 - Parent can delete imported sources and events.
 - Low-confidence events cannot silently affect recommendations.
