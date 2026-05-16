@@ -55,7 +55,7 @@ Excluded:
 
 ## Beta Readiness Checklist
 
-The full, operational version of this checklist — covering infrastructure, migrations, auth/privacy, source pipeline, observability, and pre-launch ops — lives in [`LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md). The high-level bar is:
+The full, operational version of this checklist — covering infrastructure, migrations, auth/privacy, source pipeline, observability, and pre-launch ops — lives in [`LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md). After 2026-05-16, beta launch is also gated on the **Intelligent Calendar Redesign** (Phase 2.5 in [`ROADMAP.md`](./ROADMAP.md), Rounds 15-18) and a **UAT pass** in Round 19. The high-level bar is:
 
 - Product docs approved.
 - Source corpus has passing parser tests for at least UCLA, Vanderbilt, and (where the cohort needs them) Saratoga/LGSUHSD examples.
@@ -64,3 +64,28 @@ The full, operational version of this checklist — covering infrastructure, mig
 - Low-confidence events cannot silently affect recommendations.
 - Known limitations are visible inside the app.
 - GitHub Issues milestone has P0 issues closed or explicitly deferred.
+
+## UAT Gate (Round 19)
+
+Before invitations go out, the operator (Igor) runs end-to-end UAT against a real source mix:
+
+- UCLA PDF academic calendar.
+- Vanderbilt HTML academic calendar.
+- One ICS subscription (e.g. a sports team feed).
+- One linked Google or Outlook calendar belonging to the parent.
+
+Pass criteria (measurable where possible):
+
+- **Academic calendar coverage**: for the UCLA PDF, ≥ 80% of weekdays inside a synthesized `class_in_session` interval render as busy on the timeline. Sat/Sun inside the same interval render as free. Listed holidays inside the interval render as free.
+- **All-day display**: every all-day event (e.g., Presidents' Day on Feb 16, 2026-27) renders as a single-day block with the correct end-day label — not "Feb 16 – Feb 17."
+- **Source attribution**: every event block on the timeline shows its originating source via the legend + per-block color stripe. Clicking a block opens the drilldown with the correct source name, provider type, and evidence locator.
+- **Natural-language search**: typing "I want a free week around Christmas" returns the parse preview ("Searching for 5+ day windows between Dec 11 2026 and Jan 8 2027, preferring ones that include Dec 25") with an Adjust button. Running it returns at least one window if the data supports it.
+- **Long-weekend detection**: a search that contains a Mon/Fri `school_closed` holiday adjacent to a Sat-Sun weekend surfaces the long weekend with a "Long weekend (extends Memorial Day)"-style label.
+- **Cross-source intersection**: with UCLA + Vanderbilt + Google + ICS all linked, a search for "a week when both kids are off school" returns at least one window if one exists.
+
+Decision branches after UAT:
+
+- **Limited release**: invite the first 5-10 friendly families. Watch closely for the first 7 days.
+- **Continue iterating**: file follow-up issues, defer invites by another round.
+
+This decision is captured in [`DECISIONS.md`](./DECISIONS.md) when made.

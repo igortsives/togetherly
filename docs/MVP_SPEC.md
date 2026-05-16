@@ -26,6 +26,11 @@ Togetherly MVP lets a private beta parent add children, import calendars from PD
 - Bulk confirm high-confidence events.
 - Basic school/source search.
 - Unknown/optional-event search preferences.
+- **Boundary-pair inference for academic calendars** (EXT-009) — synthesize `class_in_session` and `exam_period` intervals from `Quarter Begins/Ends`, `First/Last Day of Classes`, `Final Examinations Begin/End` markers so academic calendars carry meaningful busy/free semantics.
+- **LLM-assisted classification of ambiguous events** (EXT-010) — when heuristics are unsure, escalate to Claude with structured output.
+- **Source-aware unified view** (UI-006, UI-007) — source legend at the top of the dashboard, per-source toggle, per-block source-color stripe, click-to-drilldown side panel.
+- **Natural-language search** (MAT-008) — parents can type "a free week around Christmas" and the app parses to structured search params via Claude with a show-parse-before-running UX. Structured form remains as expert mode.
+- **Long-weekend recognition + weekend carve-out** (MAT-009, MAT-010) — Mon/Fri holidays extend to adjacent weekends; Sat/Sun within in-session ranges stay free.
 
 ## P2 Scope
 
@@ -63,7 +68,7 @@ The MVP is ready for private beta when:
 - [x] The app returns matching windows and conflict explanations. (PR #24)
 - [x] Low-confidence or unreviewed events do not silently affect default results. (Review-gated by design: only `CalendarEvent` rows feed matching; candidates stay in the review queue until confirmed.)
 
-Remaining work before declaring the private beta milestone closed lives under [`ROADMAP.md`](./ROADMAP.md) Phase 2 (source refresh #12, saved windows / export, Saratoga corpus close-out #19, beta-feedback capture).
+Phase 2 (Private Beta MVP code) is complete. Phase 2.5 (Intelligent Calendar Redesign, Rounds 15-18) is the remaining work before invitation goes out — see [`ROADMAP.md`](./ROADMAP.md) Phase 2.5 and [`LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md). UAT acceptance against a real UCLA / Vanderbilt / Google / ICS source mix is the gate (Round 19).
 
 ## Initial Private Beta Constraints
 
