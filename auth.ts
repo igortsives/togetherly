@@ -52,8 +52,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             allowDangerousEmailAccountLinking: true,
             authorization: {
               params: {
+                // `calendar.events` (write) replaces `calendar.readonly`
+                // for issue #45 (export selected free windows). The
+                // event-creation API still needs a calendar-list scope
+                // for the list-calendars UI, so we keep `calendar.readonly`
+                // alongside it — Google grants the union of the two.
+                // Existing users must re-link before they can export.
                 scope:
-                  "openid email profile https://www.googleapis.com/auth/calendar.readonly",
+                  "openid email profile https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events",
                 access_type: "offline",
                 prompt: "consent"
               }
@@ -82,8 +88,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             // would be a takeover vector.
             authorization: {
               params: {
+                // `Calendars.ReadWrite` replaces `Calendars.Read` for
+                // issue #45 (export selected free windows). Existing
+                // users must re-link before they can export.
                 scope:
-                  "openid email profile offline_access Calendars.Read",
+                  "openid email profile offline_access Calendars.ReadWrite",
                 prompt: "consent"
               }
             }
