@@ -1,13 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/lib/db/prisma", () => ({
-  prisma: {
+vi.mock("@/lib/db/prisma", () => {
+  const prismaStub = {
     account: {
       findFirst: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
       update: vi.fn()
-    }
-  }
-}));
+    },
+    $executeRaw: vi.fn()
+  } as {
+    account: {
+      findFirst: ReturnType<typeof vi.fn>;
+      findUniqueOrThrow: ReturnType<typeof vi.fn>;
+      update: ReturnType<typeof vi.fn>;
+    };
+    $executeRaw: ReturnType<typeof vi.fn>;
+    $transaction: ReturnType<typeof vi.fn>;
+  };
+  prismaStub.$transaction = vi
+    .fn()
+    .mockImplementation(async (cb: (tx: typeof prismaStub) => unknown) =>
+      cb(prismaStub)
+    );
+  return { prisma: prismaStub };
+});
 
 import { prisma } from "@/lib/db/prisma";
 import {
@@ -17,11 +33,21 @@ import {
   type MicrosoftHttpClient
 } from "./microsoft";
 
-const findFirst = prisma.account.findFirst as unknown as ReturnType<typeof vi.fn>;
+const findFirst = prisma.account.findFirst as unknown as ReturnType<
+  typeof vi.fn
+>;
+const findUniqueOrThrow =
+  prisma.account.findUniqueOrThrow as unknown as ReturnType<typeof vi.fn>;
 const update = prisma.account.update as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
+  const txMock = (
+    prisma as unknown as { $transaction: ReturnType<typeof vi.fn> }
+  ).$transaction;
+  txMock.mockImplementation(async (cb: (tx: typeof prisma) => unknown) =>
+    cb(prisma)
+  );
   process.env.MICROSOFT_CLIENT_ID = "test-client-id";
   process.env.MICROSOFT_CLIENT_SECRET = "test-client-secret";
 });
@@ -49,12 +75,14 @@ describe("ensureMicrosoftAccessToken", () => {
   });
 
   it("refreshes via the Microsoft token endpoint when the access token is expired", async () => {
-    findFirst.mockResolvedValue({
+    const expiredAccount = {
       id: "account-1",
       access_token: "expired-access-token",
       refresh_token: "stored-refresh-token",
       expires_at: Math.floor(Date.now() / 1000) - 60
-    });
+    };
+    findFirst.mockResolvedValue(expiredAccount);
+    findUniqueOrThrow.mockResolvedValue(expiredAccount);
 
     const fetchMock = vi.fn(async () => ({
       ok: true,
@@ -67,7 +95,9 @@ describe("ensureMicrosoftAccessToken", () => {
       })
     })) as unknown as MicrosoftHttpClient;
 
-    const token = await ensureMicrosoftAccessToken("user-1", { fetch: fetchMock });
+    const token = await ensureMicrosoftAccessToken("user-1", {
+      fetch: fetchMock
+    });
 
     expect(token).toBe("rotated-access-token");
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -84,18 +114,79 @@ describe("ensureMicrosoftAccessToken", () => {
     );
   });
 
-  it("throws MicrosoftAccessError when the refresh endpoint fails", async () => {
+  it("skips the HTTP refresh when a concurrent caller already rotated the token", async () => {
+    const expired = Math.floor(Date.now() / 1000) - 60;
+    const farFuture = Math.floor(Date.now() / 1000) + 3600;
     findFirst.mockResolvedValue({
+      id: "account-1",
+      access_token: "expired-access-token",
+      refresh_token: "stored-refresh-token",
+      expires_at: expired
+    });
+    findUniqueOrThrow.mockResolvedValue({
+      id: "account-1",
+      access_token: "winner-rotated-token",
+      refresh_token: "stored-refresh-token",
+      expires_at: farFuture
+    });
+
+    const fetchMock = vi.fn();
+    const token = await ensureMicrosoftAccessToken("user-1", {
+      fetch: fetchMock as unknown as MicrosoftHttpClient
+    });
+
+    expect(token).toBe("winner-rotated-token");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("nulls refresh_token on invalid_grant and throws MicrosoftAccessError", async () => {
+    const expiredAccount = {
       id: "account-1",
       access_token: "expired",
       refresh_token: "stored-refresh-token",
       expires_at: Math.floor(Date.now() / 1000) - 60
-    });
+    };
+    findFirst.mockResolvedValue(expiredAccount);
+    findUniqueOrThrow.mockResolvedValue(expiredAccount);
 
     const fetchMock = vi.fn(async () => ({
       ok: false,
       status: 400,
-      text: async () => "invalid_grant"
+      clone() {
+        return this;
+      },
+      json: async () => ({ error: "invalid_grant" }),
+      text: async () => '{"error":"invalid_grant"}'
+    })) as unknown as MicrosoftHttpClient;
+
+    await expect(
+      ensureMicrosoftAccessToken("user-1", { fetch: fetchMock })
+    ).rejects.toBeInstanceOf(MicrosoftAccessError);
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "account-1" },
+      data: { refresh_token: null }
+    });
+  });
+
+  it("throws MicrosoftAccessError on other non-OK responses without touching refresh_token", async () => {
+    const expiredAccount = {
+      id: "account-1",
+      access_token: "expired",
+      refresh_token: "stored-refresh-token",
+      expires_at: Math.floor(Date.now() / 1000) - 60
+    };
+    findFirst.mockResolvedValue(expiredAccount);
+    findUniqueOrThrow.mockResolvedValue(expiredAccount);
+
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 503,
+      clone() {
+        return this;
+      },
+      json: async () => ({ error: "temporarily_unavailable" }),
+      text: async () => '{"error":"temporarily_unavailable"}'
     })) as unknown as MicrosoftHttpClient;
 
     await expect(

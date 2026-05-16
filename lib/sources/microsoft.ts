@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { withAccountLock, type AccountTxClient } from "@/lib/db/locks";
 
 const TOKEN_URL = "https://login.microsoftonline.com/common/oauth2/v2.0/token";
 const API_BASE = "https://graph.microsoft.com/v1.0";
@@ -154,14 +155,8 @@ export async function ensureMicrosoftAccessToken(
     throw new MicrosoftAccountMissingError();
   }
 
-  const now = deps.now ? deps.now() : new Date();
-  const nowSeconds = Math.floor(now.getTime() / 1000);
-
-  if (
-    account.access_token &&
-    (!account.expires_at || account.expires_at - REFRESH_SKEW_SECONDS > nowSeconds)
-  ) {
-    return account.access_token;
+  if (!tokenNeedsRefresh(account, deps)) {
+    return account.access_token!;
   }
 
   if (!account.refresh_token) {
@@ -170,10 +165,39 @@ export async function ensureMicrosoftAccessToken(
     );
   }
 
-  return refreshMicrosoftAccessToken(account.id, account.refresh_token, deps);
+  // Serialize concurrent refreshers against the same Account (#66).
+  return withAccountLock(account.id, async (tx) => {
+    const fresh = await tx.account.findUniqueOrThrow({
+      where: { id: account.id }
+    });
+
+    if (!tokenNeedsRefresh(fresh, deps)) {
+      return fresh.access_token!;
+    }
+
+    if (!fresh.refresh_token) {
+      throw new MicrosoftAccessError(
+        "Microsoft access token expired and no refresh token is stored. Re-link the account."
+      );
+    }
+
+    return refreshMicrosoftAccessToken(tx, fresh.id, fresh.refresh_token, deps);
+  });
+}
+
+function tokenNeedsRefresh(
+  account: { access_token: string | null; expires_at: number | null },
+  deps: MicrosoftApiDeps
+): boolean {
+  if (!account.access_token) return true;
+  if (!account.expires_at) return false;
+  const now = deps.now ? deps.now() : new Date();
+  const nowSeconds = Math.floor(now.getTime() / 1000);
+  return account.expires_at - REFRESH_SKEW_SECONDS <= nowSeconds;
 }
 
 async function refreshMicrosoftAccessToken(
+  tx: AccountTxClient,
   accountId: string,
   refreshToken: string,
   deps: MicrosoftApiDeps
@@ -200,6 +224,16 @@ async function refreshMicrosoftAccessToken(
   });
 
   if (!response.ok) {
+    if (await isInvalidGrant(response)) {
+      await tx.account.update({
+        where: { id: accountId },
+        data: { refresh_token: null }
+      });
+      throw new MicrosoftAccessError(
+        "Microsoft refresh token is no longer valid. Re-link the account.",
+        response.status
+      );
+    }
     throw new MicrosoftAccessError(
       `Failed to refresh Microsoft access token (status ${response.status})`,
       response.status
@@ -215,7 +249,7 @@ async function refreshMicrosoftAccessToken(
   };
 
   const expiresAt = Math.floor(Date.now() / 1000) + body.expires_in;
-  await prisma.account.update({
+  await tx.account.update({
     where: { id: accountId },
     data: {
       access_token: body.access_token,
@@ -227,6 +261,16 @@ async function refreshMicrosoftAccessToken(
   });
 
   return body.access_token;
+}
+
+async function isInvalidGrant(response: Response): Promise<boolean> {
+  try {
+    const cloned = response.clone();
+    const body = (await cloned.json()) as { error?: string };
+    return body.error === "invalid_grant";
+  } catch {
+    return false;
+  }
 }
 
 async function callGraphApi(
