@@ -2,6 +2,7 @@ import {
   BusyStatus,
   EventCategory,
   ReviewStatus,
+  SourceType,
   type CalendarEvent,
   type CalendarType
 } from "@prisma/client";
@@ -27,6 +28,8 @@ export type TimelineBlock = {
   category: EventCategory;
   busyStatus: BusyStatus;
   lowConfidence: boolean;
+  calendarName: string;
+  sourceLabel: string;
 };
 
 export type TimelineCalendarSummary = {
@@ -87,6 +90,9 @@ export type TimelineEventInput = Pick<
   | "endAt"
 > & {
   sourceConfidence?: CalendarEvent["sourceConfidence"] | number | null;
+  calendarName: string;
+  /** `null` for manually-added events (no originating CalendarSource). */
+  sourceType?: SourceType | null;
 };
 
 export type TimelineCandidateCountByCalendar = Map<
@@ -211,7 +217,9 @@ export function buildTimelineBlocks(
       kind,
       category: event.category,
       busyStatus: event.busyStatus,
-      lowConfidence
+      lowConfidence,
+      calendarName: event.calendarName,
+      sourceLabel: sourceTypeLabel(event.sourceType ?? null)
     });
   }
 
@@ -239,6 +247,25 @@ export function buildTimelineWindows(
     });
   }
   return result;
+}
+
+/** Human-readable label for the originating source type. Issue #51. */
+export function sourceTypeLabel(sourceType: SourceType | null): string {
+  switch (sourceType) {
+    case SourceType.GOOGLE_CALENDAR:
+      return "Google Calendar";
+    case SourceType.OUTLOOK_CALENDAR:
+      return "Outlook Calendar";
+    case SourceType.ICS:
+      return "ICS subscription";
+    case SourceType.URL:
+      return "Web page extract";
+    case SourceType.PDF_UPLOAD:
+      return "PDF upload";
+    case null:
+    default:
+      return "Added manually";
+  }
 }
 
 export function blockKindLabel(kind: TimelineBlockKind): string {
@@ -317,9 +344,26 @@ export async function getTimelineData(
             startAt: { lt: end },
             endAt: { gt: start }
           },
-          orderBy: { startAt: "asc" }
+          orderBy: { startAt: "asc" },
+          include: {
+            eventCandidate: {
+              select: {
+                calendarSource: { select: { sourceType: true } }
+              }
+            }
+          }
         })
       : [];
+
+    // Map calendarId → name for provenance labels (#51). Both the
+    // child calendars and the family calendars contribute.
+    const calendarNameById = new Map<string, string>();
+    for (const child of children) {
+      for (const cal of child.calendars) calendarNameById.set(cal.id, cal.name);
+    }
+    for (const cal of familyCalendars) {
+      calendarNameById.set(cal.id, cal.name);
+    }
 
     const candidateGroups = allCalendarIds.length
       ? await prisma.eventCandidate.findMany({
@@ -373,7 +417,11 @@ export async function getTimelineData(
           busyStatus: event.busyStatus,
           startAt: event.startAt,
           endAt: event.endAt,
-          sourceConfidence: event.sourceConfidence
+          sourceConfidence: event.sourceConfidence,
+          calendarName:
+            calendarNameById.get(event.calendarId) ?? "Unknown calendar",
+          sourceType:
+            event.eventCandidate?.calendarSource?.sourceType ?? null
         })),
         range
       );
@@ -419,7 +467,11 @@ export async function getTimelineData(
           busyStatus: event.busyStatus,
           startAt: event.startAt,
           endAt: event.endAt,
-          sourceConfidence: event.sourceConfidence
+          sourceConfidence: event.sourceConfidence,
+          calendarName:
+            calendarNameById.get(event.calendarId) ?? "Unknown calendar",
+          sourceType:
+            event.eventCandidate?.calendarSource?.sourceType ?? null
         })),
         range
       );

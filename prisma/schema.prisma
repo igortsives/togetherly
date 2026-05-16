@@ -11,6 +11,7 @@ enum AuthProvider {
   EMAIL
   GOOGLE
   APPLE
+  MICROSOFT
 }
 
 enum CalendarType {

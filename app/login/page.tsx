@@ -18,6 +18,9 @@ const googleEnabled = Boolean(
 const appleEnabled = Boolean(
   process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET
 );
+const microsoftEnabled = Boolean(
+  process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET
+);
 
 export default async function LoginPage({ searchParams }: Props) {
   const session = await auth();
@@ -45,6 +48,11 @@ export default async function LoginPage({ searchParams }: Props) {
   async function appleLogin() {
     "use server";
     await signIn("apple", { redirectTo: callbackUrl });
+  }
+
+  async function microsoftLogin() {
+    "use server";
+    await signIn("microsoft-entra-id", { redirectTo: callbackUrl });
   }
 
   return (
@@ -95,7 +103,7 @@ export default async function LoginPage({ searchParams }: Props) {
           </button>
         </form>
 
-        {googleEnabled || appleEnabled ? (
+        {googleEnabled || appleEnabled || microsoftEnabled ? (
           <div className="authProviders">
             <span className="authDivider">or</span>
             {googleEnabled ? (
@@ -109,6 +117,13 @@ export default async function LoginPage({ searchParams }: Props) {
               <form action={appleLogin}>
                 <button className="providerButton" type="submit">
                   Continue with Apple
+                </button>
+              </form>
+            ) : null}
+            {microsoftEnabled ? (
+              <form action={microsoftLogin}>
+                <button className="providerButton" type="submit">
+                  Continue with Microsoft
                 </button>
               </form>
             ) : null}

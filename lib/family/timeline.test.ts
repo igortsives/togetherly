@@ -1,4 +1,4 @@
-import { BusyStatus, EventCategory } from "@prisma/client";
+import { BusyStatus, EventCategory, SourceType } from "@prisma/client";
 import { describe, expect, it } from "vitest";
 import {
   buildRange,
@@ -7,6 +7,7 @@ import {
   classifyBlockKind,
   computeBlockGeometry,
   defaultTimelineRange,
+  sourceTypeLabel,
   type TimelineEventInput
 } from "./timeline";
 
@@ -24,6 +25,8 @@ function makeEvent(
     startAt: date("2027-01-04"),
     endAt: date("2027-01-06"),
     sourceConfidence: 0.95,
+    calendarName: "Test calendar",
+    sourceType: null,
     ...overrides
   };
 }
@@ -240,5 +243,45 @@ describe("buildTimelineWindows", () => {
     expect(windows).toHaveLength(1);
     expect(windows[0].leftPercent).toBe(20);
     expect(windows[0].widthPercent).toBe(30);
+  });
+});
+
+
+describe("sourceTypeLabel", () => {
+  it("maps each source type to a parent-readable label", () => {
+    expect(sourceTypeLabel(SourceType.GOOGLE_CALENDAR)).toBe("Google Calendar");
+    expect(sourceTypeLabel(SourceType.OUTLOOK_CALENDAR)).toBe("Outlook Calendar");
+    expect(sourceTypeLabel(SourceType.ICS)).toBe("ICS subscription");
+    expect(sourceTypeLabel(SourceType.URL)).toBe("Web page extract");
+    expect(sourceTypeLabel(SourceType.PDF_UPLOAD)).toBe("PDF upload");
+  });
+
+  it("falls back to \"Added manually\" for null (no candidate link)", () => {
+    expect(sourceTypeLabel(null)).toBe("Added manually");
+  });
+});
+
+describe("buildTimelineBlocks provenance", () => {
+  it("attaches calendarName and sourceLabel to each block", () => {
+    const range = buildRange(date("2027-01-01"), date("2027-01-31"));
+    const blocks = buildTimelineBlocks(
+      [
+        {
+          id: "e1",
+          calendarId: "cal-a",
+          title: "Spring Break",
+          category: EventCategory.BREAK,
+          busyStatus: BusyStatus.FREE,
+          startAt: date("2027-01-10"),
+          endAt: date("2027-01-15"),
+          sourceConfidence: 0.95,
+          calendarName: "UCLA Academic Calendar",
+          sourceType: SourceType.URL
+        }
+      ],
+      range
+    );
+    expect(blocks[0].calendarName).toBe("UCLA Academic Calendar");
+    expect(blocks[0].sourceLabel).toBe("Web page extract");
   });
 });

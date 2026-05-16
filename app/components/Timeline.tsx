@@ -35,7 +35,7 @@ function formatBlockTitle(block: TimelineBlock) {
     Math.round((block.end.getTime() - block.start.getTime()) / 86_400_000)
   );
   const dayLabel = days === 1 ? "1 day" : `${days} days`;
-  return `${block.title} · ${compactRangeFormatter.format(block.start)} – ${compactRangeFormatter.format(block.end)} (${dayLabel})`;
+  return `${block.title} · ${compactRangeFormatter.format(block.start)} – ${compactRangeFormatter.format(block.end)} (${dayLabel}) · ${block.calendarName} (${block.sourceLabel})`;
 }
 
 function blockSymbol(kind: TimelineBlockKind) {
