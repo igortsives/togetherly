@@ -50,9 +50,10 @@ export type RefreshAllOptions = {
  * dispatcher can be invoked from overlapping cron firings without
  * duplicate work.
  *
- * Retry / backoff for repeatedly-failing sources is not yet modeled;
- * a failing source will be re-attempted on every tick until it
- * succeeds. Tracked in a follow-up.
+ * Backoff for repeatedly-failing sources is enforced via the
+ * `failedAttempts < MAX_FAILED_ATTEMPTS` predicate below (#100).
+ * A source that fails 10 consecutive times is taken out of rotation
+ * until a manual refresh from the dashboard succeeds.
  */
 export async function refreshAllStaleSources(
   options: RefreshAllOptions = {}
