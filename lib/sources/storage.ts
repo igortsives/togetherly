@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const maxUploadBytes = 10 * 1024 * 1024;
@@ -45,4 +45,39 @@ export async function storeCalendarPdf(file: File): Promise<StoredUpload> {
 
 function isPdf(file: File) {
   return file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+}
+
+/**
+ * Best-effort delete of a stored upload by its `uploadedFileKey`.
+ * Used by the account-deletion flow (#43) to remove blob storage
+ * when a user purges their data. Missing files (`ENOENT`) are
+ * treated as already-gone — not an error.
+ *
+ * NOTE: blobs are content-addressed by sha256 (`<hash>.pdf`). If two
+ * families ever uploaded byte-identical PDFs, deleting one blob
+ * affects the other. In the private-beta cohort there's a single
+ * family per user so cross-family sharing cannot occur; this is
+ * worth revisiting when adding multi-family or shared-source
+ * features.
+ */
+export async function deleteStoredUpload(
+  uploadedFileKey: string
+): Promise<boolean> {
+  const storageRoot =
+    process.env.FILE_STORAGE_ROOT || path.join(process.cwd(), "storage");
+  const destination = path.join(storageRoot, uploadedFileKey);
+  try {
+    await unlink(destination);
+    return true;
+  } catch (error) {
+    const code = (error as NodeJS.ErrnoException).code;
+    if (code === "ENOENT") {
+      return false;
+    }
+    console.warn("Failed to delete stored upload", {
+      uploadedFileKey,
+      code
+    });
+    return false;
+  }
 }
