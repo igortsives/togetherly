@@ -14,6 +14,7 @@ import {
 } from "@/lib/domain/schemas";
 import { getCurrentUserId, requireUserFamily } from "@/lib/family/session";
 import { runFreeWindowSearch } from "@/lib/matching/search";
+import { disconnectProviderForFamily } from "@/lib/sources/disconnect";
 import { refreshSource } from "@/lib/sources/refresh";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
 import { storeCalendarPdf } from "@/lib/sources/storage";
@@ -208,6 +209,34 @@ export async function linkGoogleAccountAction() {
 
 export async function linkMicrosoftAccountAction() {
   await signIn("microsoft-entra-id", { redirectTo: "/" });
+}
+
+export async function disconnectGoogleAccountAction() {
+  const family = await requireUserFamily();
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    throw new Error("Sign in required.");
+  }
+  await disconnectProviderForFamily({
+    userId,
+    familyId: family.id,
+    provider: "google"
+  });
+  revalidatePath("/");
+}
+
+export async function disconnectMicrosoftAccountAction() {
+  const family = await requireUserFamily();
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    throw new Error("Sign in required.");
+  }
+  await disconnectProviderForFamily({
+    userId,
+    familyId: family.id,
+    provider: "microsoft-entra-id"
+  });
+  revalidatePath("/");
 }
 
 export async function createGoogleCalendarSourceAction(formData: FormData) {

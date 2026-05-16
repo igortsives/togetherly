@@ -270,6 +270,42 @@ async function refreshGoogleAccessToken(
   return body.access_token;
 }
 
+/**
+ * Best-effort revoke against Google's revocation endpoint
+ * (`oauth2.googleapis.com/revoke`). Returns `true` on a 2xx, `false`
+ * on any other outcome. Callers should treat a `false` as
+ * "logged-and-continue" — the local Account row is still deleted by
+ * the disconnect flow so the user is unblocked even if Google's
+ * endpoint is unreachable.
+ */
+export async function revokeGoogleAccess(
+  token: string,
+  deps: GoogleApiDeps = {}
+): Promise<boolean> {
+  const httpFetch: GoogleHttpClient = deps.fetch ?? globalThis.fetch;
+  try {
+    const response = await httpFetch(
+      `https://oauth2.googleapis.com/revoke?token=${encodeURIComponent(token)}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" }
+      }
+    );
+    if (!response.ok) {
+      console.warn("Google token revoke returned non-OK", {
+        status: response.status
+      });
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("Google token revoke threw", {
+      reason: error instanceof Error ? error.message : String(error)
+    });
+    return false;
+  }
+}
+
 async function isInvalidGrant(response: Response): Promise<boolean> {
   try {
     const cloned = response.clone();

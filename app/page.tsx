@@ -17,6 +17,8 @@ import {
   createPdfSourceAction,
   createUrlSourceAction,
   deleteSourceAction,
+  disconnectGoogleAccountAction,
+  disconnectMicrosoftAccountAction,
   linkGoogleAccountAction,
   linkMicrosoftAccountAction,
   refreshSourceAction,
@@ -392,42 +394,70 @@ export default async function Home({
                     Re-link Google account
                   </button>
                 </form>
+                <details className="dangerZone">
+                  <summary>Disconnect Google account</summary>
+                  <p>
+                    Removes the link to Google. Imported Google calendars stay
+                    in the review queue but their refresh status will show as
+                    Failed. You can re-link any time.
+                  </p>
+                  <form action={disconnectGoogleAccountAction}>
+                    <button className="subtleButton danger" type="submit">
+                      Confirm disconnect
+                    </button>
+                  </form>
+                </details>
               </div>
             ) : (
-              <form action={createGoogleCalendarSourceAction} className="sourceForm">
-                <div>
-                  <p className="eyebrow">Google</p>
-                  <h3>Import a Google Calendar</h3>
-                </div>
-                <label>
-                  Target calendar
-                  <select name="calendarId" required defaultValue="">
-                    <option disabled value="">
-                      Choose calendar
-                    </option>
-                    {calendars.map((calendar) => (
-                      <option key={calendar.id} value={calendar.id}>
-                        {calendar.name}
+              <div className="sourceForm">
+                <form action={createGoogleCalendarSourceAction}>
+                  <div>
+                    <p className="eyebrow">Google</p>
+                    <h3>Import a Google Calendar</h3>
+                  </div>
+                  <label>
+                    Target calendar
+                    <select name="calendarId" required defaultValue="">
+                      <option disabled value="">
+                        Choose calendar
                       </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="wideField">
-                  Google calendar
-                  <select name="providerCalendarId" required defaultValue="">
-                    <option disabled value="">
-                      Choose Google calendar
-                    </option>
-                    {googleConnection.calendars.map((calendar) => (
-                      <option key={calendar.id} value={calendar.id}>
-                        {calendar.summary}
-                        {calendar.primary ? " (primary)" : ""}
+                      {calendars.map((calendar) => (
+                        <option key={calendar.id} value={calendar.id}>
+                          {calendar.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="wideField">
+                    Google calendar
+                    <select name="providerCalendarId" required defaultValue="">
+                      <option disabled value="">
+                        Choose Google calendar
                       </option>
-                    ))}
-                  </select>
-                </label>
-                <button type="submit">Import Google calendar</button>
-              </form>
+                      {googleConnection.calendars.map((calendar) => (
+                        <option key={calendar.id} value={calendar.id}>
+                          {calendar.summary}
+                          {calendar.primary ? " (primary)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="submit">Import Google calendar</button>
+                </form>
+                <details className="dangerZone">
+                  <summary>Disconnect Google account</summary>
+                  <p>
+                    Removes the link to Google. Imported Google calendars stay
+                    in the review queue but their refresh status will show as
+                    Failed. You can re-link any time.
+                  </p>
+                  <form action={disconnectGoogleAccountAction}>
+                    <button className="subtleButton danger" type="submit">
+                      Confirm disconnect
+                    </button>
+                  </form>
+                </details>
+              </div>
             )}
 
             {!microsoftConnection.linked ? (
@@ -455,42 +485,70 @@ export default async function Home({
                     Re-link Microsoft account
                   </button>
                 </form>
+                <details className="dangerZone">
+                  <summary>Disconnect Microsoft account</summary>
+                  <p>
+                    Removes the link to Microsoft. Imported Outlook calendars
+                    stay in the review queue but their refresh status will
+                    show as Failed. You can re-link any time.
+                  </p>
+                  <form action={disconnectMicrosoftAccountAction}>
+                    <button className="subtleButton danger" type="submit">
+                      Confirm disconnect
+                    </button>
+                  </form>
+                </details>
               </div>
             ) : (
-              <form action={createOutlookCalendarSourceAction} className="sourceForm">
-                <div>
-                  <p className="eyebrow">Outlook</p>
-                  <h3>Import an Outlook calendar</h3>
-                </div>
-                <label>
-                  Target calendar
-                  <select name="calendarId" required defaultValue="">
-                    <option disabled value="">
-                      Choose calendar
-                    </option>
-                    {calendars.map((calendar) => (
-                      <option key={calendar.id} value={calendar.id}>
-                        {calendar.name}
+              <div className="sourceForm">
+                <form action={createOutlookCalendarSourceAction}>
+                  <div>
+                    <p className="eyebrow">Outlook</p>
+                    <h3>Import an Outlook calendar</h3>
+                  </div>
+                  <label>
+                    Target calendar
+                    <select name="calendarId" required defaultValue="">
+                      <option disabled value="">
+                        Choose calendar
                       </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="wideField">
-                  Outlook calendar
-                  <select name="providerCalendarId" required defaultValue="">
-                    <option disabled value="">
-                      Choose Outlook calendar
-                    </option>
-                    {microsoftConnection.calendars.map((calendar) => (
-                      <option key={calendar.id} value={calendar.id}>
-                        {calendar.name}
-                        {calendar.isDefaultCalendar ? " (default)" : ""}
+                      {calendars.map((calendar) => (
+                        <option key={calendar.id} value={calendar.id}>
+                          {calendar.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="wideField">
+                    Outlook calendar
+                    <select name="providerCalendarId" required defaultValue="">
+                      <option disabled value="">
+                        Choose Outlook calendar
                       </option>
-                    ))}
-                  </select>
-                </label>
-                <button type="submit">Import Outlook calendar</button>
-              </form>
+                      {microsoftConnection.calendars.map((calendar) => (
+                        <option key={calendar.id} value={calendar.id}>
+                          {calendar.name}
+                          {calendar.isDefaultCalendar ? " (default)" : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <button type="submit">Import Outlook calendar</button>
+                </form>
+                <details className="dangerZone">
+                  <summary>Disconnect Microsoft account</summary>
+                  <p>
+                    Removes the link to Microsoft. Imported Outlook calendars
+                    stay in the review queue but their refresh status will
+                    show as Failed. You can re-link any time.
+                  </p>
+                  <form action={disconnectMicrosoftAccountAction}>
+                    <button className="subtleButton danger" type="submit">
+                      Confirm disconnect
+                    </button>
+                  </form>
+                </details>
+              </div>
             )}
           </div>
         </section>
