@@ -171,6 +171,8 @@ The core pain is not simply “families need a calendar.” It is: **parents nee
 | EXT-006 | App assigns extraction confidence per event. | P0 |
 | EXT-007 | App preserves source evidence for each extracted event. | P0 |
 | EXT-008 | App supports OCR for scanned/image PDFs. | P2 |
+| EXT-009 | App recognizes academic-calendar boundary pairs (`Quarter/Semester/Term Begins/Ends`, `First/Last Day of Classes`, `Final Examinations Begin/End`) and synthesizes `class_in_session` and `exam_period` intervals between them. The boundary markers themselves are kept; the interval is added so timelines and matching reason about the term, not just the markers. | P1 |
+| EXT-010 | When heuristic classification is uncertain (`unknown` category or `confidence < 0.6`), the extractor escalates the candidate to an LLM-assisted classification pass with structured output. The LLM is given the candidate's title, evidence text, source provider type, and the calendar's surrounding events; it returns `{ category, confidence, reasoning }`. Falls back gracefully to the heuristic result when the LLM API key is unset. | P1 |
 
 ### 7.4 Event Taxonomy
 
@@ -208,6 +210,9 @@ Supported MVP event categories:
 | MAT-005 | App ranks free windows by quality. | P1 |
 | MAT-006 | User can include or exclude optional/unknown events. | P1 |
 | MAT-007 | User can save candidate windows. | P1 |
+| MAT-008 | User can type a natural-language query ("a free week around Christmas", "long weekend in October", "a week when both kids are off school") and the app parses it into a structured search via LLM. The parsed intent is shown to the user before the search runs so it can be adjusted. The structured form remains available as an expert mode. | P1 |
+| MAT-009 | When a free window is bracketed by a Saturday-Sunday weekend and contains a Monday or Friday `school_closed` holiday, the explanation flags it as a `long_weekend` so the UI can surface "extends Memorial Day" / "extends Presidents' Day" labels. The window is found regardless; this is a labelling improvement. | P1 |
+| MAT-010 | When matching computes busy intervals from a `class_in_session` interval (synthesized via EXT-009), Saturdays and Sundays inside that interval remain free. School is in session Mon-Fri only. | P1 |
 
 ### 7.7 Visualization
 
@@ -218,6 +223,9 @@ Supported MVP event categories:
 | UI-003 | App shows recommended windows as selectable ranges. | P0 |
 | UI-004 | App shows per-child calendar rows for comparison. | P0 |
 | UI-005 | App supports mobile-first planning flow. | P1 |
+| UI-006 | App surfaces a **source legend** at the top of the timeline listing every active source as a toggleable chip (name, color, provider icon, on/off). Each event block carries a thin source-colored stripe layered on top of its category color so the parent can see at a glance which source contributed which event. Toggle state is persisted in the URL. | P1 |
+| UI-007 | Clicking any event block opens a **drilldown side panel** showing the event title, source name, provider type, evidence locator (page/line/UID), sibling events from the same source that week, and a "hide this source" quick action. | P1 |
+| UI-008 | The dashboard offers a **term-overview** alternate view mode (toggled in the header) showing months across the top and one row per child / parent, with `class_in_session` / `exam_period` / `break` blocks spanning the appropriate months. The same source filters and drilldown apply. | P2 |
 
 ### 7.8 Export And Alerts
 
@@ -228,6 +236,19 @@ Supported MVP event categories:
 | EXP-003 | User can copy/share selected windows. | P1 |
 | ALT-001 | App can detect source changes by URL hash or ICS feed update. | P1 |
 | ALT-002 | App alerts user when monitored source changes may affect saved windows. | P1 |
+
+### 7.9 AI / LLM-Assisted Intelligence
+
+Heuristic parsers handle the well-structured majority of calendars but degrade gracefully on edge cases. Where the heuristics are unsure, an LLM (Claude Sonnet via the Anthropic SDK) provides a fallback layer. Every LLM use is bounded in scope, falls back to heuristics when the API key is unset, and shows its work to the user where it influences a decision.
+
+| ID | Requirement | Priority |
+|---|---|---:|
+| AI-001 | An `ANTHROPIC_API_KEY` env var enables LLM features. All AI flows must no-op gracefully when the key is unset so local dev / CI without the key still produces a working product (heuristics only). | P1 |
+| AI-002 | LLM-assisted classification of ambiguous events (per EXT-010) is batched per source refresh. Cost cap: one Claude call per refresh, ~$0.01 per source per refresh. | P1 |
+| AI-003 | Natural-language search parser (per MAT-008) shows the parsed intent to the user before running the search. The user can adjust the inferred fields. The structured form remains the expert mode. | P1 |
+| AI-004 | LLM input contexts include the family's children's nicknames, the active source names, today's date, and the user-provided text. LLM input MUST NOT include OAuth tokens, refresh tokens, or imported event titles outside the scope of the immediate query. | P1 |
+| AI-005 | LLM outputs are validated against structured-output schemas (Zod) before being applied. Schema violations fall back to heuristics or surface the failure to the user; no silent application of free-form text. | P1 |
+| AI-006 | LLM-assisted operations log only their `{ kind, candidateCount, latencyMs, success }` shape — never the prompt, response body, or imported content. | P1 |
 
 ## 8. Data Source Feasibility
 
@@ -333,14 +354,20 @@ Supported MVP event categories:
 ### In Scope
 
 - Family profile with child nicknames.
-- Email/password, Google login, and Login with Apple.
+- Email/password, Google login, Login with Apple, Continue with Microsoft.
 - Add calendar source by URL, PDF upload, ICS URL, Google Calendar, and Outlook Calendar.
 - Extract school/university breaks, holidays, term dates, exams, and activity conflicts.
+- **Boundary-pair inference (EXT-009): synthesize `class_in_session` and `exam_period` intervals between recognized academic boundaries so academic calendars carry meaningful busy/free semantics.**
+- **LLM-assisted fallback classification (EXT-010) for ambiguous events.**
 - Parent review and confirmation workflow.
-- Free-window search by requested duration.
-- Calendar/timeline visualization.
+- Free-window search by requested duration **or by natural-language query (MAT-008)**.
+- **Long-weekend recognition (MAT-009) and weekend carve-out within in-session intervals (MAT-010).**
+- Calendar/timeline visualization with **source-aware legend, per-source filter, and drilldown side panel (UI-006, UI-007)**.
+- Optional term-overview view mode (UI-008).
 - Source provenance and confidence scores.
 - Basic source refresh and change alerting for public URLs and ICS feeds.
+- Export saved free windows to Google or Outlook Calendar.
+- In-product account deletion and OAuth disconnect.
 
 ### Out Of Scope
 
@@ -390,30 +417,38 @@ Supported MVP event categories:
 
 ## 15. Suggested Release Plan
 
-### Phase 1: Prototype
+### Phase 1: Prototype (shipped)
 
 - Manual URL/PDF/ICS import.
-- Email/password, Google login, and Login with Apple.
+- Email/password, Google login, Login with Apple, Continue with Microsoft.
 - Google Calendar and Outlook Calendar import.
 - Basic extraction from selected source examples.
 - Parent review screen.
 - Free-window interval engine.
 - Simple timeline visualization.
+- Source provenance on timeline tooltips.
+- Source refresh scheduler + change detection.
+- Export saved windows to Google / Outlook.
+- Account deletion + OAuth disconnect.
 
-### Phase 2: MVP Beta
+### Phase 2: Intelligent MVP Beta (in progress — Rounds 15-18)
 
-- Improved PDF and HTML parsing.
-- Source confidence scoring.
-- Saved windows.
-- Change detection for monitored sources.
-- Candidate source search for common schools/universities.
+- **Round 15 — UI foundations**: all-day end-day display fix; source legend + filter + drilldown side panel.
+- **Round 16 — Semantic redesign**: boundary-pair inference; weekend carve-out from in-session ranges; long-weekend labelling; optional term-overview view mode.
+- **Round 17 — LLM foundation**: Anthropic SDK plumbing; LLM-assisted classification of ambiguous extracted events (closes #52).
+- **Round 18 — Natural-language search**: free-text input on `/windows` that parses to structured search params via Claude, with a "show parse before running" UX.
+- **Round 19 — UAT gate**: end-to-end UAT against real UCLA / Vanderbilt / Google / ICS sources. Decision point: limited cohort release vs continue iterating.
+
+The user-acceptance bar for Phase 2 is that a parent can import a real academic calendar (UCLA PDF or similar) and get *meaningful* busy/free shading on the timeline without having to mentally invert "begins"/"ends" markers into term ranges.
 
 ### Phase 3: Public Launch
 
-- Parser coverage across top districts and universities.
+- Parser coverage across top districts and universities (close out [#11](https://github.com/igortsives/togetherly/issues/11) corpus research).
+- Saratoga / LGSUHSD corpus capture (close out [#19](https://github.com/igortsives/togetherly/issues/19)).
 - Better mobile onboarding.
-- Share/export flows.
+- Share/export flows beyond personal-calendar export.
 - Activity calendar feed library.
+- Provider webhooks for near-real-time change detection (close out [#50](https://github.com/igortsives/togetherly/issues/50)).
 - Paid plan for unlimited calendars, monitoring, and alerts.
 
 ## 16. Build Recommendation

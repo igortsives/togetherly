@@ -8,7 +8,7 @@ Status legend: ✅ shipped · 🟡 partial / in progress · ⬜ not started.
 - ✅ Scaffold app (Next.js + TypeScript + Tailwind-free utility CSS).
 - ✅ Set up PostgreSQL and Prisma.
 - ✅ Set up auth (NextAuth v5 + Prisma adapter, credentials + Google + Apple + Microsoft).
-- ✅ CI gate via the four-command local validation (`lint`, `typecheck`, `test`, `build`). GitHub Actions wiring for these is still a follow-up.
+- ✅ GitHub Actions CI gating PRs on lint/typecheck/test/build ([#47](https://github.com/igortsives/togetherly/issues/47), [#81](https://github.com/igortsives/togetherly/issues/81)).
 - ✅ Parser fixture structure under `fixtures/sources/` and `fixtures/expected-events/`.
 
 ## Phase 1: Prototype — ✅ Complete
@@ -23,39 +23,52 @@ Status legend: ✅ shipped · 🟡 partial / in progress · ⬜ not started.
 - ✅ Matching engine + `/windows` search (#9, PR #24).
 - ✅ Per-child dashboard timeline + free-window overlay (#10, PR #27).
 
-## Phase 2: Private Beta MVP — 🟡 Most landed
+## Phase 2: Private Beta MVP — ✅ Complete
 
 - ✅ Email/password registration + Google login + Login with Apple (#17, PR #31).
+- ✅ Microsoft on `/login` + `AuthProvider.MICROSOFT` ([#48](https://github.com/igortsives/togetherly/issues/48), PR #119).
 - ✅ Google Calendar integration (#13, PR #33).
 - ✅ Outlook Calendar integration (#18, PR #34).
-- 🟡 UCLA/Vanderbilt/Saratoga parser fixtures: UCLA + Vanderbilt are live captures (PR #28); Saratoga is still a structural excerpt pending the 2026-27 LGSUHSD PDF ([#19](https://github.com/igortsives/togetherly/issues/19) partial).
-- ✅ Free-window explanation UI (`MAT-004` conflict explanations live on `/windows`).
-- ✅ Source refresh + change-alert pipeline (#12, PR #36). Manual Refresh button per source; scheduler is the follow-up [#40](https://github.com/igortsives/togetherly/issues/40).
-- ⬜ Saved windows + share/export to provider calendars — [#45](https://github.com/igortsives/togetherly/issues/45).
-- ⬜ In-product OAuth disconnect — [#42](https://github.com/igortsives/togetherly/issues/42).
-- ⬜ In-product account deletion — [#43](https://github.com/igortsives/togetherly/issues/43).
-- ⬜ Bulk-confirm in review queue — [#44](https://github.com/igortsives/togetherly/issues/44).
-- ⬜ Beta feedback capture — [#46](https://github.com/igortsives/togetherly/issues/46).
-- ⬜ Source refresh scheduler — [#40](https://github.com/igortsives/togetherly/issues/40).
-- ⬜ Saved-window invalidation on source change — [#41](https://github.com/igortsives/togetherly/issues/41).
-- ✅ OAuth token at-rest encryption — [#37](https://github.com/igortsives/togetherly/issues/37).
-- ⬜ Tighten OAuth account linking (must land before public launch) — [#38](https://github.com/igortsives/togetherly/issues/38).
-- ⬜ GitHub Actions CI gating PRs — [#47](https://github.com/igortsives/togetherly/issues/47).
-- ✅ Next 16 `middleware.ts → proxy.ts` rename — [#39](https://github.com/igortsives/togetherly/issues/39).
+- ✅ Source refresh + change-alert pipeline (#12, PR #36) + scheduler + per-source advisory locks + free-window stale-flag ([#40](https://github.com/igortsives/togetherly/issues/40), [#41](https://github.com/igortsives/togetherly/issues/41), PR #99).
+- ✅ Per-source backoff for repeatedly-failing scheduled refreshes ([#100](https://github.com/igortsives/togetherly/issues/100), PR #126).
+- ✅ Vercel Cron registration ([#101](https://github.com/igortsives/togetherly/issues/101), PR #126).
+- ✅ Saved windows + share/export to Google or Outlook ([#45](https://github.com/igortsives/togetherly/issues/45), PR #123).
+- ✅ In-product OAuth disconnect ([#42](https://github.com/igortsives/togetherly/issues/42), PR #106).
+- ✅ In-product account deletion ([#43](https://github.com/igortsives/togetherly/issues/43), PR #110).
+- ✅ Bulk-confirm in review queue ([#44](https://github.com/igortsives/togetherly/issues/44), PR #58).
+- ✅ Beta feedback capture ([#46](https://github.com/igortsives/togetherly/issues/46), PR #61).
+- ✅ OAuth token at-rest encryption + strict env-key validation ([#37](https://github.com/igortsives/togetherly/issues/37), [#70](https://github.com/igortsives/togetherly/issues/70)).
+- ✅ OAuth account-linking hardening for Google + Microsoft ([#38](https://github.com/igortsives/togetherly/issues/38), [#76](https://github.com/igortsives/togetherly/issues/76), PRs #75/#114).
+- ✅ Same-origin redirect enforcement ([#63](https://github.com/igortsives/togetherly/issues/63), PR #75).
+- ✅ Register account-enumeration close + credentials-login timing-channel close ([#62](https://github.com/igortsives/togetherly/issues/62), [#86](https://github.com/igortsives/togetherly/issues/86), PRs #84/#114).
+- ✅ Family.ownerId unique + race fix ([#65](https://github.com/igortsives/togetherly/issues/65), PR #89).
+- ✅ Serialized OAuth token refresh ([#66](https://github.com/igortsives/togetherly/issues/66), PR #94).
+- ✅ Credentials rate-limiting ([#64](https://github.com/igortsives/togetherly/issues/64), PR #87).
+- ✅ Source provenance on the dashboard timeline ([#51](https://github.com/igortsives/togetherly/issues/51), PR #119).
+- ✅ Push family-ownership check into `refreshSource()` ([#49](https://github.com/igortsives/togetherly/issues/49), PR #71).
+- ✅ Launch-readiness checklist ([#15](https://github.com/igortsives/togetherly/issues/15), PR #128).
+- 🟡 UCLA / Vanderbilt / Saratoga parser fixtures: UCLA + Vanderbilt are live captures (PR #28); Saratoga is still pending [#19](https://github.com/igortsives/togetherly/issues/19) — not a beta blocker if no first-cohort family uses LGSUHSD.
 
-## Phase 3: Hardening — ⬜ Not started
+## Phase 2.5: Intelligent Calendar Redesign — 🟡 In progress (Rounds 15-18)
 
-- ⬜ LLM-assisted extraction for ambiguous HTML/PDF — [#52](https://github.com/igortsives/togetherly/issues/52).
-- ⬜ Expanded source corpus beyond the three initial targets.
-- ⬜ Error recovery + unsupported-source flow in-product.
+Driven by UAT feedback on the UCLA PDF import (2026-05-16). Without these, an academic calendar doesn't carry meaningful busy/free semantics to a parent reading the timeline.
+
+- ⬜ **Round 15 — UI foundations.** All-day end-day display fix ([#129](https://github.com/igortsives/togetherly/issues/129)); source legend + filter + drilldown side panel ([#130](https://github.com/igortsives/togetherly/issues/130)).
+- ⬜ **Round 16 — Semantic redesign.** Boundary-pair inference for academic calendars + weekend carve-out + long-weekend labelling ([#131](https://github.com/igortsives/togetherly/issues/131)). Optional term-overview view mode ([#132](https://github.com/igortsives/togetherly/issues/132)).
+- ⬜ **Round 17 — LLM foundation.** Anthropic SDK plumbing + LLM-assisted classification of ambiguous extracted events (closes [#52](https://github.com/igortsives/togetherly/issues/52)).
+- ⬜ **Round 18 — Natural-language search.** Free-text input on `/windows` that parses to structured search params via Claude ([#133](https://github.com/igortsives/togetherly/issues/133)).
+- ⬜ **Round 19 — UAT gate.** End-to-end UAT against real UCLA / Vanderbilt / Google / ICS sources. Decision: limited cohort release vs continue iterating.
+
+## Phase 3: Hardening + Public Launch Preparation — ⬜ Not started
+
+- ⬜ Expanded source corpus beyond UCLA + Vanderbilt — closes out [#11](https://github.com/igortsives/togetherly/issues/11) (NYC Schools, LAUSD, Fairfax, Stanford, Michigan, TeamSnap, SportsEngine).
+- ⬜ Saratoga / LGSUHSD corpus capture — [#19](https://github.com/igortsives/togetherly/issues/19).
 - ⬜ Provider webhooks for near-real-time change detection — [#50](https://github.com/igortsives/togetherly/issues/50).
 - ⬜ Incremental Google/Outlook sync via syncToken / delta — [#56](https://github.com/igortsives/togetherly/issues/56).
-- ⬜ Source-provenance display on the dashboard timeline — [#51](https://github.com/igortsives/togetherly/issues/51).
-- ⬜ Push family-ownership check into `refreshSource()` — [#49](https://github.com/igortsives/togetherly/issues/49).
 - ⬜ Playwright E2E coverage — [#53](https://github.com/igortsives/togetherly/issues/53).
-- ⬜ Prisma 7 config migration — [#54](https://github.com/igortsives/togetherly/issues/54).
-- ⬜ Performance tuning for large calendars (Google/Outlook accounts with thousands of events).
-- ⬜ Accessibility pass beyond the existing color-isn't-the-only-signal commitment.
+- ⬜ Stitch design integration — [#32](https://github.com/igortsives/togetherly/issues/32).
+- ⬜ Performance tuning for large calendars.
+- ⬜ Accessibility audit beyond the color-isn't-the-only-signal commitment.
 
 ## Phase 4: Native Mobile Exploration — ⬜ Not started
 
@@ -68,17 +81,17 @@ Status legend: ✅ shipped · 🟡 partial / in progress · ⬜ not started.
 | Milestone | Status | Outcome |
 |---|---|---|
 | MVP Prototype | ✅ Complete | Import, review, and match calendars locally end to end. |
-| Private Beta | 🟡 Nearly there | Invited families can use real accounts and real calendars. Source refresh ([#12](https://github.com/igortsives/togetherly/issues/12)) shipped in PR #36. Open items under the `Private Beta` milestone on GitHub track the remaining work. |
-| Parser Confidence | 🟡 Foundation in place | Deterministic parsers + fixtures shipped. LLM-assist + confidence-band tuning pending. |
-| Beta Decision | ⬜ Pending | Decide whether to expand, pivot to calendar assistant, or deepen integrations after early-user feedback. |
+| Private Beta MVP | ✅ Complete | Auth, OAuth, source ingest, refresh, export, account lifecycle. |
+| Intelligent Calendar Redesign | 🟡 In progress (Phase 2.5) | Academic calendars carry meaningful semantics; natural-language search; source-aware UI. |
+| UAT Gate | ⬜ Pending Round 19 | Decide between limited cohort release and another iteration. |
+| Public Launch | ⬜ After UAT acceptance | Corpus coverage, mobile polish, webhooks, paid plan. |
 
 ## What's Open Right Now
 
 Live tracking lives on GitHub. Quick links:
 
-- [`Private Beta` milestone](https://github.com/igortsives/togetherly/milestone/2) — everything that should land before invited families come on.
-- [`priority:P0` open issues](https://github.com/igortsives/togetherly/issues?q=is%3Aopen+label%3Apriority%3AP0) — security/launch blockers.
-- [`priority:P1` open issues](https://github.com/igortsives/togetherly/issues?q=is%3Aopen+label%3Apriority%3AP1) — important after MVP core.
-- [`priority:P2` open issues](https://github.com/igortsives/togetherly/issues?q=is%3Aopen+label%3Apriority%3AP2) — later / stretch.
+- [`Private Beta` milestone](https://github.com/igortsives/togetherly/milestone/2) — everything tied to invited-family readiness.
+- [`priority:P1` open issues](https://github.com/igortsives/togetherly/issues?q=is%3Aopen+label%3Apriority%3AP1) — Phase 2.5 capabilities + remaining hardening.
+- [`priority:P2` open issues](https://github.com/igortsives/togetherly/issues?q=is%3Aopen+label%3Apriority%3AP2) — Phase 3 / post-launch.
 
 See [`docs/TECH_DEBT.md`](./TECH_DEBT.md) for the index of debt-related issues grouped by theme, plus a few documentation-only items that intentionally don't have issues.

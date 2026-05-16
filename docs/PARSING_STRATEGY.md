@@ -2,12 +2,13 @@
 
 ## Strategy
 
-Use a hybrid parsing approach:
+Use a layered parsing approach:
 
-1. Deterministic parsers for structured formats.
-2. LLM-assisted extraction for messy natural-language, PDF, and mixed-layout cases.
-3. Schema validation for all extracted events.
-4. Parent review before extracted events affect recommendations.
+1. **Deterministic parsers** for structured formats (ICS, Google API, Outlook Graph, HTML tables, PDF text).
+2. **Boundary-pair inference** for academic calendars — recognize `Quarter/Semester/Term Begins/Ends`, `First/Last Day of Classes`, `Final Examinations Begin/End` markers and synthesize `class_in_session` / `exam_period` interval candidates between them (EXT-009, Round 16).
+3. **LLM-assisted classification** for ambiguous candidates — when the heuristic returns `UNKNOWN` or confidence < 0.6, escalate to Claude with structured output (EXT-010, Round 17).
+4. **Schema validation** for all extracted events (Zod).
+5. **Parent review** before extracted events affect recommendations.
 
 ## Source Pipeline
 
@@ -37,7 +38,8 @@ flowchart TD
 | Outlook Calendar mapper | ✅ Shipped (#18, PR #34) | [`lib/sources/microsoft-ingest.ts`](../lib/sources/microsoft-ingest.ts) + [`microsoft.ts`](../lib/sources/microsoft.ts) using Microsoft Graph `calendarView` with `Prefer: outlook.timezone="UTC"`. |
 | HTML table/list parser | ✅ Shipped (#6, PR #29) | [`lib/sources/extractors/html.ts`](../lib/sources/extractors/html.ts) via `jsdom`. Walks table / `dl` / `ul` patterns; keyword-based classification. |
 | PDF text parser | ✅ Shipped (#7, PR #30) | [`lib/sources/extractors/pdf.ts`](../lib/sources/extractors/pdf.ts) via `pdf-parse` (loaded through `createRequire` to evade bundler embedding). |
-| LLM extraction | ⬜ Deferred | Documented below; not yet wired. The deterministic parsers cover the current MVP corpus. |
+| Boundary-pair recognizer | ⬜ Phase 2.5 (Round 16) | `lib/sources/extractors/boundary-pairs.ts` — pairs academic boundary keywords by chronology and synthesizes `CLASS_IN_SESSION` / `EXAM_PERIOD` candidates between them. Closes [#131](https://github.com/igortsives/togetherly/issues/131). |
+| LLM-assisted classification | ⬜ Phase 2.5 (Round 17) | `lib/llm/anthropic.ts` + extraction post-pass. Closes [#52](https://github.com/igortsives/togetherly/issues/52). |
 | OCR parser | ⬜ Deferred (P2) | Out of scope for MVP per [`MVP_SPEC.md`](./MVP_SPEC.md#p2-scope). |
 
 ## Confidence Scoring
@@ -73,14 +75,31 @@ The HTML and PDF extractors classify events by keyword on the title:
 
 All four are below the 0.9 bulk-confirmation threshold so `requiresParentReview` flags every HTML/PDF candidate. ICS, Google, and Outlook ingest classify by calendar type: activity-type calendars (SPORT/MUSIC/ACTIVITY/CAMP) get `ACTIVITY_BUSY` at ≥0.9; other types get `UNKNOWN` at 0.55.
 
-## LLM Usage Rules (when LLM-assist lands)
+## Boundary-Pair Inference (EXT-009)
 
-- LLM output must be constrained to a strict JSON schema.
+When a source contains both a "begins" and an "ends" marker for the same academic unit (term, semester, quarter, finals week), the parser emits an extra interval candidate covering the time between them:
+
+| Begin marker | End marker | Synthesized interval |
+|---|---|---|
+| `Quarter Begins` / `First Day of Classes` | `Quarter Ends` / `Last Day of Classes` | `CLASS_IN_SESSION` (weekdaysOnly) |
+| `Semester Begins` | `Semester Ends` | `CLASS_IN_SESSION` (weekdaysOnly) |
+| `Final Examinations Begin` | `Final Examinations End` | `EXAM_PERIOD` |
+| `Reading Days Begin` | `Reading Days End` | `EXAM_PERIOD` (lower confidence) |
+
+Pairing is chronological within a single `CalendarSource`. If a source contains only one marker (e.g., `Winter Quarter Begins` with no explicit end), the recognizer DOES NOT synthesize a half-open interval — instead the LLM post-pass (EXT-010) is the fallback for inferring the missing boundary based on the next term's start. Boundary markers themselves remain in the candidate set so the parent can review them; the synthesized interval is an additional candidate with its own `evidenceLocator` pointing to both markers.
+
+The `CLASS_IN_SESSION` carrier interval is consumed by `lib/matching/event-busy.ts` with a `weekdaysOnly` semantics — Sat/Sun inside an in-session range stay free (MAT-010).
+
+## LLM Usage Rules (Round 17 onward)
+
+- LLM features no-op gracefully when `ANTHROPIC_API_KEY` is unset.
+- LLM output must be constrained to a strict structured-output schema (Zod-validated).
 - LLM output must include evidence text or location for every event.
-- LLM output must never create confirmed events directly.
+- LLM output must never create confirmed events directly. Output stays in the candidate queue subject to parent review.
 - LLM output must be validated for date ranges and category values.
-- Failed validation sends the source to manual review or fallback extraction.
-- Per [`PRIVACY.md` §5.1](./PRIVACY.md#51-llm-assisted-extraction): only public source text may be sent; no parent email/name, child nickname, family ID, OAuth tokens, or private PDFs.
+- Failed validation falls back to the heuristic result (deterministic baseline) or surfaces to the user; no silent application of unvalidated text.
+- Per [`PRIVACY.md` §5.1](./PRIVACY.md#51-llm-assisted-extraction) and PRD AI-004: only public source text may be sent; no parent email/name, child nickname, family ID, OAuth tokens, or private PDFs.
+- Logs record only `{ kind, candidateCount, latencyMs, success }` (AI-006).
 
 ## Initial Extraction Targets
 

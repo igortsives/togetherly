@@ -188,14 +188,21 @@ Third parties Togetherly may contact in the MVP:
 
 Explicitly not used in the MVP: analytics SDKs, advertising networks, third-party error trackers that ingest payloads, customer-data warehouses, marketing-email providers. Adding any of those requires a follow-up decision recorded in [`DECISIONS.md`](./DECISIONS.md).
 
-### 5.1 LLM-Assisted Extraction
+### 5.1 LLM-Assisted Extraction and Search (Rounds 17-18)
 
-Per [`PARSING_STRATEGY.md`](./PARSING_STRATEGY.md#llm-usage-rules), the parser pipeline may call an LLM for ambiguous HTML/PDF cases. When that integration lands:
+Per [`PARSING_STRATEGY.md`](./PARSING_STRATEGY.md#llm-usage-rules-round-17-onward) and PRD §7.9, the product calls Anthropic Claude (Sonnet) for two flows:
 
-- May be sent: raw text or structured chunks extracted from the **public source** (PDF text, HTML excerpts), and the canonical-event JSON schema we want back.
-- MUST NOT be sent: parent email or name, child nickname, family ID, user ID, OAuth tokens, uploaded private PDFs that are not themselves public source material, free-window search history.
+- **EXT-010 — ambiguous-event classification** (Round 17): the parser pipeline escalates `UNKNOWN`-category or low-confidence candidates to Claude with their evidence text and the surrounding source context.
+- **MAT-008 — natural-language search parsing** (Round 18): `/windows` accepts free-text queries and Claude returns a structured search-params object.
+
+Rules:
+
+- May be sent: raw text or structured chunks extracted from the **public source** (PDF text, HTML excerpts), candidate event titles + evidence locators, family-state context for NL search (children's nicknames, active source names, today's date, family timezone), and the structured-output schema we want back.
+- MUST NOT be sent: parent email or name (only nicknames), family ID, user ID, OAuth tokens, refresh tokens, uploaded private PDFs that are not themselves public source material, free-window search history beyond the current query, imported event titles unrelated to the immediate query.
 - Source URLs may be sent because they are public.
-- LLM provider must be selected with a no-training / no-retention setting where available; specific vendor choice is tracked outside this doc.
+- Outputs are validated against Zod schemas before being applied. Schema violations fall back to heuristics or surface to the user.
+- LLM logs record only `{ kind, candidateCount, latencyMs, success }`.
+- Vendor selection (Claude) and the no-training posture are documented in [`DECISIONS.md`](./DECISIONS.md). The Anthropic API's standard data-handling: no training on API inputs/outputs by default.
 
 ## 6. Logging + Telemetry Boundary
 

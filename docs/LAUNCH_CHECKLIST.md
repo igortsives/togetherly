@@ -4,6 +4,10 @@ This document defines the bar for inviting the first cohort of beta families to 
 
 Closes [#15](https://github.com/igortsives/togetherly/issues/15).
 
+## Gating decision (2026-05-16)
+
+UAT of the UCLA PDF import surfaced semantic gaps in the calendar ingestion (all-day events rendered as two days, term boundaries not extended into in-session ranges, weekends not carved out, no long-weekend detection, no natural-language search). The beta is **gated on the Intelligent Calendar Redesign (Phase 2.5, Rounds 15-18 + Round 19 UAT)** described in [`ROADMAP.md`](./ROADMAP.md). The operational checklist below remains the bar for invites — but the product must pass UAT (Round 19) first.
+
 ## 1. Out Of Scope For The Private Beta
 
 These are explicitly NOT part of the private-beta product and should not be implemented or promised to beta users:
@@ -32,6 +36,13 @@ A beta family must be able to import at least:
 - **PDF-upload calendar**: yes — covered by PR #30.
 
 A family without any supported source on this list should be politely deferred from the beta, not invited and then asked to wait.
+
+In addition to format coverage, the **semantic capabilities** added in Phase 2.5 are part of the bar:
+
+- Academic calendars must surface visible `class_in_session` ranges (not just term boundary markers) — verified by importing the UCLA PDF and seeing busy shading across the term (EXT-009).
+- Weekends inside in-session ranges must show as free (MAT-010).
+- Free-window search must support natural-language input ("a week around Christmas") with an editable parse preview before running (MAT-008).
+- The dashboard must show which source contributed each event via the source legend + drilldown (UI-006, UI-007).
 
 The broader corpus research (NYC Public Schools, LAUSD, Fairfax, Stanford, Michigan, TeamSnap ICS, SportsEngine ICS — issue [#11](https://github.com/igortsives/togetherly/issues/11)) is a *post-beta* expansion, not a beta blocker.
 
@@ -68,6 +79,8 @@ Before opening the invite link to the first cohort, every item below must be che
 - [ ] `APPLE_CLIENT_ID` / `APPLE_CLIENT_SECRET` provisioned if Apple Sign-in is enabled.
 - [ ] `CRON_SECRET` (Vercel-injected) confirmed in the project env. `vercel.json` cron schedule live.
 - [ ] `FILE_STORAGE_ROOT` writable; the directory exists at the runtime path.
+- [ ] `ANTHROPIC_API_KEY` provisioned for the Anthropic project; Claude Sonnet model access verified. Used by LLM-assisted classification (Round 17 / EXT-010) and natural-language search (Round 18 / MAT-008). The product no-ops gracefully without it — but the UAT-blocking capabilities won't function.
+- [ ] **Cost budget for LLM spend documented**: ~$0.01 per source refresh (per [EXT-010](../PRD.md#73-extraction-and-normalization)), one Claude call per natural-language search button press (~$0.002 each). At cohort size of 25-50 families, monthly spend bounded under $20.
 
 ### Migrations
 

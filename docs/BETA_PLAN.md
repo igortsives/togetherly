@@ -55,7 +55,7 @@ Excluded:
 
 ## Beta Readiness Checklist
 
-The full, operational version of this checklist — covering infrastructure, migrations, auth/privacy, source pipeline, observability, and pre-launch ops — lives in [`LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md). The high-level bar is:
+The full, operational version of this checklist — covering infrastructure, migrations, auth/privacy, source pipeline, observability, and pre-launch ops — lives in [`LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md). After 2026-05-16, beta launch is also gated on the **Intelligent Calendar Redesign** (Phase 2.5 in [`ROADMAP.md`](./ROADMAP.md), Rounds 15-18) and a **UAT pass** in Round 19. The high-level bar is:
 
 - Product docs approved.
 - Source corpus has passing parser tests for at least UCLA, Vanderbilt, and (where the cohort needs them) Saratoga/LGSUHSD examples.
@@ -64,3 +64,26 @@ The full, operational version of this checklist — covering infrastructure, mig
 - Low-confidence events cannot silently affect recommendations.
 - Known limitations are visible inside the app.
 - GitHub Issues milestone has P0 issues closed or explicitly deferred.
+
+## UAT Gate (Round 19)
+
+Before invitations go out, the operator (Igor) runs end-to-end UAT against a real source mix:
+
+- UCLA PDF academic calendar.
+- Vanderbilt HTML academic calendar.
+- One ICS subscription (e.g. a sports team feed).
+- One linked Google or Outlook calendar belonging to the parent.
+
+Pass criteria:
+
+- Each ingested calendar produces visible busy/free shading on the dashboard timeline that a reasonable parent would describe as "matches my mental model."
+- A natural-language search ("a free week around Christmas") returns sensible windows with an editable parse preview.
+- Source attribution is visible per event (legend + drilldown).
+- Long-weekend free windows are correctly suggested when a Mon/Fri holiday is adjacent to a weekend.
+
+Decision branches after UAT:
+
+- **Limited release**: invite the first 5-10 friendly families. Watch closely for the first 7 days.
+- **Continue iterating**: file follow-up issues, defer invites by another round.
+
+This decision is captured in [`DECISIONS.md`](./DECISIONS.md) when made.
