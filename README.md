@@ -53,6 +53,7 @@ npm run build       # production build
 - [Parsing Strategy](./docs/PARSING_STRATEGY.md)
 - [Source Corpus](./docs/SOURCE_CORPUS.md)
 - [Private Beta Plan](./docs/BETA_PLAN.md)
+- [Launch Readiness Checklist](./docs/LAUNCH_CHECKLIST.md)
 - [Security And Privacy](./docs/SECURITY_PRIVACY.md)
 - [Privacy And Child-Data Handling](./docs/PRIVACY.md)
 - [Engineering Setup](./docs/ENGINEERING_SETUP.md)
