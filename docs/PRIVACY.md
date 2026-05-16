@@ -120,16 +120,11 @@ Export to provider calendars (`EXP-001`, `EXP-002` in PRD § 7.8) is P1. When th
 
 ### 3.4 Email-Based Account Linking
 
-Both the Google and Microsoft providers are configured with `allowDangerousEmailAccountLinking: true`. This lets an existing Togetherly user (who signed up with credentials, Google, or another OAuth) link the *other* provider by re-signing in, as long as the two providers report the same email address.
+Google is configured with `allowDangerousEmailAccountLinking: true`, gated by a `signIn` callback in `auth.ts` that rejects sign-ins unless `profile.email_verified === true`. Google verifies every email before issuing a token carrying that claim, so the auto-link-by-email path cannot be used to take over an existing Togetherly user.
 
-The Google takeover path is closed by a `signIn` callback in `auth.ts` that rejects Google sign-ins unless `profile.email_verified === true`.
+Microsoft is **not** configured with `allowDangerousEmailAccountLinking` (closed in [#76](https://github.com/igortsives/togetherly/issues/76)). The `common/v2.0` issuer accepts personal Microsoft accounts where email is not directory-verified, which made auto-linking a takeover vector. A user who signed up with a different provider must sign in with that provider first, then link Microsoft from the dashboard's "Connect Microsoft" flow — the in-product link uses the existing session and so cannot be impersonated by a matching-email attacker.
 
-**Microsoft retains a residual takeover surface.** The provider is configured against the multi-tenant `common/v2.0` issuer, which accepts personal Microsoft accounts where email is not directory-verified. Combined with `allowDangerousEmailAccountLinking: true`, an attacker who controls an MSA at the matching email could silently link into an existing Togetherly user. Closing this is tracked in [#76](https://github.com/igortsives/togetherly/issues/76); options include switching to a tenant-scoped issuer, checking the `xms_edov` claim, or removing the dangerous-linking flag for Microsoft entirely.
-
-Future mitigations to consider when productionizing:
-
-- Require fresh re-authentication before linking.
-- Require explicit confirmation in-product before linking a new provider.
+Apple is not configured with the dangerous flag either. Apple verifies every email it returns (including private-relay aliases), so this is a defense-in-depth measure rather than a takeover-mitigation.
 
 ## 4. Data Retention + Deletion
 
@@ -220,6 +215,8 @@ This applies to application logs, error-reporting tooling, and any future metric
 ### Sign-in rate limiting
 
 The Credentials sign-in path (`auth.ts`) records failed attempts in a `SignInAttempt` table keyed by `email:<addr>` and `ip:<addr>`. Counters are kept in two layered 15-minute windows: 5 failures per email, 20 per IP. On limit-exceeded, `authorize` returns `null` (same generic failure path as a wrong password) and emits a single info-level log line containing only the bucket name and count — never the raw email or IP. Stale rows are pruned per-key on each check; a periodic global cleanup of orphaned IP rows is tracked separately. Issue [#64](https://github.com/igortsives/togetherly/issues/64).
+
+The same path also closes the timing channel between "no such email" and "wrong password" (issue [#86](https://github.com/igortsives/togetherly/issues/86)) by running a full bcrypt compare against a precomputed dummy hash when the user row is missing. Both failure paths have the same wall-clock cost.
 
 ## 7. Beta-Specific Posture
 

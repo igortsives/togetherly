@@ -7,7 +7,6 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 ### Security / privacy (must be resolved before public launch)
 
 - [#49](https://github.com/igortsives/togetherly/issues/49) — Push family-ownership check into refreshSource() *(P2)*
-- [#76](https://github.com/igortsives/togetherly/issues/76) — Microsoft account-linking takeover residual on `common/v2.0` issuer *(P1, Private Beta)*
 - [#77](https://github.com/igortsives/togetherly/issues/77) — Apple sign-in lacks explicit gate in signIn callback *(P2)*
 
 ### Source refresh + change alerts (post-PR #36 follow-ups)
@@ -94,3 +93,5 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 - ~~Invalidate saved free-window results when underlying sources change~~ — closes [#41](https://github.com/igortsives/togetherly/issues/41); `refreshSource` now sets `FreeWindowSearch.stale = true` on every search for the affected family when a candidate-set change is detected, and the `/windows` page surfaces a "re-run to refresh" banner. Date-overlap refinement is tracked as a follow-up.
 - ~~In-product OAuth disconnect~~ — closes [#42](https://github.com/igortsives/togetherly/issues/42); [`lib/sources/disconnect.ts`](../lib/sources/disconnect.ts) (`disconnectProviderForFamily`) revokes with the provider best-effort, deletes the `Account` row, and marks every `CalendarSource` of the matching type for the family `FAILED`. UI lives in the dashboard Google/Outlook panels behind a `<details>` confirmation.
 - ~~In-product account deletion~~ — closes [#43](https://github.com/igortsives/togetherly/issues/43); `/account` page surfaces a confirmation-by-email form; `deleteUserAccount` in [`lib/family/account-deletion.ts`](../lib/family/account-deletion.ts) revokes OAuth tokens, deletes the `User` row (Postgres cascades to everything family-scoped), then best-effort unlinks PDF blobs. Optional data-export courtesy is filed as a follow-up.
+- ~~Microsoft account-linking residual~~ — closes [#76](https://github.com/igortsives/togetherly/issues/76); `allowDangerousEmailAccountLinking: true` removed from the Microsoft Entra ID provider config. Cross-provider linking now happens only via the in-product "Connect Microsoft" flow on the dashboard, which uses the existing session and can't be triggered by an attacker controlling a matching-email MSA.
+- ~~Credentials login timing channel~~ — closes [#86](https://github.com/igortsives/togetherly/issues/86); `authorize` always runs `bcrypt.compare` (against `TIMING_DUMMY_HASH` when the email is unregistered) so the "no such email" and "wrong password" paths have the same wall-clock cost. Dummy hash precomputed at module load (~250ms cold-start cost per process).
