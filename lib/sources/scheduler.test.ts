@@ -16,6 +16,7 @@ vi.mock("@/lib/sources/refresh", () => ({
 import { prisma } from "@/lib/db/prisma";
 import { refreshSource } from "@/lib/sources/refresh";
 import {
+  MAX_FAILED_ATTEMPTS,
   REFRESH_CADENCE_MS,
   STATIC_SOURCE_TYPES,
   refreshAllStaleSources
@@ -148,5 +149,14 @@ describe("refreshAllStaleSources", () => {
 
   it("uses a 24-hour cadence by default", () => {
     expect(REFRESH_CADENCE_MS).toBe(24 * 60 * 60 * 1000);
+  });
+
+  it("excludes sources whose failedAttempts has reached MAX_FAILED_ATTEMPTS (#100)", async () => {
+    mockFindMany.mockResolvedValue([]);
+    await refreshAllStaleSources();
+    const call = mockFindMany.mock.calls[0]?.[0] as {
+      where: { failedAttempts: { lt: number } };
+    };
+    expect(call.where.failedAttempts).toEqual({ lt: MAX_FAILED_ATTEMPTS });
   });
 });

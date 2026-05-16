@@ -15,6 +15,15 @@ export const STATIC_SOURCE_TYPES: ReadonlyArray<SourceType> = [
   SourceType.PDF_UPLOAD
 ];
 
+/**
+ * Issue #100: after this many consecutive failures, the scheduler
+ * stops auto-refreshing a source. The user can still trigger a manual
+ * refresh from the dashboard, which clears the counter on success.
+ * Set high enough that a transient outage doesn't permanently exile
+ * a source.
+ */
+export const MAX_FAILED_ATTEMPTS = 10;
+
 export type ScheduledRefreshResult =
   | { sourceId: string; familyId: string; status: "ok"; changeDetected: boolean }
   | { sourceId: string; familyId: string; status: "error"; error: string }
@@ -41,9 +50,10 @@ export type RefreshAllOptions = {
  * dispatcher can be invoked from overlapping cron firings without
  * duplicate work.
  *
- * Retry / backoff for repeatedly-failing sources is not yet modeled;
- * a failing source will be re-attempted on every tick until it
- * succeeds. Tracked in a follow-up.
+ * Backoff for repeatedly-failing sources is enforced via the
+ * `failedAttempts < MAX_FAILED_ATTEMPTS` predicate below (#100).
+ * A source that fails 10 consecutive times is taken out of rotation
+ * until a manual refresh from the dashboard succeeds.
  */
 export async function refreshAllStaleSources(
   options: RefreshAllOptions = {}
@@ -55,6 +65,7 @@ export async function refreshAllStaleSources(
   const due = await prisma.calendarSource.findMany({
     where: {
       sourceType: { notIn: [...STATIC_SOURCE_TYPES] },
+      failedAttempts: { lt: MAX_FAILED_ATTEMPTS },
       OR: [{ lastFetchedAt: null }, { lastFetchedAt: { lt: cutoff } }]
     },
     select: {

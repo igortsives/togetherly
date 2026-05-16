@@ -71,7 +71,13 @@ export async function refreshSource(
     } catch (error) {
       await tx.calendarSource.update({
         where: { id: sourceId },
-        data: { refreshStatus: RefreshStatus.FAILED, lastFetchedAt: new Date() }
+        data: {
+          refreshStatus: RefreshStatus.FAILED,
+          lastFetchedAt: new Date(),
+          // Increment failure counter for issue #100 backoff. The
+          // scheduler skips sources that exceed `MAX_FAILED_ATTEMPTS`.
+          failedAttempts: { increment: 1 }
+        }
       });
       throw error;
     }
@@ -88,7 +94,12 @@ export async function refreshSource(
 
     await tx.calendarSource.update({
       where: { id: sourceId },
-      data: { refreshStatus, lastFetchedAt: new Date() }
+      data: {
+        refreshStatus,
+        lastFetchedAt: new Date(),
+        // Successful refresh resets the failure counter (#100).
+        failedAttempts: 0
+      }
     });
 
     const changeDetected = beforeSnapshot.hash !== afterSnapshot.hash;

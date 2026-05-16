@@ -15,10 +15,15 @@ import { refreshAllStaleSources } from "@/lib/sources/scheduler";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const secret = process.env.SCHEDULER_SECRET;
+  // Accept either `CRON_SECRET` (auto-set by Vercel Cron) or
+  // `SCHEDULER_SECRET` (the original name for local dev / other
+  // cron services). Vercel sets `CRON_SECRET` when cron is enabled
+  // on the project, so deployments don't need to maintain a
+  // separate variable.
+  const secret = process.env.CRON_SECRET ?? process.env.SCHEDULER_SECRET;
   if (!secret) {
     return NextResponse.json(
-      { error: "SCHEDULER_SECRET is not configured" },
+      { error: "CRON_SECRET / SCHEDULER_SECRET is not configured" },
       { status: 503 }
     );
   }
