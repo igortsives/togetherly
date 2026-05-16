@@ -6,7 +6,7 @@ import {
   type CalendarSource
 } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import { withSourceLock } from "@/lib/db/locks";
+import { withSourceLock, type ExtendedTxClient } from "@/lib/db/locks";
 import { refreshGoogleSource } from "@/lib/sources/google-ingest";
 import { refreshHtmlSource } from "@/lib/sources/html-ingest";
 import { refreshIcsSource } from "@/lib/sources/ics-ingest";
@@ -39,34 +39,44 @@ export async function refreshSource(
   sourceId: string,
   expectedFamilyId: string
 ): Promise<RefreshOutcome> {
-  const source = await prisma.calendarSource.findUniqueOrThrow({
-    where: { id: sourceId },
-    include: { calendar: { select: { familyId: true } } }
-  });
-
-  if (source.calendar.familyId !== expectedFamilyId) {
-    throw new SourceFamilyMismatchError(sourceId);
-  }
-
   // Serialize concurrent refreshes of the same source (issue #40).
   // A second caller blocks on the Postgres advisory lock until the
   // winner commits, then proceeds — typically finding the candidate
   // set already current.
-  return withSourceLock(sourceId, async () => {
+  //
+  // The lock-holding `$transaction` is used for the family-ownership
+  // check, the before/after candidate snapshots, the `lastFetchedAt`
+  // / refreshStatus write, and the staleness fan-out. The actual
+  // ingest work in `dispatchToOrchestrator` happens on a separate
+  // connection (ingest modules use their own `$transaction([...])`
+  // for the candidate-set rewrite). That's fine: the advisory lock
+  // is held across the dispatch call so concurrent callers still
+  // serialize, and the ingest write commits before the lock-holding
+  // tx commits, so the next lock-acquirer sees the durable state.
+  return withSourceLock(sourceId, async (tx) => {
+    const source = await tx.calendarSource.findUniqueOrThrow({
+      where: { id: sourceId },
+      include: { calendar: { select: { familyId: true } } }
+    });
+
+    if (source.calendar.familyId !== expectedFamilyId) {
+      throw new SourceFamilyMismatchError(sourceId);
+    }
+
     const isFirstRefresh = source.lastParsedAt === null;
-    const beforeSnapshot = await snapshotCandidatesForSource(sourceId);
+    const beforeSnapshot = await snapshotCandidatesForSource(sourceId, tx);
 
     try {
       await dispatchToOrchestrator(source);
     } catch (error) {
-      await prisma.calendarSource.update({
+      await tx.calendarSource.update({
         where: { id: sourceId },
         data: { refreshStatus: RefreshStatus.FAILED, lastFetchedAt: new Date() }
       });
       throw error;
     }
 
-    const afterSnapshot = await snapshotCandidatesForSource(sourceId);
+    const afterSnapshot = await snapshotCandidatesForSource(sourceId, tx);
 
     const refreshStatus = resolveRefreshStatus({
       isFirstRefresh,
@@ -76,7 +86,7 @@ export async function refreshSource(
       candidatesAfter: afterSnapshot.candidates.length
     });
 
-    await prisma.calendarSource.update({
+    await tx.calendarSource.update({
       where: { id: sourceId },
       data: { refreshStatus, lastFetchedAt: new Date() }
     });
@@ -84,12 +94,11 @@ export async function refreshSource(
     const changeDetected = beforeSnapshot.hash !== afterSnapshot.hash;
 
     // Invalidate saved free-window searches when the underlying
-    // candidate set actually changed (issue #41). We use a broad
-    // brush — mark every search for this family stale, not just the
-    // ones whose date range overlaps the affected events. Refining
-    // to overlap-only is tracked in a follow-up.
+    // candidate set actually changed (issue #41). Coarse-brush —
+    // mark every search for this family stale rather than narrowing
+    // by date overlap. Refinement is tracked as a follow-up.
     if (changeDetected) {
-      await prisma.freeWindowSearch.updateMany({
+      await tx.freeWindowSearch.updateMany({
         where: { familyId: expectedFamilyId, stale: false },
         data: { stale: true }
       });
@@ -143,9 +152,10 @@ export type CandidateSnapshot = {
 };
 
 export async function snapshotCandidatesForSource(
-  sourceId: string
+  sourceId: string,
+  client: ExtendedTxClient | typeof prisma = prisma
 ): Promise<CandidateSnapshot> {
-  const rows = await prisma.eventCandidate.findMany({
+  const rows = await client.eventCandidate.findMany({
     where: { calendarSourceId: sourceId, reviewStatus: ReviewStatus.PENDING },
     select: {
       rawTitle: true,
