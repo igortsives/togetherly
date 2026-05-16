@@ -266,10 +266,12 @@ model FreeWindowSearch {
   minimumDays          Int
   includeUnknownAsBusy Boolean            @default(true)
   includeExamAsBusy    Boolean            @default(true)
+  stale                Boolean            @default(false)
   results              FreeWindowResult[]
   createdAt            DateTime           @default(now())
 
   @@index([familyId])
+  @@index([familyId, stale])
 }
 
 model FreeWindowResult {

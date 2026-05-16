@@ -6,6 +6,7 @@ import {
   type CalendarSource
 } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { withSourceLock } from "@/lib/db/locks";
 import { refreshGoogleSource } from "@/lib/sources/google-ingest";
 import { refreshHtmlSource } from "@/lib/sources/html-ingest";
 import { refreshIcsSource } from "@/lib/sources/ics-ingest";
@@ -47,41 +48,61 @@ export async function refreshSource(
     throw new SourceFamilyMismatchError(sourceId);
   }
 
-  const isFirstRefresh = source.lastParsedAt === null;
-  const beforeSnapshot = await snapshotCandidatesForSource(sourceId);
+  // Serialize concurrent refreshes of the same source (issue #40).
+  // A second caller blocks on the Postgres advisory lock until the
+  // winner commits, then proceeds — typically finding the candidate
+  // set already current.
+  return withSourceLock(sourceId, async () => {
+    const isFirstRefresh = source.lastParsedAt === null;
+    const beforeSnapshot = await snapshotCandidatesForSource(sourceId);
 
-  try {
-    await dispatchToOrchestrator(source);
-  } catch (error) {
+    try {
+      await dispatchToOrchestrator(source);
+    } catch (error) {
+      await prisma.calendarSource.update({
+        where: { id: sourceId },
+        data: { refreshStatus: RefreshStatus.FAILED, lastFetchedAt: new Date() }
+      });
+      throw error;
+    }
+
+    const afterSnapshot = await snapshotCandidatesForSource(sourceId);
+
+    const refreshStatus = resolveRefreshStatus({
+      isFirstRefresh,
+      beforeHash: beforeSnapshot.hash,
+      afterHash: afterSnapshot.hash,
+      candidatesBefore: beforeSnapshot.candidates.length,
+      candidatesAfter: afterSnapshot.candidates.length
+    });
+
     await prisma.calendarSource.update({
       where: { id: sourceId },
-      data: { refreshStatus: RefreshStatus.FAILED, lastFetchedAt: new Date() }
+      data: { refreshStatus, lastFetchedAt: new Date() }
     });
-    throw error;
-  }
 
-  const afterSnapshot = await snapshotCandidatesForSource(sourceId);
+    const changeDetected = beforeSnapshot.hash !== afterSnapshot.hash;
 
-  const refreshStatus = resolveRefreshStatus({
-    isFirstRefresh,
-    beforeHash: beforeSnapshot.hash,
-    afterHash: afterSnapshot.hash,
-    candidatesBefore: beforeSnapshot.candidates.length,
-    candidatesAfter: afterSnapshot.candidates.length
+    // Invalidate saved free-window searches when the underlying
+    // candidate set actually changed (issue #41). We use a broad
+    // brush — mark every search for this family stale, not just the
+    // ones whose date range overlaps the affected events. Refining
+    // to overlap-only is tracked in a follow-up.
+    if (changeDetected) {
+      await prisma.freeWindowSearch.updateMany({
+        where: { familyId: expectedFamilyId, stale: false },
+        data: { stale: true }
+      });
+    }
+
+    return {
+      sourceId,
+      refreshStatus,
+      candidatesBefore: beforeSnapshot.candidates.length,
+      candidatesAfter: afterSnapshot.candidates.length,
+      changeDetected
+    };
   });
-
-  await prisma.calendarSource.update({
-    where: { id: sourceId },
-    data: { refreshStatus }
-  });
-
-  return {
-    sourceId,
-    refreshStatus,
-    candidatesBefore: beforeSnapshot.candidates.length,
-    candidatesAfter: afterSnapshot.candidates.length,
-    changeDetected: beforeSnapshot.hash !== afterSnapshot.hash
-  };
 }
 
 async function dispatchToOrchestrator(source: CalendarSource): Promise<void> {
