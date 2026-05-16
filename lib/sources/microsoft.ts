@@ -263,6 +263,44 @@ async function refreshMicrosoftAccessToken(
   return body.access_token;
 }
 
+/**
+ * Best-effort revoke against Microsoft Graph
+ * (`/me/revokeSignInSessions`). Microsoft does not expose a public
+ * single-token revocation endpoint, so this is the closest practical
+ * option — it revokes all signed-in sessions for the user, which
+ * forces the refresh token to invalidate on next exchange. Many beta
+ * tokens won't have the required directory write scope, so failure
+ * is the expected case; the caller still deletes the Account row
+ * locally so the user is unblocked.
+ */
+export async function revokeMicrosoftAccess(
+  accessToken: string,
+  deps: MicrosoftApiDeps = {}
+): Promise<boolean> {
+  const httpFetch: MicrosoftHttpClient = deps.fetch ?? globalThis.fetch;
+  try {
+    const response = await httpFetch(
+      `${API_BASE}/me/revokeSignInSessions`,
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }
+    );
+    if (!response.ok) {
+      console.warn("Microsoft revokeSignInSessions returned non-OK", {
+        status: response.status
+      });
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.warn("Microsoft revokeSignInSessions threw", {
+      reason: error instanceof Error ? error.message : String(error)
+    });
+    return false;
+  }
+}
+
 async function isInvalidGrant(response: Response): Promise<boolean> {
   try {
     const cloned = response.clone();
