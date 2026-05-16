@@ -26,7 +26,7 @@ const mockFindUniqueOrThrow =
 const mockCreate = prisma.family.create as unknown as ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
-  vi.clearAllMocks();
+  vi.resetAllMocks();
 });
 
 describe("resolveFamilyForUser", () => {
