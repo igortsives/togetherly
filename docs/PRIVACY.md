@@ -166,7 +166,15 @@ When a parent invokes account deletion (Phase 3), the request MUST:
 3. Delete uploaded files referenced by `CalendarSource.uploadedFileKey`.
 4. Best-effort scrub of audit/log entries that contain identifiers tied to the user (see [§6](#6-logging--telemetry-boundary)).
 
-In-product deletion is not yet implemented. The current cascade behavior makes a Prisma-side "delete user → cascade to family → cascade to everything else" approach feasible, but the provider-token-revocation step and uploaded-file cleanup are operator-only today.
+In-product deletion lives at `/account` (linked from the dashboard's account panel). The orchestrator is `deleteUserAccount` in [`lib/family/account-deletion.ts`](../lib/family/account-deletion.ts):
+
+1. Reads OAuth tokens and uploaded-file keys before any destructive action.
+2. Best-effort revokes each provider token (Google + Microsoft).
+3. Deletes the `User` row; Postgres cascades remove Family / Child / Calendar / CalendarSource / EventCandidate / CalendarEvent / FreeWindowSearch / FreeWindowResult / Account / BetaFeedback / Session in one statement.
+4. Best-effort unlinks PDF blobs from `FILE_STORAGE_ROOT`. Doing the disk delete after the DB delete commits means a failed unlink leaves orphan files (recoverable via an audit job) rather than orphan DB rows pointing to missing files.
+5. Emits an info-level audit log with `userId` and aggregate counts only — never the user's email, name, or any imported event content.
+
+The deletion form requires the parent to type their account email as a confirmation step before the destructive action runs.
 
 ### 4.4 Export Before Delete (Courtesy)
 

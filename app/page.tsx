@@ -153,11 +153,16 @@ export default async function Home({
                 <span>{session.user.email}</span>
               ) : null}
             </div>
-            <form action={signOutAction}>
-              <button className="subtleButton" type="submit">
-                Sign out
-              </button>
-            </form>
+            <div className="accountActions">
+              <Link className="subtleButton" href="/account">
+                Account
+              </Link>
+              <form action={signOutAction}>
+                <button className="subtleButton" type="submit">
+                  Sign out
+                </button>
+              </form>
+            </div>
           </div>
         ) : null}
       </aside>

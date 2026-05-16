@@ -14,6 +14,7 @@ import {
 } from "@/lib/domain/schemas";
 import { getCurrentUserId, requireUserFamily } from "@/lib/family/session";
 import { runFreeWindowSearch } from "@/lib/matching/search";
+import { deleteUserAccount } from "@/lib/family/account-deletion";
 import { disconnectProviderForFamily } from "@/lib/sources/disconnect";
 import { refreshSource } from "@/lib/sources/refresh";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
@@ -223,6 +224,31 @@ export async function disconnectGoogleAccountAction() {
     provider: "google"
   });
   revalidatePath("/");
+}
+
+export async function deleteAccountAction(formData: FormData) {
+  const userId = await getCurrentUserId();
+  if (!userId) {
+    throw new Error("Sign in required.");
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true }
+  });
+  if (!user) {
+    throw new Error("Account not found.");
+  }
+
+  const typedEmail = String(formData.get("confirmEmail") || "")
+    .trim()
+    .toLowerCase();
+  if (typedEmail !== user.email.toLowerCase()) {
+    redirect("/account?error=confirm");
+  }
+
+  await deleteUserAccount({ userId });
+  await signOut({ redirectTo: "/login?deleted=1" });
 }
 
 export async function disconnectMicrosoftAccountAction() {

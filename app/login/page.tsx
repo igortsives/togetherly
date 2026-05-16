@@ -8,6 +8,7 @@ type Props = {
     callbackUrl?: string;
     error?: string;
     registered?: string;
+    deleted?: string;
   }>;
 };
 
@@ -59,6 +60,12 @@ export default async function LoginPage({ searchParams }: Props) {
           <p className="authNotice" role="status">
             If the email is new, we&apos;ve created your account. Sign in below
             to continue.
+          </p>
+        ) : null}
+
+        {params.deleted ? (
+          <p className="authNotice" role="status">
+            Your account has been deleted. Thanks for trying Togetherly.
           </p>
         ) : null}
 

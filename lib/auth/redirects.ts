@@ -13,7 +13,8 @@ export const ALLOWED_REDIRECT_PATHS: ReadonlySet<string> = new Set([
   "/",
   "/review",
   "/windows",
-  "/feedback"
+  "/feedback",
+  "/account"
 ]);
 
 const FALLBACK_PATH = "/";
