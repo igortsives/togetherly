@@ -140,6 +140,70 @@ describe("ensureMicrosoftAccessToken", () => {
     expect(update).not.toHaveBeenCalled();
   });
 
+  it("nulls refresh_token on interaction_required and throws MicrosoftAccessError (#95)", async () => {
+    const expiredAccount = {
+      id: "account-1",
+      access_token: "expired",
+      refresh_token: "stored-refresh-token",
+      expires_at: Math.floor(Date.now() / 1000) - 60
+    };
+    findFirst.mockResolvedValue(expiredAccount);
+    findUniqueOrThrow.mockResolvedValue(expiredAccount);
+
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 400,
+      clone() {
+        return this;
+      },
+      json: async () => ({
+        error: "interaction_required",
+        error_codes: [50079]
+      }),
+      text: async () => '{"error":"interaction_required"}'
+    })) as unknown as MicrosoftHttpClient;
+
+    await expect(
+      ensureMicrosoftAccessToken("user-1", { fetch: fetchMock })
+    ).rejects.toBeInstanceOf(MicrosoftAccessError);
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "account-1" },
+      data: { refresh_token: null }
+    });
+  });
+
+  it("nulls refresh_token on dead error_codes (70008) (#95)", async () => {
+    const expiredAccount = {
+      id: "account-1",
+      access_token: "expired",
+      refresh_token: "stored-refresh-token",
+      expires_at: Math.floor(Date.now() / 1000) - 60
+    };
+    findFirst.mockResolvedValue(expiredAccount);
+    findUniqueOrThrow.mockResolvedValue(expiredAccount);
+
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 400,
+      clone() {
+        return this;
+      },
+      json: async () => ({
+        error: "invalid_request",
+        error_codes: [70008]
+      }),
+      text: async () => "{}"
+    })) as unknown as MicrosoftHttpClient;
+
+    await expect(
+      ensureMicrosoftAccessToken("user-1", { fetch: fetchMock })
+    ).rejects.toBeInstanceOf(MicrosoftAccessError);
+    expect(update).toHaveBeenCalledWith({
+      where: { id: "account-1" },
+      data: { refresh_token: null }
+    });
+  });
+
   it("nulls refresh_token on invalid_grant and throws MicrosoftAccessError", async () => {
     const expiredAccount = {
       id: "account-1",

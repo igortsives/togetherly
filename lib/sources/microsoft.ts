@@ -301,11 +301,39 @@ export async function revokeMicrosoftAccess(
   }
 }
 
+/**
+ * Microsoft Entra ID returns `error: "invalid_grant"` for most
+ * dead-refresh-token cases, but also surfaces dead-grant states via
+ * `error_codes: [70008 | 50173 | 700082]` and via sibling errors
+ * `interaction_required` / `consent_required` (admin or user
+ * revoked consent; MFA was added). All four cases need the same
+ * null-refresh-token + re-link UX — closes #95.
+ *
+ * Reference: https://learn.microsoft.com/en-us/azure/active-directory/develop/reference-error-codes
+ */
+const DEAD_GRANT_ERRORS = new Set([
+  "invalid_grant",
+  "interaction_required",
+  "consent_required"
+]);
+const DEAD_GRANT_CODES = new Set([70008, 50173, 700082]);
+
 async function isInvalidGrant(response: Response): Promise<boolean> {
   try {
     const cloned = response.clone();
-    const body = (await cloned.json()) as { error?: string };
-    return body.error === "invalid_grant";
+    const body = (await cloned.json()) as {
+      error?: string;
+      error_codes?: number[];
+    };
+    if (body.error && DEAD_GRANT_ERRORS.has(body.error)) {
+      return true;
+    }
+    if (Array.isArray(body.error_codes)) {
+      for (const code of body.error_codes) {
+        if (DEAD_GRANT_CODES.has(code)) return true;
+      }
+    }
+    return false;
   } catch {
     return false;
   }

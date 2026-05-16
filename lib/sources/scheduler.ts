@@ -15,6 +15,15 @@ export const STATIC_SOURCE_TYPES: ReadonlyArray<SourceType> = [
   SourceType.PDF_UPLOAD
 ];
 
+/**
+ * Issue #100: after this many consecutive failures, the scheduler
+ * stops auto-refreshing a source. The user can still trigger a manual
+ * refresh from the dashboard, which clears the counter on success.
+ * Set high enough that a transient outage doesn't permanently exile
+ * a source.
+ */
+export const MAX_FAILED_ATTEMPTS = 10;
+
 export type ScheduledRefreshResult =
   | { sourceId: string; familyId: string; status: "ok"; changeDetected: boolean }
   | { sourceId: string; familyId: string; status: "error"; error: string }
@@ -55,6 +64,7 @@ export async function refreshAllStaleSources(
   const due = await prisma.calendarSource.findMany({
     where: {
       sourceType: { notIn: [...STATIC_SOURCE_TYPES] },
+      failedAttempts: { lt: MAX_FAILED_ATTEMPTS },
       OR: [{ lastFetchedAt: null }, { lastFetchedAt: { lt: cutoff } }]
     },
     select: {
