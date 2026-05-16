@@ -1,5 +1,5 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
-import { compare } from "bcryptjs";
+import { compare, hashSync } from "bcryptjs";
 import NextAuth, { type DefaultSession } from "next-auth";
 import Apple from "next-auth/providers/apple";
 import Credentials from "next-auth/providers/credentials";
@@ -29,6 +29,19 @@ declare module "next-auth" {
 
 const googleEnabled = Boolean(
   process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
+);
+
+// Timing-channel defense (#86). When the submitted email does not
+// belong to a registered user, we still run a full bcrypt compare
+// against this dummy hash so the request takes the same wall-clock
+// time as a "real user with wrong password" path. The sentinel value
+// cannot be authenticated against — it's not a hash of any password
+// a user could submit, and no user row carries this exact hash.
+// Computed once at module load; ~250ms cold-start cost per process.
+const BCRYPT_ROUNDS = 12;
+const TIMING_DUMMY_HASH = hashSync(
+  "togetherly-bcrypt-sentinel-never-matches",
+  BCRYPT_ROUNDS
 );
 const appleEnabled = Boolean(
   process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET
@@ -83,16 +96,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
 
         const user = await prisma.user.findUnique({ where: { email } });
 
-        if (!user?.passwordHash) {
-          await Promise.all([
-            recordFailedAttempt(emailKey),
-            recordFailedAttempt(ipKey)
-          ]);
-          return null;
-        }
+        // Always run bcrypt — even when the user doesn't exist —
+        // against `TIMING_DUMMY_HASH` so the response time doesn't
+        // distinguish "no such email" from "wrong password" (#86).
+        // The two failure paths then collapse into one tail.
+        const hashToCompare = user?.passwordHash ?? TIMING_DUMMY_HASH;
+        const valid = await compare(parsed.data.password, hashToCompare);
 
-        const valid = await compare(parsed.data.password, user.passwordHash);
-        if (!valid) {
+        if (!user?.passwordHash || !valid) {
           await Promise.all([
             recordFailedAttempt(emailKey),
             recordFailedAttempt(ipKey)
@@ -138,9 +149,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           MicrosoftEntraID({
             clientId: process.env.MICROSOFT_CLIENT_ID!,
             clientSecret: process.env.MICROSOFT_CLIENT_SECRET!,
-            issuer:
-              "https://login.microsoftonline.com/common/v2.0",
-            allowDangerousEmailAccountLinking: true,
+            issuer: "https://login.microsoftonline.com/common/v2.0",
+            // `allowDangerousEmailAccountLinking` intentionally omitted
+            // (#76). The `common/v2.0` issuer accepts personal MSAs
+            // where Microsoft does not verify the email at the
+            // directory level, so the auto-link-by-email behaviour
+            // would be a takeover vector. NextAuth's default
+            // behaviour returns `OAuthAccountNotLinked` when the
+            // email matches an existing user signed in via a
+            // different provider; the user must sign in with their
+            // original provider, then link Microsoft from the
+            // dashboard's connect flow.
             authorization: {
               params: {
                 scope:
