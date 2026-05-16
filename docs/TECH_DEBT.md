@@ -15,7 +15,7 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 - [#130](https://github.com/igortsives/togetherly/issues/130) — Source-aware unified view: legend, per-source filters, drilldown *(P1, Private Beta — Round 15)*
 - [#131](https://github.com/igortsives/togetherly/issues/131) — Infer in-session ranges from academic-calendar boundary pairs *(P1, Private Beta — Round 16)*
 - [#132](https://github.com/igortsives/togetherly/issues/132) — Term-overview view mode *(P2 — Round 16)*
-- [#52](https://github.com/igortsives/togetherly/issues/52) — LLM-assisted extraction for ambiguous HTML/PDF events *(P2 — Round 17)*
+- [#52](https://github.com/igortsives/togetherly/issues/52) — LLM-assisted extraction for ambiguous HTML/PDF events *(P1, Private Beta — Round 17)*
 - [#133](https://github.com/igortsives/togetherly/issues/133) — Natural-language search front-door on /windows *(P1, Private Beta — Round 18)*
 
 ### Source refresh + change alerts (post-PR #36 follow-ups)

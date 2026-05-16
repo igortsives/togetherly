@@ -74,12 +74,14 @@ Before invitations go out, the operator (Igor) runs end-to-end UAT against a rea
 - One ICS subscription (e.g. a sports team feed).
 - One linked Google or Outlook calendar belonging to the parent.
 
-Pass criteria:
+Pass criteria (measurable where possible):
 
-- Each ingested calendar produces visible busy/free shading on the dashboard timeline that a reasonable parent would describe as "matches my mental model."
-- A natural-language search ("a free week around Christmas") returns sensible windows with an editable parse preview.
-- Source attribution is visible per event (legend + drilldown).
-- Long-weekend free windows are correctly suggested when a Mon/Fri holiday is adjacent to a weekend.
+- **Academic calendar coverage**: for the UCLA PDF, ≥ 80% of weekdays inside a synthesized `class_in_session` interval render as busy on the timeline. Sat/Sun inside the same interval render as free. Listed holidays inside the interval render as free.
+- **All-day display**: every all-day event (e.g., Presidents' Day on Feb 16, 2026-27) renders as a single-day block with the correct end-day label — not "Feb 16 – Feb 17."
+- **Source attribution**: every event block on the timeline shows its originating source via the legend + per-block color stripe. Clicking a block opens the drilldown with the correct source name, provider type, and evidence locator.
+- **Natural-language search**: typing "I want a free week around Christmas" returns the parse preview ("Searching for 5+ day windows between Dec 11 2026 and Jan 8 2027, preferring ones that include Dec 25") with an Adjust button. Running it returns at least one window if the data supports it.
+- **Long-weekend detection**: a search that contains a Mon/Fri `school_closed` holiday adjacent to a Sat-Sun weekend surfaces the long weekend with a "Long weekend (extends Memorial Day)"-style label.
+- **Cross-source intersection**: with UCLA + Vanderbilt + Google + ICS all linked, a search for "a week when both kids are off school" returns at least one window if one exists.
 
 Decision branches after UAT:
 

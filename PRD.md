@@ -244,7 +244,7 @@ Heuristic parsers handle the well-structured majority of calendars but degrade g
 | ID | Requirement | Priority |
 |---|---|---:|
 | AI-001 | An `ANTHROPIC_API_KEY` env var enables LLM features. All AI flows must no-op gracefully when the key is unset so local dev / CI without the key still produces a working product (heuristics only). | P1 |
-| AI-002 | LLM-assisted classification of ambiguous events (per EXT-010) is batched per source refresh. Cost cap: one Claude call per refresh, ~$0.01 per source per refresh. | P1 |
+| AI-002 | LLM-assisted classification of ambiguous events (per EXT-010) batches all ambiguous candidates from a single source refresh into one Claude call. A refresh that produces no ambiguous candidates makes zero LLM calls. Expected cost: ~$0.01 per refresh that fires the LLM. Most refreshes will not fire it because the candidate set is unchanged between runs. | P1 |
 | AI-003 | Natural-language search parser (per MAT-008) shows the parsed intent to the user before running the search. The user can adjust the inferred fields. The structured form remains the expert mode. | P1 |
 | AI-004 | LLM input contexts include the family's children's nicknames, the active source names, today's date, and the user-provided text. LLM input MUST NOT include OAuth tokens, refresh tokens, or imported event titles outside the scope of the immediate query. | P1 |
 | AI-005 | LLM outputs are validated against structured-output schemas (Zod) before being applied. Schema violations fall back to heuristics or surface the failure to the user; no silent application of free-form text. | P1 |

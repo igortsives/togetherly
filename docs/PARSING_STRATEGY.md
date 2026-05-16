@@ -81,10 +81,12 @@ When a source contains both a "begins" and an "ends" marker for the same academi
 
 | Begin marker | End marker | Synthesized interval |
 |---|---|---|
-| `Quarter Begins` / `First Day of Classes` | `Quarter Ends` / `Last Day of Classes` | `CLASS_IN_SESSION` (weekdaysOnly) |
-| `Semester Begins` | `Semester Ends` | `CLASS_IN_SESSION` (weekdaysOnly) |
-| `Final Examinations Begin` | `Final Examinations End` | `EXAM_PERIOD` |
+| `Quarter Begins` / `First Day of Classes` / `Instruction Begins` / `Classes Begin` | `Quarter Ends` / `Last Day of Classes` / `Instruction Ends` / `Classes End` | `CLASS_IN_SESSION` (weekdaysOnly) |
+| `Semester Begins` / `Term Begins` | `Semester Ends` / `Term Ends` | `CLASS_IN_SESSION` (weekdaysOnly) |
+| `Final Examinations Begin` / `Finals Week Begins` | `Final Examinations End` / `Finals Week Ends` | `EXAM_PERIOD` |
 | `Reading Days Begin` | `Reading Days End` | `EXAM_PERIOD` (lower confidence) |
+
+The UCLA academic PDF uses `Instruction Begins` / `Instruction Ends` as its primary phrasing — this is the load-bearing case for UAT, so the recognizer must include it. Single-day markers like `School Resumes` are kept in the existing keyword heuristic as `CLASS_IN_SESSION` candidates but are NOT eligible for pairing — they have no natural "end" counterpart and pairing them would generate runaway intervals.
 
 Pairing is chronological within a single `CalendarSource`. If a source contains only one marker (e.g., `Winter Quarter Begins` with no explicit end), the recognizer DOES NOT synthesize a half-open interval — instead the LLM post-pass (EXT-010) is the fallback for inferring the missing boundary based on the next term's start. Boundary markers themselves remain in the candidate set so the parent can review them; the synthesized interval is an additional candidate with its own `evidenceLocator` pointing to both markers.
 

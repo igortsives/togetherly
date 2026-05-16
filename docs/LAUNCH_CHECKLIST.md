@@ -80,7 +80,7 @@ Before opening the invite link to the first cohort, every item below must be che
 - [ ] `CRON_SECRET` (Vercel-injected) confirmed in the project env. `vercel.json` cron schedule live.
 - [ ] `FILE_STORAGE_ROOT` writable; the directory exists at the runtime path.
 - [ ] `ANTHROPIC_API_KEY` provisioned for the Anthropic project; Claude Sonnet model access verified. Used by LLM-assisted classification (Round 17 / EXT-010) and natural-language search (Round 18 / MAT-008). The product no-ops gracefully without it — but the UAT-blocking capabilities won't function.
-- [ ] **Cost budget for LLM spend documented**: ~$0.01 per source refresh (per [EXT-010](../PRD.md#73-extraction-and-normalization)), one Claude call per natural-language search button press (~$0.002 each). At cohort size of 25-50 families, monthly spend bounded under $20.
+- [ ] **Cost budget for LLM spend documented**: classification fires only when a source refresh produces ambiguous candidates (typically a small fraction of refreshes since the candidate set is stable between runs). When it fires: ~$0.01 per call. Natural-language search: one Claude call per button press at ~$0.002. Worst-case ceiling with daily cron and the cohort sized at 25-50 families: 25 × 5 sources × 30 refreshes × $0.01 = ~$37/month if every refresh fires the LLM, plus a few dollars for search. Realistic expectation given the unchanged-candidate-set short-circuit: $5–$15/month. Provision a $50/month Anthropic budget alert as a safety net.
 
 ### Migrations
 
