@@ -12,7 +12,7 @@ These are explicitly NOT part of the private-beta product and should not be impl
 - **Travel booking.** No flight / hotel / car-rental integrations. Free-window matching only.
 - **Child accounts.** Children are nicknames inside the parent's account; no separate sign-in, no separate calendar permissions.
 - **Messaging / chat.** No in-product communication between family members or with Togetherly support.
-- **Guaranteed support for every school's calendar format.** The corpus is finite (see §3). Sources outside the corpus are best-effort with a "review required" fallback.
+- **Guaranteed support for every school's calendar format.** The corpus is finite (see §2). Sources outside the corpus are best-effort with a "review required" fallback.
 - **Native mobile app.** Mobile-responsive web only.
 - **Public self-serve launch.** Beta is invite-only.
 - **Single sign-on for families.** One parent account per household; secondary-parent share is a post-beta concept.
@@ -25,15 +25,15 @@ If a beta user requests one of these, route the feedback through the existing in
 
 A beta family must be able to import at least:
 
-- **Google Calendar**: yes — covered by PR #33; export covered by PR #45.
-- **Outlook Calendar**: yes — covered by PR #34; export covered by PR #45.
+- **Google Calendar**: yes — covered by PR #33; export covered by [#45](https://github.com/igortsives/togetherly/issues/45) (PR #123).
+- **Outlook Calendar**: yes — covered by PR #34; export covered by [#45](https://github.com/igortsives/togetherly/issues/45) (PR #123).
 - **ICS subscription URL**: yes — covered by PR #22.
 - **One supported school HTML calendar**: UCLA, Vanderbilt, and Saratoga / LGSUHSD are the named targets ([#19](https://github.com/igortsives/togetherly/issues/19)). PR #28 captured live fixtures for UCLA and Vanderbilt; **Saratoga / LGSUHSD remains uncaptured at the time of this checklist** — track in [#19](https://github.com/igortsives/togetherly/issues/19). The beta can proceed without Saratoga if every initial cohort family can use one of UCLA / Vanderbilt / ICS / PDF.
 - **PDF-upload calendar**: yes — covered by PR #30.
 
 A family without any supported source on this list should be politely deferred from the beta, not invited and then asked to wait.
 
-The broader corpus research ([NYC Public Schools, LAUSD, Fairfax, Stanford, Michigan, TeamSnap ICS, SportsEngine ICS — issue [#11](https://github.com/igortsives/togetherly/issues/11)]) is a *post-beta* expansion, not a beta blocker.
+The broader corpus research (NYC Public Schools, LAUSD, Fairfax, Stanford, Michigan, TeamSnap ICS, SportsEngine ICS — issue [#11](https://github.com/igortsives/togetherly/issues/11)) is a *post-beta* expansion, not a beta blocker.
 
 ## 3. Accuracy + Review Requirements
 
