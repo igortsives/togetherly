@@ -16,6 +16,11 @@ import { getCurrentUserId, requireUserFamily } from "@/lib/family/session";
 import { runFreeWindowSearch } from "@/lib/matching/search";
 import { deleteUserAccount } from "@/lib/family/account-deletion";
 import { disconnectProviderForFamily } from "@/lib/sources/disconnect";
+import {
+  exportWindowToGoogle,
+  exportWindowToOutlook,
+  markFreeWindowSaved
+} from "@/lib/sources/export";
 import { refreshSource } from "@/lib/sources/refresh";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
 import { storeCalendarPdf } from "@/lib/sources/storage";
@@ -210,6 +215,61 @@ export async function linkGoogleAccountAction() {
 
 export async function linkMicrosoftAccountAction() {
   await signIn("microsoft-entra-id", { redirectTo: "/" });
+}
+
+async function loadFreeWindowResultForCurrentFamily(resultId: string) {
+  const family = await requireUserFamily();
+  const result = await prisma.freeWindowResult.findFirst({
+    where: {
+      id: resultId,
+      search: { familyId: family.id }
+    },
+    include: {
+      search: { select: { familyId: true } }
+    }
+  });
+  if (!result) {
+    throw new Error("Free-window result not found for this family.");
+  }
+  return { result, family };
+}
+
+export async function exportFreeWindowToGoogleAction(formData: FormData) {
+  const resultId = String(formData.get("resultId") || "");
+  if (!resultId) throw new Error("Result ID is required");
+
+  const { result, family } = await loadFreeWindowResultForCurrentFamily(
+    resultId
+  );
+
+  await exportWindowToGoogle(family.ownerId, {
+    resultId: result.id,
+    startDate: result.startDate,
+    endDate: result.endDate,
+    timezone: family.timezone
+  });
+  await markFreeWindowSaved(result.id);
+
+  revalidatePath("/windows");
+}
+
+export async function exportFreeWindowToOutlookAction(formData: FormData) {
+  const resultId = String(formData.get("resultId") || "");
+  if (!resultId) throw new Error("Result ID is required");
+
+  const { result, family } = await loadFreeWindowResultForCurrentFamily(
+    resultId
+  );
+
+  await exportWindowToOutlook(family.ownerId, {
+    resultId: result.id,
+    startDate: result.startDate,
+    endDate: result.endDate,
+    timezone: family.timezone
+  });
+  await markFreeWindowSaved(result.id);
+
+  revalidatePath("/windows");
 }
 
 export async function disconnectGoogleAccountAction() {

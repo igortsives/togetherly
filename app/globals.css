@@ -1320,6 +1320,12 @@ a {
   margin-top: 8px;
 }
 
+.resultActions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 .dangerZone {
   margin-top: 12px;
   padding: 10px 12px;

@@ -219,7 +219,7 @@ async function refreshMicrosoftAccessToken(
       client_secret: clientSecret,
       grant_type: "refresh_token",
       refresh_token: refreshToken,
-      scope: "openid email profile offline_access Calendars.Read"
+      scope: "openid email profile offline_access Calendars.ReadWrite"
     }).toString()
   });
 

@@ -104,12 +104,12 @@ Applies to Google Calendar (#13) and Outlook Calendar (#18). Grounded in [`ARCHI
 
 ### 3.2 Scope Minimization
 
-| Provider | Required scopes (MVP) | Forbidden in MVP |
+| Provider | Required scopes (current) | Forbidden |
 |---|---|---|
-| Google Calendar | Read-only access to user-selected calendars. | Write access, Gmail, Contacts, Drive, profile photo, full account scopes. |
-| Microsoft Graph | Calendar read for selected calendars. | Mail.Read, Files.Read, full directory scopes, write scopes. |
+| Google Calendar | `calendar.readonly` (list + read events) and `calendar.events` (create events on user's primary calendar — used by issue #45 export). | Gmail, Contacts, Drive, profile photo, full account scopes. |
+| Microsoft Graph | `Calendars.ReadWrite` (list + read + create events on user's primary calendar — used by issue #45 export). | Mail.Read, Files.Read, full directory scopes. |
 
-Export to provider calendars (`EXP-001`, `EXP-002` in PRD § 7.8) is P1. When that work lands, write scope should be added incrementally and only after the parent opts in.
+Export to provider calendars (`EXP-001`, `EXP-002` in PRD § 7.8, closed by [#45](https://github.com/igortsives/togetherly/issues/45)): writes a single `Togetherly trip` tentative event per saved free window to the user's PRIMARY calendar only. We never enumerate or write to non-primary calendars. The scope upgrade in [#45](https://github.com/igortsives/togetherly/issues/45) requires existing users to re-link.
 
 ### 3.3 Rotation, Disconnect, Deletion
 

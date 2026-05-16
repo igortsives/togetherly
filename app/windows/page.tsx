@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { Calendar, Search } from "lucide-react";
 import { prisma } from "@/lib/db/prisma";
-import { requireUserFamily } from "@/lib/family/session";
-import { searchFreeWindowsAction } from "../actions";
+import { getCurrentUserId, requireUserFamily } from "@/lib/family/session";
+import {
+  exportFreeWindowToGoogleAction,
+  exportFreeWindowToOutlookAction,
+  searchFreeWindowsAction
+} from "../actions";
 
 export const dynamic = "force-dynamic";
 
@@ -50,6 +54,25 @@ function formatDate(date: Date | string) {
 export default async function WindowsPage({ searchParams }: WindowsPageProps) {
   const params = await searchParams;
   const family = await requireUserFamily().catch(() => null);
+  const userId = family ? await getCurrentUserId() : null;
+
+  // Issue #45: gate the "Add to Google/Outlook" buttons on whether
+  // the parent has the matching OAuth provider linked. We only need
+  // the existence of the Account row — token freshness is handled
+  // by `ensureXAccessToken` inside the export action.
+  const linkedProviders = userId
+    ? await prisma.account.findMany({
+        where: {
+          userId,
+          provider: { in: ["google", "microsoft-entra-id"] }
+        },
+        select: { provider: true }
+      })
+    : [];
+  const hasGoogle = linkedProviders.some((row) => row.provider === "google");
+  const hasOutlook = linkedProviders.some(
+    (row) => row.provider === "microsoft-entra-id"
+  );
 
   const calendars = family
     ? await prisma.calendar.findMany({
@@ -245,6 +268,38 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
                         </dd>
                       </div>
                     </dl>
+                    {result.saved ? (
+                      <p className="authNotice" role="status">
+                        Added to your calendar.
+                      </p>
+                    ) : hasGoogle || hasOutlook ? (
+                      <div className="resultActions">
+                        {hasGoogle ? (
+                          <form action={exportFreeWindowToGoogleAction}>
+                            <input
+                              type="hidden"
+                              name="resultId"
+                              value={result.id}
+                            />
+                            <button className="subtleButton" type="submit">
+                              Add to Google
+                            </button>
+                          </form>
+                        ) : null}
+                        {hasOutlook ? (
+                          <form action={exportFreeWindowToOutlookAction}>
+                            <input
+                              type="hidden"
+                              name="resultId"
+                              value={result.id}
+                            />
+                            <button className="subtleButton" type="submit">
+                              Add to Outlook
+                            </button>
+                          </form>
+                        ) : null}
+                      </div>
+                    ) : null}
                   </article>
                 );
               })}
