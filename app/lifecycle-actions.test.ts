@@ -188,6 +188,12 @@ describe("trimCalendarEventsAction", () => {
         startAt: { gte: new Date(Date.UTC(2026, 8, 1)) }
       }
     });
+    // Both deleteMany calls land inside a single $transaction so the
+    // review queue and confirmed-events stay consistent.
+    expect(mockTransaction).toHaveBeenCalledTimes(1);
+    const txOps = mockTransaction.mock.calls[0][0] as unknown[];
+    expect(Array.isArray(txOps)).toBe(true);
+    expect(txOps).toHaveLength(2);
   });
 
   it("applies an lt cutoff to events and candidates for delete-before", async () => {
@@ -216,13 +222,21 @@ describe("trimCalendarEventsAction", () => {
 });
 
 describe("updateSourceIngestWindowAction", () => {
-  it("rejects a cross-family attempt", async () => {
+  it("rejects a cross-family attempt with the correct ownership probe", async () => {
     mockSourceFindFirst.mockResolvedValue(null);
     await expect(
       updateSourceIngestWindowAction(
         formDataWith({ sourceId: "src-other", ingestWindowStart: "2026-09-01" })
       )
     ).rejects.toThrow("Source not found for this family.");
+    expect(mockSourceFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: "src-other",
+          calendar: { familyId: "family-1" }
+        }
+      })
+    );
     expect(mockSourceUpdate).not.toHaveBeenCalled();
   });
 

@@ -669,9 +669,11 @@ export default async function Home({
                         </fieldset>
                         <input name="calendarId" type="hidden" value={calendar.id} />
                         <small>
-                          Removes matching confirmed events and pending review
-                          candidates. Future refreshes will re-ingest within
-                          each source&apos;s ingest window.
+                          Matches by event start date. A multi-day event that
+                          starts on or after the cutoff is removed by
+                          &quot;delete on or after&quot;; one that starts before is
+                          kept (even if it ends after). Future refreshes will
+                          re-ingest within each source&apos;s ingest window.
                         </small>
                         <button className="subtleButton" type="submit">
                           Trim events
