@@ -1,6 +1,6 @@
 import { BusyStatus, EventCategory } from "@prisma/client";
 import { describe, expect, it } from "vitest";
-import type { BusyInterval } from "./event-busy";
+import type { BusyInterval, EventBusyInput } from "./event-busy";
 import {
   findExplainedFreeWindows,
   findFreeWindows,
@@ -97,6 +97,82 @@ describe("findExplainedFreeWindows", () => {
     expect(windows[1].explanation.blockedAfter?.title).toBe("Tournament");
     expect(windows[2].explanation.blockedBefore?.title).toBe("Tournament");
     expect(windows[2].explanation.blockedAfter).toBeUndefined();
+  });
+
+  it("labels long-weekend windows when a Mon/Fri holiday bridges a Sat-start window (MAT-009)", () => {
+    // 2027-05-29 is a Saturday. 2027-05-31 is Memorial Day Monday.
+    const memorialDay: EventBusyInput = {
+      id: "mem",
+      title: "Memorial Day",
+      category: EventCategory.SCHOOL_CLOSED,
+      busyStatus: BusyStatus.FREE,
+      startAt: date("2027-05-31"),
+      endAt: date("2027-06-01"),
+      allDay: true,
+      calendarId: "cal-school",
+      calendarName: "School"
+    };
+
+    const windows = findExplainedFreeWindows(
+      { start: date("2027-05-29"), end: date("2027-06-02") },
+      [],
+      3,
+      [memorialDay]
+    );
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0].explanation.longWeekend).toBe(true);
+    expect(windows[0].explanation.longWeekendHolidays).toEqual([
+      "Memorial Day"
+    ]);
+  });
+
+  it("does NOT label a long-weekend window when the holiday is a Tue/Wed/Thu", () => {
+    const midweekHoliday: EventBusyInput = {
+      id: "h1",
+      title: "Some Wednesday Holiday",
+      category: EventCategory.SCHOOL_CLOSED,
+      busyStatus: BusyStatus.FREE,
+      startAt: date("2027-06-09"), // Wednesday
+      endAt: date("2027-06-10"),
+      allDay: true,
+      calendarId: "cal-school",
+      calendarName: "School"
+    };
+
+    const windows = findExplainedFreeWindows(
+      { start: date("2027-06-05"), end: date("2027-06-12") },
+      [],
+      3,
+      [midweekHoliday]
+    );
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0].explanation.longWeekend).toBeUndefined();
+  });
+
+  it("does NOT label a long-weekend window when start is not a Saturday", () => {
+    const mondayHoliday: EventBusyInput = {
+      id: "h1",
+      title: "Some Monday Holiday",
+      category: EventCategory.SCHOOL_CLOSED,
+      busyStatus: BusyStatus.FREE,
+      startAt: date("2027-05-31"), // Monday
+      endAt: date("2027-06-01"),
+      allDay: true,
+      calendarId: "cal-school",
+      calendarName: "School"
+    };
+
+    const windows = findExplainedFreeWindows(
+      { start: date("2027-05-30"), end: date("2027-06-02") }, // Sunday start
+      [],
+      3,
+      [mondayHoliday]
+    );
+
+    expect(windows).toHaveLength(1);
+    expect(windows[0].explanation.longWeekend).toBeUndefined();
   });
 
   it("picks the longest contributing event when multiple share a merged boundary", () => {

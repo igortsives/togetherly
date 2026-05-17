@@ -97,9 +97,9 @@ describe("buildBusyIntervals", () => {
     const intervals = buildBusyIntervals(
       [
         makeEvent({
-          id: "busy-class",
+          id: "busy-activity",
           busyStatus: BusyStatus.BUSY,
-          category: EventCategory.CLASS_IN_SESSION,
+          category: EventCategory.ACTIVITY_BUSY,
           startAt: date("2027-01-04"),
           endAt: date("2027-01-06")
         }),
@@ -122,13 +122,62 @@ describe("buildBusyIntervals", () => {
     );
 
     expect(intervals.map((interval) => interval.event.id)).toEqual([
-      "busy-class",
+      "busy-activity",
       "unknown-event"
     ]);
     expect(intervals[0]).toMatchObject({
       start: date("2027-01-04"),
       end: date("2027-01-06")
     });
+  });
+
+  it("splits CLASS_IN_SESSION intervals into weekday-only sub-intervals (MAT-010)", () => {
+    // Jan 4 2027 is a Monday. Span Mon Jan 4 → Mon Jan 11 covers two
+    // weekend days (Sat Jan 9 + Sun Jan 10) which should be carved out.
+    const intervals = buildBusyIntervals(
+      [
+        makeEvent({
+          id: "term",
+          busyStatus: BusyStatus.BUSY,
+          category: EventCategory.CLASS_IN_SESSION,
+          startAt: date("2027-01-04"),
+          endAt: date("2027-01-11")
+        })
+      ],
+      defaultOptions
+    );
+
+    // Expect Mon, Tue, Wed, Thu, Fri (5 sub-intervals), no Sat/Sun.
+    expect(intervals).toHaveLength(5);
+    const startsLocal = intervals.map((i) =>
+      i.start.toISOString().slice(0, 10)
+    );
+    expect(startsLocal).toEqual([
+      "2027-01-04",
+      "2027-01-05",
+      "2027-01-06",
+      "2027-01-07",
+      "2027-01-08"
+    ]);
+  });
+
+  it("non-class categories are NOT split into weekday sub-intervals", () => {
+    const intervals = buildBusyIntervals(
+      [
+        makeEvent({
+          id: "tournament",
+          busyStatus: BusyStatus.BUSY,
+          category: EventCategory.ACTIVITY_BUSY,
+          startAt: date("2027-01-09"), // Saturday
+          endAt: date("2027-01-11")    // Monday (exclusive)
+        })
+      ],
+      defaultOptions
+    );
+
+    expect(intervals).toHaveLength(1);
+    expect(intervals[0].start).toEqual(date("2027-01-09"));
+    expect(intervals[0].end).toEqual(date("2027-01-11"));
   });
 
   it("respects includeExamAsBusy for CONFIGURABLE exam periods", () => {

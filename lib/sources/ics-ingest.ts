@@ -5,6 +5,7 @@ import {
   extractIcsEvents,
   type IcsExtractionError
 } from "@/lib/sources/extractors/ics";
+import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RECURRENCE_LOOKBACK_DAYS = 30;
@@ -59,13 +60,19 @@ export async function extractAndPersistIcs(args: {
     end: new Date(now.getTime() + RECURRENCE_LOOKAHEAD_DAYS * DAY_MS)
   };
 
-  const { candidates, errors } = extractIcsEvents(args.icsText, {
+  const { candidates: extracted, errors } = extractIcsEvents(args.icsText, {
     calendarId: source.calendarId,
     calendarSourceId: source.id,
     calendarType: source.calendar.type,
     defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles",
     window
   });
+
+  // Issue #131: synthesize CLASS_IN_SESSION / EXAM_PERIOD intervals.
+  // ICS sources rarely carry begin/end markers but we run it anyway —
+  // a school ICS feed that publishes them gets the same treatment as
+  // a PDF.
+  const candidates = extracted.concat(synthesizeBoundaryIntervals(extracted));
 
   const candidateData = candidates.map((candidate) => ({
     calendarId: candidate.calendarId,
