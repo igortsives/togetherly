@@ -200,6 +200,7 @@ model CalendarSource {
   lastFetchedAt      DateTime?
   lastParsedAt       DateTime?
   failedAttempts     Int              @default(0)
+  ingestWindowStart  DateTime?
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 

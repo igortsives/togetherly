@@ -16,6 +16,7 @@ import {
   createOutlookCalendarSourceAction,
   createPdfSourceAction,
   createUrlSourceAction,
+  deleteCalendarAction,
   deleteSourceAction,
   disconnectGoogleAccountAction,
   disconnectMicrosoftAccountAction,
@@ -23,7 +24,9 @@ import {
   linkMicrosoftAccountAction,
   refreshSourceAction,
   signOutAction,
-  toggleCalendarAction
+  toggleCalendarAction,
+  trimCalendarEventsAction,
+  updateSourceIngestWindowAction
 } from "./actions";
 import { Timeline } from "./components/Timeline";
 import { calendarTypeOptions, getFamilyDashboard } from "@/lib/family/dashboard";
@@ -366,6 +369,17 @@ export default async function Home({
                   type="url"
                 />
               </label>
+              <details className="advancedSource">
+                <summary>Advanced</summary>
+                <label className="wideField">
+                  Consider only events on or after
+                  <input name="ingestWindowStart" type="date" />
+                </label>
+                <small>
+                  Useful when a source carries historical data you don&apos;t
+                  need in the review queue.
+                </small>
+              </details>
               <button type="submit">Import source</button>
             </form>
 
@@ -391,6 +405,16 @@ export default async function Home({
                 PDF file
                 <input accept="application/pdf,.pdf" name="pdfFile" required type="file" />
               </label>
+              <details className="advancedSource">
+                <summary>Advanced</summary>
+                <label className="wideField">
+                  Consider only events on or after
+                  <input name="ingestWindowStart" type="date" />
+                </label>
+                <small>
+                  Useful when a PDF includes prior-year reference dates.
+                </small>
+              </details>
               <button type="submit">Upload PDF</button>
             </form>
 
@@ -467,6 +491,17 @@ export default async function Home({
                       ))}
                     </select>
                   </label>
+                  <details className="advancedSource">
+                    <summary>Advanced</summary>
+                    <label className="wideField">
+                      Consider only events on or after
+                      <input name="ingestWindowStart" type="date" />
+                    </label>
+                    <small>
+                      Useful for long-lived calendars that include years of
+                      historical meetings.
+                    </small>
+                  </details>
                   <button type="submit">Import Google calendar</button>
                 </form>
                 <details className="dangerZone">
@@ -558,6 +593,17 @@ export default async function Home({
                       ))}
                     </select>
                   </label>
+                  <details className="advancedSource">
+                    <summary>Advanced</summary>
+                    <label className="wideField">
+                      Consider only events on or after
+                      <input name="ingestWindowStart" type="date" />
+                    </label>
+                    <small>
+                      Useful for long-lived calendars that include years of
+                      historical meetings.
+                    </small>
+                  </details>
                   <button type="submit">Import Outlook calendar</button>
                 </form>
                 <details className="dangerZone">
@@ -588,12 +634,67 @@ export default async function Home({
             </div>
             <div className="sourceList">
               {calendars.map((calendar) => (
-                <div className="sourceItem" key={calendar.id}>
+                <div className="sourceItem calendarItem" key={calendar.id}>
                   <div>
                     <strong>{calendar.name}</strong>
                     <span>
-                      {calendar.child?.nickname || "Family"} · {calendar.type.toLowerCase()} · {calendar.sources.length} sources
+                      {calendar.child?.nickname || "Family"} · {calendar.type.toLowerCase()} · {calendar.sources.length} sources · {calendar.events.length} confirmed events
                     </span>
+                    <details className="manageCalendar">
+                      <summary>Manage</summary>
+                      <form action={trimCalendarEventsAction} className="trimForm">
+                        <p className="eyebrow">Trim events by date</p>
+                        <label className="wideField">
+                          Cutoff date
+                          <input name="cutoffDate" required type="date" />
+                        </label>
+                        <fieldset className="trimDirection">
+                          <label>
+                            <input
+                              defaultChecked
+                              name="direction"
+                              type="radio"
+                              value="delete-after"
+                            />
+                            Delete events on or after this date
+                          </label>
+                          <label>
+                            <input
+                              name="direction"
+                              type="radio"
+                              value="delete-before"
+                            />
+                            Delete events before this date
+                          </label>
+                        </fieldset>
+                        <input name="calendarId" type="hidden" value={calendar.id} />
+                        <small>
+                          Matches by event start date. A multi-day event that
+                          starts on or after the cutoff is removed by
+                          &quot;delete on or after&quot;; one that starts before is
+                          kept (even if it ends after). Future refreshes will
+                          re-ingest within each source&apos;s ingest window.
+                        </small>
+                        <button className="subtleButton" type="submit">
+                          Trim events
+                        </button>
+                      </form>
+                      <details className="dangerZone">
+                        <summary>Remove calendar entirely</summary>
+                        <p>
+                          Deletes this calendar and cascades through all of its
+                          sources, pending review candidates, and confirmed
+                          events. Uploaded PDF blobs are unlinked best-effort.
+                          This cannot be undone.
+                        </p>
+                        <form action={deleteCalendarAction}>
+                          <input name="calendarId" type="hidden" value={calendar.id} />
+                          <button className="subtleButton danger" type="submit">
+                            Confirm remove
+                          </button>
+                        </form>
+                      </details>
+                    </details>
                   </div>
                   <form action={toggleCalendarAction}>
                     <input name="calendarId" type="hidden" value={calendar.id} />
@@ -624,7 +725,36 @@ export default async function Home({
                       <span>{source.sourceUrl || source.uploadedFileKey || source.providerCalendarId}</span>
                       <small>
                         {calendar.name} · {source.parserType.toLowerCase()} · {formatLastFetched(source.lastFetchedAt)}
+                        {source.ingestWindowStart
+                          ? ` · ingest window starts ${source.ingestWindowStart.toISOString().slice(0, 10)}`
+                          : ""}
                       </small>
+                      <details className="manageSource">
+                        <summary>Advanced</summary>
+                        <form action={updateSourceIngestWindowAction} className="ingestWindowForm">
+                          <p className="eyebrow">Ingest window floor</p>
+                          <label className="wideField">
+                            Only consider events on or after
+                            <input
+                              defaultValue={
+                                source.ingestWindowStart
+                                  ? source.ingestWindowStart.toISOString().slice(0, 10)
+                                  : ""
+                              }
+                              name="ingestWindowStart"
+                              type="date"
+                            />
+                          </label>
+                          <input name="sourceId" type="hidden" value={source.id} />
+                          <small>
+                            Leave blank to remove the floor. Setting a floor
+                            also prunes pending candidates already before it.
+                          </small>
+                          <button className="subtleButton" type="submit">
+                            Save ingest window
+                          </button>
+                        </form>
+                      </details>
                     </div>
                     <div className="sourceItemActions">
                       <span className={refreshStatusClass(source.refreshStatus)}>
