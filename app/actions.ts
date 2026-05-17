@@ -24,6 +24,7 @@ import {
 import { refreshSource } from "@/lib/sources/refresh";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
 import { deleteStoredUpload, storeCalendarPdf } from "@/lib/sources/storage";
+import { parseNaturalLanguageSearch } from "@/lib/matching/nl-search";
 
 export async function createChildAction(formData: FormData) {
   const family = await requireUserFamily();
@@ -325,6 +326,100 @@ export async function searchFreeWindowsAction(formData: FormData) {
   const result = await runFreeWindowSearch(formData);
   revalidatePath("/windows");
   redirect(`/windows?searchId=${result.searchId}`);
+}
+
+const NL_QUERY_MAX_LEN = 280;
+
+export async function parseNaturalLanguageSearchAction(formData: FormData) {
+  const family = await requireUserFamily();
+
+  const rawQuery = String(formData.get("nlQuery") || "");
+  const query = rawQuery.slice(0, NL_QUERY_MAX_LEN).trim();
+
+  if (!query) {
+    const emptyParams = new URLSearchParams({
+      nlError: "empty",
+      nlQuery: rawQuery.slice(0, NL_QUERY_MAX_LEN)
+    });
+    redirect(`/windows?${emptyParams.toString()}`);
+  }
+
+  const [children, sources] = await Promise.all([
+    prisma.child.findMany({
+      where: { familyId: family.id },
+      select: { nickname: true },
+      orderBy: { createdAt: "asc" }
+    }),
+    prisma.calendarSource.findMany({
+      where: { calendar: { familyId: family.id } },
+      select: {
+        sourceUrl: true,
+        uploadedFileKey: true,
+        providerCalendarId: true,
+        sourceType: true,
+        calendar: { select: { name: true } }
+      },
+      orderBy: { createdAt: "asc" }
+    })
+  ]);
+
+  const sourceLabels = sources.map((source) => labelForLlmContext(source));
+
+  const outcome = await parseNaturalLanguageSearch({
+    query,
+    today: new Date(),
+    familyTimezone: family.timezone,
+    childNicknames: children.map((c) => c.nickname),
+    sourceLabels
+  });
+
+  if (outcome.kind === "unavailable") {
+    const params = new URLSearchParams({ nlError: "unavailable", nlQuery: query });
+    redirect(`/windows?${params.toString()}`);
+  }
+  if (outcome.kind === "parse_failed") {
+    const params = new URLSearchParams({
+      nlError: "parse-failed",
+      nlQuery: query
+    });
+    redirect(`/windows?${params.toString()}`);
+  }
+
+  const parse = outcome.parse;
+  if (parse.intent === "out_of_scope") {
+    const params = new URLSearchParams({
+      nlError: "out-of-scope",
+      nlExplanation: parse.explanation,
+      nlQuery: query
+    });
+    redirect(`/windows?${params.toString()}`);
+  }
+
+  const params = new URLSearchParams();
+  params.set("nlQuery", query);
+  params.set("nlExplanation", parse.explanation);
+  params.set("nlConfidence", parse.confidence.toFixed(2));
+  if (parse.parsedStartDate) params.set("parsedStartDate", parse.parsedStartDate);
+  if (parse.parsedEndDate) params.set("parsedEndDate", parse.parsedEndDate);
+  if (parse.minimumDays !== null) {
+    params.set("parsedMinimumDays", String(parse.minimumDays));
+  }
+
+  redirect(`/windows?${params.toString()}`);
+}
+
+function labelForLlmContext(source: {
+  sourceType: string;
+  sourceUrl: string | null;
+  uploadedFileKey: string | null;
+  providerCalendarId: string | null;
+  calendar: { name: string };
+}): string {
+  const hint =
+    source.sourceUrl ||
+    source.providerCalendarId ||
+    (source.uploadedFileKey ? "PDF upload" : source.sourceType);
+  return `${source.calendar.name} (${hint})`;
 }
 
 export async function signOutAction() {
