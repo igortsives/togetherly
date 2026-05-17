@@ -15,8 +15,8 @@ Status legend: ✅ shipped · 🟡 partial / in progress · ⬜ not started.
 
 - ✅ Family and child setup ([`/`](../app/page.tsx)).
 - ✅ Calendar source model.
-- ✅ URL import (HTML extractor #6, PR #29).
-- ✅ PDF upload + text extraction (#7, PR #30).
+- ✅ URL import (PR #29 originally; heuristic HTML extractor removed 2026-05-17 — HTML ingest now Claude-only, see [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path)).
+- ✅ PDF upload + text extraction (PR #30 originally; heuristic PDF text extractor removed 2026-05-17 — PDF ingest now Claude-only).
 - ✅ ICS import (#5, PR #22).
 - ✅ Basic event extraction across all source types.
 - ✅ Parent review queue at `/review` (#8, PR #23).
@@ -55,7 +55,7 @@ Driven by UAT feedback on the UCLA PDF import (2026-05-16). Without these, an ac
 
 - ⬜ **Round 15 — UI foundations.** All-day end-day display fix ([#129](https://github.com/igortsives/togetherly/issues/129)); source legend + filter + drilldown side panel ([#130](https://github.com/igortsives/togetherly/issues/130)).
 - ⬜ **Round 16 — Semantic redesign.** Boundary-pair inference for academic calendars + weekend carve-out + long-weekend labelling ([#131](https://github.com/igortsives/togetherly/issues/131)). Optional term-overview view mode ([#132](https://github.com/igortsives/togetherly/issues/132)).
-- ⬜ **Round 17 — LLM foundation.** Anthropic SDK plumbing + LLM-assisted classification of ambiguous extracted events (closes [#52](https://github.com/igortsives/togetherly/issues/52)).
+- ✅ **Round 17 — LLM-only HTML/PDF extraction.** Anthropic SDK plumbing + Claude as the sole extractor for HTML and PDF sources. Heuristic extractors deleted 2026-05-17 — see [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path) (closes [#52](https://github.com/igortsives/togetherly/issues/52), [#151](https://github.com/igortsives/togetherly/issues/151)).
 - ⬜ **Round 18 — Natural-language search.** Free-text input on `/windows` that parses to structured search params via Claude ([#133](https://github.com/igortsives/togetherly/issues/133)).
 - ⬜ **Round 19 — UAT gate.** End-to-end UAT against real UCLA / Vanderbilt / Google / ICS sources. Decision: limited cohort release vs continue iterating.
 

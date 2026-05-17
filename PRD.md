@@ -172,7 +172,7 @@ The core pain is not simply “families need a calendar.” It is: **parents nee
 | EXT-007 | App preserves source evidence for each extracted event. | P0 |
 | EXT-008 | App supports OCR for scanned/image PDFs. | P2 |
 | EXT-009 | App recognizes academic-calendar boundary pairs using a **synonym-based recognizer** that composes phrases from a verb slot (`begins`/`starts`/`opens`/`commences` and end variants), an academic-unit-noun slot (`Quarter`/`Semester`/`Trimester`/`Term`/`Module`/`Session`/`School Year`/`School`/`Instruction`/`Classes`), and noun-phrase forms (`First/Last Day of …`). Matched begin-end pairs synthesize `class_in_session` or `exam_period` intervals. The recognizer must work across academic-system vocabularies (quarter / semester / trimester) and across K-12 and higher-ed phrasings without per-school code. See [`PARSING_STRATEGY.md`](../docs/PARSING_STRATEGY.md#boundary-pair-inference-ext-009) for the full slot definitions and conflict-handling rules. | P1 |
-| EXT-010 | When heuristic classification is uncertain (`unknown` category or `confidence < 0.6`), the extractor escalates the candidate to an LLM-assisted classification pass with structured output. The LLM is given the candidate's title, evidence text, source provider type, and the calendar's surrounding events; it returns `{ category, confidence, reasoning }`. Falls back gracefully to the heuristic result when the LLM API key is unset. | P1 |
+| EXT-010 | HTML and PDF source ingestion uses an LLM (Claude Sonnet via `@anthropic-ai/sdk`) as its only extractor. The LLM receives the public source text, the calendar type, and the timezone, and returns a Zod-validated array of `{title, startDate, endDate, allDay, category, confidence, evidenceText}` objects matching the existing `EventCategory` enum and `eventCandidateInputSchema`. Schema-invalid outputs are dropped. Heuristic regex/keyword extractors were deleted on 2026-05-17 — rationale and cost analysis in [`docs/DECISIONS.md`](../docs/DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path). ICS, Google Calendar, and Outlook Calendar paths do not use the LLM. | P1 |
 
 ### 7.4 Event Taxonomy
 
@@ -239,15 +239,15 @@ Supported MVP event categories:
 
 ### 7.9 AI / LLM-Assisted Intelligence
 
-Heuristic parsers handle the well-structured majority of calendars but degrade gracefully on edge cases. Where the heuristics are unsure, an LLM (Claude Sonnet via the Anthropic SDK) provides a fallback layer. Every LLM use is bounded in scope, falls back to heuristics when the API key is unset, and shows its work to the user where it influences a decision.
+The LLM (Claude Sonnet via the Anthropic SDK) is the **only** extractor for unstructured text sources (HTML, PDF). Per-format heuristic extractors were deleted on 2026-05-17 because they only worked on curated fixtures and silently failed on real-world variations — see [`docs/DECISIONS.md`](../docs/DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path). Provider APIs (ICS, Google, Outlook) remain LLM-free. Every LLM use is bounded in scope, fails with a visible error when the API key is unset, and shows its work to the user where it influences a decision.
 
 | ID | Requirement | Priority |
 |---|---|---:|
-| AI-001 | An `ANTHROPIC_API_KEY` env var enables LLM features. All AI flows must no-op gracefully when the key is unset so local dev / CI without the key still produces a working product (heuristics only). | P1 |
-| AI-002 | LLM-assisted classification of ambiguous events (per EXT-010) batches all ambiguous candidates from a single source refresh into one Claude call. A refresh that produces no ambiguous candidates makes zero LLM calls. Expected cost: ~$0.01 per refresh that fires the LLM. Most refreshes will not fire it because the candidate set is unchanged between runs. | P1 |
+| AI-001 | An `ANTHROPIC_API_KEY` env var is **required** for HTML and PDF source ingestion. The product surfaces a clean `HtmlExtractionUnavailableError` / `PdfExtractionUnavailableError` (refresh fails with a visible "Failed" status) when the key is unset. Provider-API ingestion (Google Calendar, Outlook Calendar, ICS feeds) does NOT depend on the LLM and remains operational without it. Local dev / CI use a placeholder value and mock the Anthropic SDK in unit tests. The natural-language search front-door (MAT-008) gracefully hides itself when the key is unset (the structured form remains the entry point). Rationale: see [`docs/DECISIONS.md`](../docs/DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path). | P1 |
+| AI-002 | HTML/PDF extraction (per EXT-010) issues one Claude call per refresh. Expected cost: ~$0.03-0.05 per call. A content-hash short-circuit (follow-up) will skip the call when the fetched body is unchanged. Cost cap and budget alert documented in [`docs/LAUNCH_CHECKLIST.md`](../docs/LAUNCH_CHECKLIST.md). | P1 |
 | AI-003 | Natural-language search parser (per MAT-008) shows the parsed intent to the user before running the search. The user can adjust the inferred fields. The structured form remains the expert mode. | P1 |
 | AI-004 | LLM input contexts include the family's children's nicknames, the active source names, today's date, and the user-provided text. LLM input MUST NOT include OAuth tokens, refresh tokens, or imported event titles outside the scope of the immediate query. | P1 |
-| AI-005 | LLM outputs are validated against structured-output schemas (Zod) before being applied. Schema violations fall back to heuristics or surface the failure to the user; no silent application of free-form text. | P1 |
+| AI-005 | LLM outputs are validated against structured-output schemas (Zod) before being applied. Schema violations are surfaced to the user as a refresh failure; there is no heuristic fallback. No silent application of free-form text. | P1 |
 | AI-006 | LLM-assisted operations log only their `{ kind, candidateCount, latencyMs, success }` shape — never the prompt, response body, or imported content. | P1 |
 
 ## 8. Data Source Feasibility
@@ -358,7 +358,7 @@ Heuristic parsers handle the well-structured majority of calendars but degrade g
 - Add calendar source by URL, PDF upload, ICS URL, Google Calendar, and Outlook Calendar.
 - Extract school/university breaks, holidays, term dates, exams, and activity conflicts.
 - **Boundary-pair inference (EXT-009): synthesize `class_in_session` and `exam_period` intervals between recognized academic boundaries so academic calendars carry meaningful busy/free semantics.**
-- **LLM-assisted fallback classification (EXT-010) for ambiguous events.**
+- **LLM-only extraction (EXT-010) for HTML and PDF** — heuristic regex/keyword extractors removed 2026-05-17.
 - Parent review and confirmation workflow.
 - Free-window search by requested duration **or by natural-language query (MAT-008)**.
 - **Long-weekend recognition (MAT-009) and weekend carve-out within in-session intervals (MAT-010).**

@@ -70,17 +70,19 @@ Do not commit copyrighted source snapshots unless allowed. For private beta deve
   event labels and dates are reproduced verbatim in the HTML and `.pdf.txt`
   fixtures. The binary PDF at
   `https://registrar.ucla.edu/portals/50/documents/calendar/academiccalendar26-27.pdf`
-  was not fetched separately; pursue a direct PDF fetch when the PDF
-  extractor (#7) lands.
+  was not fetched separately; the PDF ingestion path (now Claude-only since
+  2026-05-17) can be exercised by uploading the binary directly through the
+  PDF-upload surface.
 - **Vanderbilt** - Live fetch via `WebFetch` against
   `https://registrar.vanderbilt.edu/calendars/2026-27.php` to discover the
   per-school calendar URLs, then against
   `https://registrar.vanderbilt.edu/calendars/2026-27-academic.php` (Term
   Dates and Holidays). The companion `/calendars/2026-27-undergraduate.php`
   detail page returned section headers but no date payload via WebFetch
-  (likely JS-rendered); document this as a known limitation for the HTML
-  extractor. The Owen / Law / Med / Divinity professional-school PDFs were
-  not enumerated in this slice.
+  (likely JS-rendered); JS-rendered pages remain a known limitation for the
+  HTML ingestion path (the LLM only sees what `fetch` returns; client-side
+  rendering would require a headless-browser layer first). The Owen / Law /
+  Med / Divinity professional-school PDFs were not enumerated in this slice.
 - **Saratoga High / LGSUHSD** - Partial live capture. `WebFetch` against
   `https://www.saratogahigh.org/about-us/calendars-and-schedules` succeeded
   and confirmed only a 2025-26 LGSUHSD Instructional Calendar PDF is
@@ -88,8 +90,7 @@ Do not commit copyrighted source snapshots unless allowed. For private beta deve
   `https://www.lgsuhsd.org/resources/calendars-schedules` was denied by the
   sandboxed environment. The 2026-27 instructional calendar is therefore
   deferred until the district posts the PDF and a live PDF/page fetch is
-  permitted. Track follow-up under issue #19 (and the planned PDF-extractor
-  issue #7) when the source becomes available.
+  permitted. Track follow-up under issue #19 when the source becomes available.
 
 ### Sources not yet captured in this slice
 
@@ -97,8 +98,9 @@ Do not commit copyrighted source snapshots unless allowed. For private beta deve
   single canonical ICS feed for the annual academic calendar. Deferred.
 - **UCLA 2026-27 binary PDF** - `https://registrar.ucla.edu/portals/50/documents/calendar/academiccalendar26-27.pdf`
   was not fetched as a binary in this slice. The `.pdf.txt` fixture is
-  derived from the registrar HTML page. Direct PDF capture is queued behind
-  the PDF extractor (#7).
+  derived from the registrar HTML page. The PDF ingestion path can ingest
+  the binary directly when a parent uploads it (LLM-only path since
+  2026-05-17).
 - **Vanderbilt undergraduate detail page** - `https://registrar.vanderbilt.edu/calendars/2026-27-undergraduate.php`
   rendered with no date payload through `WebFetch` (likely JS-rendered).
   The Term Dates and Holidays summary page was used as the authoritative

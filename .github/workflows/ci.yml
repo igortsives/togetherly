@@ -23,6 +23,11 @@ jobs:
     env:
       DATABASE_URL: postgresql://placeholder:placeholder@placeholder:5432/placeholder
       AUTH_SECRET: ci-placeholder-not-a-real-secret
+      # ANTHROPIC_API_KEY: tests mock @anthropic-ai/sdk so no real
+      # network call is made. The placeholder lets `isLlmConfigured()`
+      # return true so tests exercising the LLM-primary code path
+      # take the LLM branch (not the unconfigured failure branch).
+      ANTHROPIC_API_KEY: ci-placeholder-mocked-in-tests
     steps:
       - name: Checkout
         uses: actions/checkout@v4

@@ -20,6 +20,7 @@
 - Node 22+ (Next 16 requirement).
 - PostgreSQL accessible via `DATABASE_URL`.
 - For OAuth providers, the matching `*_CLIENT_ID`/`*_CLIENT_SECRET` pair. Each provider is conditional on its env vars — leaving them empty disables the provider without breaking the build.
+- **`ANTHROPIC_API_KEY` for HTML/PDF source ingestion.** Provision at <https://console.anthropic.com>. The heuristic HTML/PDF extractors were deleted on 2026-05-17 ([`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path)) — without a key, adding a URL or PDF source produces a `Failed` refresh status. ICS / Google / Outlook source ingestion does NOT depend on the key. Tests mock the SDK, so CI uses a placeholder value and runs without a real key.
 
 ## Environment Variables
 
@@ -40,6 +41,11 @@ MICROSOFT_CLIENT_SECRET=
 # in the Account table. Generate with: openssl rand -base64 32
 # Rotating this key invalidates every linked OAuth account (users must re-link).
 OAUTH_TOKEN_ENCRYPTION_KEY=
+
+# Required for HTML and PDF source ingestion (LLM-only path since 2026-05-17).
+# Provision at https://console.anthropic.com.
+# CI uses a placeholder value because tests mock the SDK.
+ANTHROPIC_API_KEY=
 
 # Local PDF blob storage root (defaults to ./storage)
 FILE_STORAGE_ROOT=
