@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Calendar, Search } from "lucide-react";
 import { prisma } from "@/lib/db/prisma";
+import { inclusiveEnd } from "@/lib/family/timeline";
 import { getCurrentUserId, requireUserFamily } from "@/lib/family/session";
 import {
   exportFreeWindowToGoogleAction,
@@ -26,6 +27,7 @@ type BlockingShape = {
   calendarName: string;
   start: string;
   end: string;
+  allDay: boolean;
 };
 
 const dayFormatter = new Intl.DateTimeFormat("en-US", {
@@ -244,7 +246,7 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
                     <header>
                       <div>
                         <strong>
-                          {formatDate(result.startDate)} – {formatDate(result.endDate)}
+                          {formatDate(result.startDate)} – {formatDate(inclusiveEnd(result.endDate, true))}
                         </strong>
                         <span>{result.durationDays} days</span>
                       </div>
@@ -255,7 +257,7 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
                         <dt>Blocked before</dt>
                         <dd>
                           {explanation.blockedBefore
-                            ? `${explanation.blockedBefore.title} · ${explanation.blockedBefore.calendarName} (ends ${formatDate(explanation.blockedBefore.end)})`
+                            ? `${explanation.blockedBefore.title} · ${explanation.blockedBefore.calendarName} (ends ${formatDate(inclusiveEnd(new Date(explanation.blockedBefore.end), explanation.blockedBefore.allDay))})`
                             : "Search range start"}
                         </dd>
                       </div>

@@ -16,6 +16,11 @@ export type BlockingEventSummary = {
   calendarName: string;
   start: Date;
   end: Date;
+  /** `end` is iCal-exclusive for all-day events (midnight of the day
+   * AFTER the last visible day). UI code must subtract one day when
+   * displaying an inclusive end label. See `inclusiveEnd` in
+   * `lib/family/timeline.ts`. */
+  allDay: boolean;
 };
 
 export type FreeWindowExplanation = {
@@ -151,7 +156,8 @@ function summarize(interval: BusyInterval): BlockingEventSummary {
     calendarId: event.calendarId,
     calendarName: event.calendarName,
     start: event.startAt,
-    end: event.endAt
+    end: event.endAt,
+    allDay: event.allDay
   };
 }
 

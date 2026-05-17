@@ -7,6 +7,7 @@ import {
   classifyBlockKind,
   computeBlockGeometry,
   defaultTimelineRange,
+  inclusiveEnd,
   sourceTypeLabel,
   type TimelineEventInput
 } from "./timeline";
@@ -25,6 +26,7 @@ function makeEvent(
     startAt: date("2027-01-04"),
     endAt: date("2027-01-06"),
     sourceConfidence: 0.95,
+    allDay: true,
     calendarName: "Test calendar",
     sourceType: null,
     ...overrides
@@ -247,6 +249,29 @@ describe("buildTimelineWindows", () => {
 });
 
 
+describe("inclusiveEnd (#129)", () => {
+  it("subtracts 1ms from all-day end so the formatted day is the last visible day", () => {
+    const exclusiveEnd = date("2026-02-17");
+    const visible = inclusiveEnd(exclusiveEnd, true);
+    // The visible end is on Feb 16 (any standard date formatter prints it that way).
+    expect(visible.getUTCFullYear()).toBe(2026);
+    expect(visible.getUTCMonth()).toBe(1); // Feb
+    expect(visible.getUTCDate()).toBe(16);
+  });
+
+  it("returns timed events unchanged", () => {
+    const end = new Date("2026-02-16T15:30:00.000Z");
+    expect(inclusiveEnd(end, false)).toBe(end);
+  });
+
+  it("handles a multi-day all-day range (Mar 13-21 inclusive stored as start=Mar 13, end=Mar 22)", () => {
+    const exclusiveEnd = date("2027-03-22");
+    const visible = inclusiveEnd(exclusiveEnd, true);
+    expect(visible.getUTCDate()).toBe(21);
+    expect(visible.getUTCMonth()).toBe(2); // Mar
+  });
+});
+
 describe("sourceTypeLabel", () => {
   it("maps each source type to a parent-readable label", () => {
     expect(sourceTypeLabel(SourceType.GOOGLE_CALENDAR)).toBe("Google Calendar");
@@ -274,6 +299,7 @@ describe("buildTimelineBlocks provenance", () => {
           busyStatus: BusyStatus.FREE,
           startAt: date("2027-01-10"),
           endAt: date("2027-01-15"),
+          allDay: true,
           sourceConfidence: 0.95,
           calendarName: "UCLA Academic Calendar",
           sourceType: SourceType.URL

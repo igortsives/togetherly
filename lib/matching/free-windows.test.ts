@@ -66,6 +66,7 @@ function busyInterval(
       busyStatus: overrides.busyStatus ?? BusyStatus.BUSY,
       startAt: date(start),
       endAt: date(end),
+      allDay: overrides.allDay ?? true,
       calendarId: overrides.calendarId ?? "cal-1",
       calendarName: overrides.calendarName ?? "Sample calendar"
     }

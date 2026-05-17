@@ -30,6 +30,11 @@ export type TimelineBlock = {
   lowConfidence: boolean;
   calendarName: string;
   sourceLabel: string;
+  /** For all-day events, `end` is stored as midnight of the day AFTER
+   * the last visible day (iCal exclusive-end). UI code that displays
+   * the end-day label MUST subtract one day. The `inclusiveEnd` helper
+   * below is the single source of truth for that math. */
+  allDay: boolean;
 };
 
 export type TimelineCalendarSummary = {
@@ -88,6 +93,7 @@ export type TimelineEventInput = Pick<
   | "busyStatus"
   | "startAt"
   | "endAt"
+  | "allDay"
 > & {
   sourceConfidence?: CalendarEvent["sourceConfidence"] | number | null;
   calendarName: string;
@@ -219,7 +225,8 @@ export function buildTimelineBlocks(
       busyStatus: event.busyStatus,
       lowConfidence,
       calendarName: event.calendarName,
-      sourceLabel: sourceTypeLabel(event.sourceType ?? null)
+      sourceLabel: sourceTypeLabel(event.sourceType ?? null),
+      allDay: event.allDay
     });
   }
 
@@ -247,6 +254,27 @@ export function buildTimelineWindows(
     });
   }
   return result;
+}
+
+/**
+ * Convert an iCal-exclusive `end` to the inclusive last-visible-day
+ * for display. Issue #129.
+ *
+ * All-day events are stored with `end` = midnight of the day AFTER
+ * the last visible day (the iCal convention). Direct display of that
+ * Date prints "Mar 22" for a Mar 13-21 event, which confuses parents.
+ * For all-day events, this returns `end - 1ms` which lands inside
+ * the last visible day so any date formatter renders it correctly.
+ * For timed events `end` is the real instant — return as-is.
+ *
+ * `FreeWindowResult` rows use the same exclusive-end convention from
+ * the matching engine (durationDays = (end - start) / DAY), so this
+ * helper applies there too (pass `allDay = true` since results are
+ * always day-granular).
+ */
+export function inclusiveEnd(end: Date, allDay: boolean): Date {
+  if (!allDay) return end;
+  return new Date(end.getTime() - 1);
 }
 
 /** Human-readable label for the originating source type. Issue #51. */
@@ -418,6 +446,7 @@ export async function getTimelineData(
           startAt: event.startAt,
           endAt: event.endAt,
           sourceConfidence: event.sourceConfidence,
+          allDay: event.allDay,
           calendarName:
             calendarNameById.get(event.calendarId) ?? "Unknown calendar",
           sourceType:
@@ -468,6 +497,7 @@ export async function getTimelineData(
           startAt: event.startAt,
           endAt: event.endAt,
           sourceConfidence: event.sourceConfidence,
+          allDay: event.allDay,
           calendarName:
             calendarNameById.get(event.calendarId) ?? "Unknown calendar",
           sourceType:

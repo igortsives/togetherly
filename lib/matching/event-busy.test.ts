@@ -13,6 +13,7 @@ function makeEvent(overrides: Partial<EventBusyInput> = {}): EventBusyInput {
     busyStatus: BusyStatus.BUSY,
     startAt: date("2027-01-04"),
     endAt: date("2027-01-06"),
+    allDay: true,
     calendarId: "calendar-1",
     calendarName: "Sample calendar",
     ...overrides
