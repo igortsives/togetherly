@@ -23,7 +23,7 @@ import {
 } from "@/lib/sources/export";
 import { refreshSource } from "@/lib/sources/refresh";
 import { parserTypeForSource } from "@/lib/sources/source-metadata";
-import { storeCalendarPdf } from "@/lib/sources/storage";
+import { deleteStoredUpload, storeCalendarPdf } from "@/lib/sources/storage";
 
 export async function createChildAction(formData: FormData) {
   const family = await requireUserFamily();
@@ -69,6 +69,9 @@ export async function createUrlSourceAction(formData: FormData) {
   const calendarId = String(formData.get("calendarId") || "");
   const sourceType = String(formData.get("sourceType") || SourceType.URL) as SourceType;
   const parserType = parserTypeForSource(sourceType);
+  const ingestWindowStart = parseOptionalIngestWindowStart(
+    formData.get("ingestWindowStart")
+  );
   const input = calendarSourceInputSchema.parse({
     calendarId,
     sourceType,
@@ -85,7 +88,8 @@ export async function createUrlSourceAction(formData: FormData) {
       sourceType: input.sourceType,
       sourceUrl: input.sourceUrl,
       parserType: input.parserType,
-      refreshStatus: input.refreshStatus
+      refreshStatus: input.refreshStatus,
+      ingestWindowStart
     }
   });
 
@@ -101,6 +105,9 @@ export async function createUrlSourceAction(formData: FormData) {
 export async function createPdfSourceAction(formData: FormData) {
   const calendarId = String(formData.get("calendarId") || "");
   const file = formData.get("pdfFile");
+  const ingestWindowStart = parseOptionalIngestWindowStart(
+    formData.get("ingestWindowStart")
+  );
 
   if (!(file instanceof File)) {
     throw new Error("Choose a PDF calendar file before uploading.");
@@ -123,7 +130,8 @@ export async function createPdfSourceAction(formData: FormData) {
       uploadedFileKey: input.uploadedFileKey,
       contentHash: storedUpload.contentHash,
       parserType: input.parserType,
-      refreshStatus: input.refreshStatus
+      refreshStatus: input.refreshStatus,
+      ingestWindowStart
     }
   });
 
@@ -171,13 +179,127 @@ export async function deleteSourceAction(formData: FormData) {
   const family = await requireUserFamily();
   const source = await prisma.calendarSource.findFirst({
     where: { id: sourceId, calendar: { familyId: family.id } },
-    select: { id: true }
+    select: { id: true, uploadedFileKey: true }
   });
   if (!source) {
     throw new Error("Source not found for this family.");
   }
 
   await prisma.calendarSource.delete({ where: { id: sourceId } });
+  if (source.uploadedFileKey) {
+    await deleteStoredUpload(source.uploadedFileKey);
+  }
+  revalidatePath("/");
+  revalidatePath("/review");
+  revalidatePath("/windows");
+}
+
+export async function deleteCalendarAction(formData: FormData) {
+  const calendarId = String(formData.get("calendarId") || "");
+  if (!calendarId) {
+    throw new Error("Calendar ID is required");
+  }
+
+  const family = await requireUserFamily();
+  const calendar = await prisma.calendar.findFirst({
+    where: { id: calendarId, familyId: family.id },
+    select: {
+      id: true,
+      sources: { select: { uploadedFileKey: true } }
+    }
+  });
+  if (!calendar) {
+    throw new Error("Calendar not found for this family.");
+  }
+
+  // Postgres cascades remove CalendarSource, EventCandidate, CalendarEvent.
+  await prisma.calendar.delete({ where: { id: calendar.id } });
+
+  for (const source of calendar.sources) {
+    if (source.uploadedFileKey) {
+      await deleteStoredUpload(source.uploadedFileKey);
+    }
+  }
+
+  revalidatePath("/");
+  revalidatePath("/review");
+  revalidatePath("/windows");
+}
+
+export async function trimCalendarEventsAction(formData: FormData) {
+  const calendarId = String(formData.get("calendarId") || "");
+  const cutoffRaw = String(formData.get("cutoffDate") || "");
+  const direction = String(formData.get("direction") || "");
+
+  if (!calendarId) {
+    throw new Error("Calendar ID is required");
+  }
+  if (direction !== "delete-before" && direction !== "delete-after") {
+    throw new Error("Direction must be delete-before or delete-after");
+  }
+
+  const cutoff = parseRequiredCutoffDate(cutoffRaw);
+
+  const family = await requireUserFamily();
+  const calendar = await prisma.calendar.findFirst({
+    where: { id: calendarId, familyId: family.id },
+    select: { id: true }
+  });
+  if (!calendar) {
+    throw new Error("Calendar not found for this family.");
+  }
+
+  const startAtFilter =
+    direction === "delete-before" ? { lt: cutoff } : { gte: cutoff };
+
+  await prisma.$transaction([
+    prisma.calendarEvent.deleteMany({
+      where: { calendarId: calendar.id, startAt: startAtFilter }
+    }),
+    prisma.eventCandidate.deleteMany({
+      where: { calendarId: calendar.id, startAt: startAtFilter }
+    })
+  ]);
+
+  revalidatePath("/");
+  revalidatePath("/review");
+  revalidatePath("/windows");
+}
+
+export async function updateSourceIngestWindowAction(formData: FormData) {
+  const sourceId = String(formData.get("sourceId") || "");
+  if (!sourceId) {
+    throw new Error("Source ID is required");
+  }
+
+  const family = await requireUserFamily();
+  const source = await prisma.calendarSource.findFirst({
+    where: { id: sourceId, calendar: { familyId: family.id } },
+    select: { id: true }
+  });
+  if (!source) {
+    throw new Error("Source not found for this family.");
+  }
+
+  const ingestWindowStart = parseOptionalIngestWindowStart(
+    formData.get("ingestWindowStart")
+  );
+
+  await prisma.calendarSource.update({
+    where: { id: source.id },
+    data: { ingestWindowStart }
+  });
+
+  // Prune candidates that are now before the floor. CalendarEvent rows
+  // (confirmed by the parent) are left alone — the floor applies to
+  // future ingest, not retroactive matching state. Use
+  // trimCalendarEventsAction to also drop confirmed events.
+  if (ingestWindowStart) {
+    await prisma.eventCandidate.deleteMany({
+      where: { calendarSourceId: source.id, startAt: { lt: ingestWindowStart } }
+    });
+  }
+
   revalidatePath("/");
   revalidatePath("/review");
   revalidatePath("/windows");
@@ -328,6 +450,9 @@ export async function disconnectMicrosoftAccountAction() {
 export async function createGoogleCalendarSourceAction(formData: FormData) {
   const calendarId = String(formData.get("calendarId") || "");
   const providerCalendarId = String(formData.get("providerCalendarId") || "");
+  const ingestWindowStart = parseOptionalIngestWindowStart(
+    formData.get("ingestWindowStart")
+  );
 
   const input = calendarSourceInputSchema.parse({
     calendarId,
@@ -357,7 +482,8 @@ export async function createGoogleCalendarSourceAction(formData: FormData) {
       sourceType: input.sourceType,
       providerCalendarId: input.providerCalendarId,
       parserType: input.parserType,
-      refreshStatus: input.refreshStatus
+      refreshStatus: input.refreshStatus,
+      ingestWindowStart
     }
   });
 
@@ -376,6 +502,9 @@ export async function createGoogleCalendarSourceAction(formData: FormData) {
 export async function createOutlookCalendarSourceAction(formData: FormData) {
   const calendarId = String(formData.get("calendarId") || "");
   const providerCalendarId = String(formData.get("providerCalendarId") || "");
+  const ingestWindowStart = parseOptionalIngestWindowStart(
+    formData.get("ingestWindowStart")
+  );
 
   const input = calendarSourceInputSchema.parse({
     calendarId,
@@ -407,7 +536,8 @@ export async function createOutlookCalendarSourceAction(formData: FormData) {
       sourceType: input.sourceType,
       providerCalendarId: input.providerCalendarId,
       parserType: input.parserType,
-      refreshStatus: input.refreshStatus
+      refreshStatus: input.refreshStatus,
+      ingestWindowStart
     }
   });
 
@@ -454,6 +584,37 @@ export async function submitBetaFeedbackAction(formData: FormData) {
 
   const separator = target.includes("?") ? "&" : "?";
   redirect(`${target}${separator}feedback=sent`);
+}
+
+function parseOptionalIngestWindowStart(value: FormDataEntryValue | null): Date | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return parseYmdToUtcMidnight(trimmed, "ingestWindowStart");
+}
+
+function parseRequiredCutoffDate(value: string): Date {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    throw new Error("A cutoff date is required");
+  }
+  return parseYmdToUtcMidnight(trimmed, "cutoffDate");
+}
+
+function parseYmdToUtcMidnight(value: string, fieldName: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+  if (!match) {
+    throw new Error(`${fieldName} must be a YYYY-MM-DD date`);
+  }
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const utcMs = Date.UTC(year, month - 1, day);
+  const parsed = new Date(utcMs);
+  if (Number.isNaN(parsed.getTime())) {
+    throw new Error(`${fieldName} is not a valid date`);
+  }
+  return parsed;
 }
 
 async function ensureCalendarBelongsToCurrentFamily(calendarId: string) {

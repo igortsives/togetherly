@@ -31,6 +31,7 @@ Togetherly MVP lets a private beta parent add children, import calendars from PD
 - **Source-aware unified view** (UI-006, UI-007) — source legend at the top of the dashboard, per-source toggle, per-block source-color stripe, click-to-drilldown side panel.
 - **Natural-language search** (MAT-008) — parents can type "a free week around Christmas" and the app parses to structured search params via Claude with a show-parse-before-running UX. Structured form remains as expert mode.
 - **Long-weekend recognition + weekend carve-out** (MAT-009, MAT-010) — Mon/Fri holidays extend to adjacent weekends; Sat/Sun within in-session ranges stay free.
+- **Calendar lifecycle management** ([#148](https://github.com/igortsives/togetherly/issues/148), [#149](https://github.com/igortsives/togetherly/issues/149), [#150](https://github.com/igortsives/togetherly/issues/150)) — parents can remove an entire Calendar (cascade), trim events on a Calendar before or after a cutoff date, and set a per-source ingest-window floor so historical events on a long-lived source stay out of the review queue.
 
 ## P2 Scope
 

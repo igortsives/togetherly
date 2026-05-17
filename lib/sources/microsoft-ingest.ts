@@ -9,6 +9,7 @@ import {
   type MicrosoftApiDeps,
   type MicrosoftCalendarEvent
 } from "@/lib/sources/microsoft";
+import { applyIngestWindow } from "@/lib/sources/ingest-window";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const LOOKBACK_DAYS = 30;
@@ -63,7 +64,7 @@ export async function refreshMicrosoftSource(
     args.deps
   );
 
-  const { candidates, errors } = mapMicrosoftEventsToCandidates({
+  const { candidates: rawCandidates, errors } = mapMicrosoftEventsToCandidates({
     microsoftEvents,
     calendarId: source.calendarId,
     calendarSourceId: source.id,
@@ -71,6 +72,9 @@ export async function refreshMicrosoftSource(
     defaultTimezone:
       source.calendar.timezone ?? source.calendar.family.timezone
   });
+
+  // Issue #150: drop anything before the parent-configured floor.
+  const candidates = applyIngestWindow(rawCandidates, source.ingestWindowStart);
 
   const candidateData = candidates.map((candidate) => ({
     calendarId: candidate.calendarId,

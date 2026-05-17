@@ -9,6 +9,7 @@ import {
   type GoogleApiDeps,
   type GoogleCalendarEvent
 } from "@/lib/sources/google";
+import { applyIngestWindow } from "@/lib/sources/ingest-window";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const LOOKBACK_DAYS = 30;
@@ -63,7 +64,7 @@ export async function refreshGoogleSource(
     args.deps
   );
 
-  const { candidates, errors } = mapGoogleEventsToCandidates({
+  const { candidates: rawCandidates, errors } = mapGoogleEventsToCandidates({
     googleEvents,
     calendarId: source.calendarId,
     calendarSourceId: source.id,
@@ -71,6 +72,9 @@ export async function refreshGoogleSource(
     defaultTimezone:
       source.calendar.timezone ?? source.calendar.family.timezone
   });
+
+  // Issue #150: drop anything before the parent-configured floor.
+  const candidates = applyIngestWindow(rawCandidates, source.ingestWindowStart);
 
   const candidateData = candidates.map((candidate) => ({
     calendarId: candidate.calendarId,

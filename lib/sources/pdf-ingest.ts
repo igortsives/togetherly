@@ -8,6 +8,7 @@ import {
   extractWithLlm,
   shouldUseLlmExtractor
 } from "@/lib/sources/extractors/llm";
+import { applyIngestWindow } from "@/lib/sources/ingest-window";
 
 type PdfParseFn = (
   data: Buffer | Uint8Array
@@ -121,7 +122,10 @@ export async function extractAndPersistPdf(args: {
   // Issue #131: synthesize CLASS_IN_SESSION / EXAM_PERIOD intervals
   // from begin/end boundary pairs found in the extracted candidates.
   const synthesized = synthesizeBoundaryIntervals(extracted);
-  const candidates = extracted.concat(synthesized);
+  const withBoundaries = extracted.concat(synthesized);
+
+  // Issue #150: drop anything before the parent-configured floor.
+  const candidates = applyIngestWindow(withBoundaries, source.ingestWindowStart);
 
   const candidateData = candidates.map((candidate) => ({
     calendarId: candidate.calendarId,

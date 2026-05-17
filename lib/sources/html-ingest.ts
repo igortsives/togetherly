@@ -6,6 +6,7 @@ import {
   extractWithLlm,
   shouldUseLlmExtractor
 } from "@/lib/sources/extractors/llm";
+import { applyIngestWindow } from "@/lib/sources/ingest-window";
 
 export type FetchedHtml = {
   text: string;
@@ -88,7 +89,10 @@ export async function extractAndPersistHtml(args: {
 
   // Issue #131: synthesize CLASS_IN_SESSION / EXAM_PERIOD intervals
   // from begin/end boundary pairs found in the extracted candidates.
-  const candidates = extracted.concat(synthesizeBoundaryIntervals(extracted));
+  const withBoundaries = extracted.concat(synthesizeBoundaryIntervals(extracted));
+
+  // Issue #150: drop anything before the parent-configured floor.
+  const candidates = applyIngestWindow(withBoundaries, source.ingestWindowStart);
 
   const candidateData = candidates.map((candidate) => ({
     calendarId: candidate.calendarId,

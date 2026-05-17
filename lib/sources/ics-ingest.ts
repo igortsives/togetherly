@@ -6,6 +6,7 @@ import {
   type IcsExtractionError
 } from "@/lib/sources/extractors/ics";
 import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
+import { applyIngestWindow } from "@/lib/sources/ingest-window";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RECURRENCE_LOOKBACK_DAYS = 30;
@@ -72,7 +73,10 @@ export async function extractAndPersistIcs(args: {
   // ICS sources rarely carry begin/end markers but we run it anyway —
   // a school ICS feed that publishes them gets the same treatment as
   // a PDF.
-  const candidates = extracted.concat(synthesizeBoundaryIntervals(extracted));
+  const withBoundaries = extracted.concat(synthesizeBoundaryIntervals(extracted));
+
+  // Issue #150: drop anything before the parent-configured floor.
+  const candidates = applyIngestWindow(withBoundaries, source.ingestWindowStart);
 
   const candidateData = candidates.map((candidate) => ({
     calendarId: candidate.calendarId,
