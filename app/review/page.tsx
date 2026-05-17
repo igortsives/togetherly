@@ -1,6 +1,7 @@
 import { BusyStatus, EventCategory } from "@prisma/client";
 import { ArrowLeft, CheckCircle2, Pencil, ShieldAlert, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { BulkConfirmSubmit } from "./BulkConfirmSubmit";
 import {
   bulkConfirmCandidatesAction,
   confirmCandidateAction,
@@ -165,10 +166,7 @@ export default async function ReviewPage() {
                           value={candidate.id}
                         />
                       ))}
-                    <button className="primaryButton" type="submit">
-                      <CheckCircle2 size={16} aria-hidden="true" />
-                      Confirm all ({group.bulkConfirmCount}) high-confidence
-                    </button>
+                    <BulkConfirmSubmit count={group.bulkConfirmCount} />
                   </form>
                 ) : null}
               </div>

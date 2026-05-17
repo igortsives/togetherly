@@ -9,6 +9,7 @@ import {
 import {
   blockKindLabel,
   inclusiveEnd,
+  MIN_TERM_BLOCK_DAYS,
   type TimelineBlock,
   type TimelineBlockKind,
   type TimelineData,
@@ -461,6 +462,14 @@ export function Timeline({
         focus={focusedEventId}
         viewMode={viewMode}
       />
+
+      {viewMode === "terms" ? (
+        <p className="termViewNotice" role="note">
+          Term overview shows blocks {MIN_TERM_BLOCK_DAYS} days or longer.
+          Single-day holidays and short events are hidden in this view —
+          switch to Day timeline to see them.
+        </p>
+      ) : null}
 
       <div className="timelineScale" aria-hidden="true">
         {range.monthTicks.map((tick, index) => (

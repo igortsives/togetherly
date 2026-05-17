@@ -49,16 +49,17 @@ function isPdf(file: File) {
 
 /**
  * Best-effort delete of a stored upload by its `uploadedFileKey`.
- * Used by the account-deletion flow (#43) to remove blob storage
- * when a user purges their data. Missing files (`ENOENT`) are
- * treated as already-gone — not an error.
+ * Used by the account-deletion flow (#43) and the
+ * delete-source / delete-calendar paths (#148, #163). Missing files
+ * (`ENOENT`) are treated as already-gone — not an error.
  *
- * NOTE: blobs are content-addressed by sha256 (`<hash>.pdf`). If two
- * families ever uploaded byte-identical PDFs, deleting one blob
- * affects the other. In the private-beta cohort there's a single
- * family per user so cross-family sharing cannot occur; this is
- * worth revisiting when adding multi-family or shared-source
- * features.
+ * NOTE: blobs are content-addressed by sha256 (`<hash>.pdf`). Two
+ * `CalendarSource` rows (in the same family or across families) that
+ * uploaded the same PDF share one blob. Callers MUST refcount before
+ * unlinking — use `isUploadOrphaned(...)` to verify no remaining
+ * source rows reference the key (#163). The account-deletion flow
+ * relies on its own ordering: rows are deleted first, then the blobs
+ * are unlinked.
  */
 export async function deleteStoredUpload(
   uploadedFileKey: string
