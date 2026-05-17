@@ -331,14 +331,18 @@ export async function searchFreeWindowsAction(formData: FormData) {
 const NL_QUERY_MAX_LEN = 280;
 
 export async function parseNaturalLanguageSearchAction(formData: FormData) {
+  const family = await requireUserFamily();
+
   const rawQuery = String(formData.get("nlQuery") || "");
   const query = rawQuery.slice(0, NL_QUERY_MAX_LEN).trim();
 
   if (!query) {
-    redirect("/windows?nlError=empty");
+    const emptyParams = new URLSearchParams({
+      nlError: "empty",
+      nlQuery: rawQuery.slice(0, NL_QUERY_MAX_LEN)
+    });
+    redirect(`/windows?${emptyParams.toString()}`);
   }
-
-  const family = await requireUserFamily();
 
   const [children, sources] = await Promise.all([
     prisma.child.findMany({

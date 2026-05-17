@@ -78,12 +78,15 @@ function lastRedirectUrl(): string {
 }
 
 describe("parseNaturalLanguageSearchAction", () => {
-  it("redirects with nlError=empty when the query is whitespace-only", async () => {
+  it("redirects with nlError=empty when the query is whitespace-only and preserves the raw query", async () => {
     await expect(
       parseNaturalLanguageSearchAction(formDataWith({ nlQuery: "   " }))
     ).rejects.toThrow(/NEXT_REDIRECT/);
-    expect(lastRedirectUrl()).toBe("/windows?nlError=empty");
+    expect(lastRedirectUrl()).toBe("/windows?nlError=empty&nlQuery=+++");
     expect(mockParse).not.toHaveBeenCalled();
+    // Auth must run before the empty short-circuit so unauthenticated
+    // posts surface as an auth error, not a silent redirect.
+    expect(mockRequireFamily).toHaveBeenCalled();
   });
 
   it("redirects with nlError=unavailable when the LLM key is unset", async () => {

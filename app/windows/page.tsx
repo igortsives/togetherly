@@ -141,6 +141,13 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
   const nlQuery = params.nlQuery ?? "";
   const nlExplanation = params.nlExplanation ?? "";
   const nlError = params.nlError ?? "";
+  const nlConfidenceRaw = Number(params.nlConfidence);
+  const nlConfidencePercent =
+    Number.isFinite(nlConfidenceRaw) &&
+    nlConfidenceRaw >= 0 &&
+    nlConfidenceRaw <= 1
+      ? Math.round(nlConfidenceRaw * 100)
+      : null;
   const parsedStartDate = isValidYmd(params.parsedStartDate)
     ? params.parsedStartDate!
     : null;
@@ -239,8 +246,12 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
             ) : null}
             {!nlErrorMessage && nlExplanation && nlQuery ? (
               <p className="nlParseNotice" role="status">
-                Understood: {nlExplanation} The search form below is
-                pre-filled — review and click Run search.
+                Understood: {nlExplanation}
+                {nlConfidencePercent !== null
+                  ? ` (${nlConfidencePercent}% confidence)`
+                  : ""}{" "}
+                The search form below is pre-filled — review and click
+                Run search.
               </p>
             ) : null}
           </section>
