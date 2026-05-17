@@ -13,7 +13,7 @@
 | File storage | Local filesystem in development; object storage in beta/prod |
 | Auth | NextAuth v5 (Auth.js) + Prisma adapter, JWT sessions, email/password (bcryptjs) + Google + Apple. Microsoft is a linkable provider for Outlook calendar access, not a sign-in option. |
 | Calendar integrations | PDF, URL, ICS, Google Calendar, Outlook Calendar |
-| Parsing | Deterministic parsers shipped today (ICS, HTML, PDF text, Google, Microsoft Graph); LLM-assisted extraction documented but not yet built. |
+| Parsing | Deterministic parsers for structured providers (ICS, Google, Microsoft Graph); LLM-only extraction for unstructured sources (HTML, PDF text) via Claude — heuristic HTML/PDF extractors were removed 2026-05-17, see [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path). |
 | Review model | Parent confirmation required before extracted events affect recommendations |
 
 ## System Overview
@@ -24,7 +24,7 @@ flowchart LR
   User --> Family["Family Setup"]
   User --> Sources["Source Import"]
   Sources --> Fetcher["Fetcher (URL/ICS/PDF blob/Provider API)"]
-  Fetcher --> Extractors["Extractors: ICS, HTML, PDF text, Google, Microsoft Graph"]
+  Fetcher --> Extractors["Extractors: ICS (ical.js), HTML/PDF (Claude LLM), Google, Microsoft Graph"]
   Extractors --> Normalizer["Schema validation + classification"]
   Normalizer --> Review["Parent Review Queue (/review)"]
   Review --> Events["Confirmed CalendarEvent rows"]
@@ -44,8 +44,8 @@ Dashed nodes are not yet implemented. Source refresh fires only when a `Calendar
 | Family service | Shipped | Families, children, calendar ownership, calendar tags. Pure helpers in [`lib/family/dashboard.ts`](../lib/family/dashboard.ts); auth-coupled session resolution in [`lib/family/session.ts`](../lib/family/session.ts). |
 | Source service | Shipped (URL/ICS/PDF/Google/Outlook) | URL/PDF/ICS/provider source metadata. Provider-specific ingest orchestrators live in `lib/sources/*-ingest.ts`. |
 | Fetch service | Shipped | URL/ICS via global `fetch`; PDF via the local filesystem under `FILE_STORAGE_ROOT`; Google via Calendar API v3; Microsoft via Graph v1.0. |
-| Extract service | Shipped | Pure event extractors under [`lib/sources/extractors/`](../lib/sources/) (ICS, HTML, PDF text) plus provider mappers (`google-ingest.ts`, `microsoft-ingest.ts`). |
-| Normalize service | Shipped | Validation via `eventCandidateInputSchema` + classification (keyword heuristic for HTML/PDF; provider-aware classification for ICS/Google/Outlook). |
+| Extract service | Shipped | Pure ICS extractor at [`lib/sources/extractors/ics.ts`](../lib/sources/extractors/ics.ts); LLM-only extractor at [`lib/sources/extractors/llm.ts`](../lib/sources/extractors/llm.ts) drives HTML and PDF ingestion; plus provider mappers (`google-ingest.ts`, `microsoft-ingest.ts`). The heuristic HTML/PDF extractors were removed 2026-05-17 ([`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path)). |
+| Normalize service | Shipped | Validation via `eventCandidateInputSchema` + classification (LLM emits the category for HTML/PDF, constrained to the `EventCategory` enum; provider-aware classification for ICS/Google/Outlook). |
 | Review service | Shipped (#8, PR #23) | `/review` route + `lib/review/`. Pure helpers test-covered; server actions in `app/review/actions.ts`. |
 | Matching service | Shipped (#9, PR #24) | `lib/matching/free-windows.ts` math + `lib/matching/event-busy.ts` interval mapper + `lib/matching/search.ts` server orchestration. |
 | Alert service | Deferred (#12) | Source-change detection and saved-window invalidation. Not yet implemented. |
@@ -89,8 +89,9 @@ OAuth-backed calendar imports use the NextAuth `Account` row attached to the sig
 ### URL / ICS / PDF
 
 - ICS (#5, PR #22): [`lib/sources/extractors/ics.ts`](../lib/sources/extractors/ics.ts) using `ical.js`. RRULE expansion handled in-extractor.
-- HTML (#6, PR #29): [`lib/sources/extractors/html.ts`](../lib/sources/extractors/html.ts) using `jsdom` (moved from devDependencies to runtime deps).
-- PDF text (#7, PR #30): [`lib/sources/extractors/pdf.ts`](../lib/sources/extractors/pdf.ts) using `pdf-parse` loaded via `createRequire` to evade bundler embedding.
+- HTML: orchestrator at [`lib/sources/html-ingest.ts`](../lib/sources/html-ingest.ts) calls the LLM extractor at [`lib/sources/extractors/llm.ts`](../lib/sources/extractors/llm.ts). HTML is normalized to text (`jsdom`) before being passed to Claude. Without `ANTHROPIC_API_KEY`, refresh fails with `HtmlExtractionUnavailableError`. (Heuristic extractor removed 2026-05-17, see [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path).)
+- PDF text: orchestrator at [`lib/sources/pdf-ingest.ts`](../lib/sources/pdf-ingest.ts) calls the same LLM extractor. PDF text is read with `pdf-parse` (loaded via `createRequire`) before being passed to Claude. Without `ANTHROPIC_API_KEY`, refresh fails with `PdfExtractionUnavailableError`.
+- LLM extractor: [`lib/sources/extractors/llm.ts`](../lib/sources/extractors/llm.ts) calls the wrapper at [`lib/llm/anthropic.ts`](../lib/llm/anthropic.ts) (Claude Sonnet) with a structured-output Zod schema constrained to the `EventCategory` enum.
 
 ## Repository Shape (current, not aspirational)
 
@@ -116,8 +117,10 @@ lib/
     timeline.ts                     Dashboard timeline data shaping
   matching/                         free-windows + event-busy + search orchestrator
   review/                           Candidate → CalendarEvent helpers + queue reader
+  llm/
+    anthropic.ts                    Claude Sonnet wrapper with structured-output validation
   sources/
-    extractors/                     Pure extractors (ics, html, pdf)
+    extractors/                     ics.ts (pure parser) + llm.ts (Claude-driven HTML/PDF extractor)
     google.ts, google-ingest.ts     Google Calendar API client + orchestrator
     microsoft.ts, microsoft-ingest.ts Outlook API client + orchestrator
     ics-ingest.ts, html-ingest.ts, pdf-ingest.ts
@@ -153,8 +156,8 @@ Private beta can run as a hosted Next.js app with managed PostgreSQL and object 
 | Risk | Status | Mitigation |
 |---|---|---|
 | Ingestion jobs become slow | Open | Introduce queue and worker process before public launch. Today all extractors run inline during the create-source request. |
-| LLM extraction is inconsistent | Deferred | LLM-assist not yet implemented; deterministic parsers handle the MVP corpus. |
+| LLM extraction is inconsistent | Mitigated | Claude is constrained to a Zod-validated structured output (canonical `eventCandidateInputSchema` shape, `EventCategory` enum). Schema-invalid candidates are dropped defensively. Refresh fails fast with `HtmlExtractionUnavailableError` / `PdfExtractionUnavailableError` when the API key is unset. Decision logged 2026-05-17 in [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path). |
 | OAuth tokens require strict handling | Partial | Auth.js encrypts cookies via `AUTH_SECRET`; provider tokens are stored as plaintext columns. Column-level encryption with `OAUTH_TOKEN_ENCRYPTION_KEY` is tracked in `TECH_DEBT.md`. |
 | Date/time bugs affect recommendations | Mitigated | Extractors anchor all-day events at UTC midnight; ICS recurrence + DST tests live in `lib/sources/extractors/ics.test.ts`. |
-| Parser code becomes source-specific | Mitigated | Fixtures live under `fixtures/sources/` keyed by structural pattern, not school name. Extractor logic is keyword/heuristic-based, not hard-coded per institution. |
+| Parser code becomes source-specific | Mitigated | Fixtures live under `fixtures/sources/` keyed by structural pattern, not school name. The HTML/PDF path is institution-agnostic by construction — Claude reads any text-based calendar and emits the canonical schema; there is no per-institution code to maintain. |
 | Email-based account linking allows takeover | Open | `allowDangerousEmailAccountLinking=true` on Google + Microsoft providers. Acceptable for private beta; revisit before public launch (`TECH_DEBT.md`). |

@@ -192,7 +192,7 @@ Explicitly not used in the MVP: analytics SDKs, advertising networks, third-part
 
 Per [`PARSING_STRATEGY.md`](./PARSING_STRATEGY.md#llm-usage-rules-round-17-onward) and PRD §7.9, the product calls Anthropic Claude (Sonnet) for two flows:
 
-- **EXT-010 — ambiguous-event classification** (Round 17): the parser pipeline escalates `UNKNOWN`-category or low-confidence candidates to Claude with their evidence text and the surrounding source context.
+- **EXT-010 — HTML and PDF event extraction** (Round 17, decision logged 2026-05-17 in [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path)): Claude is the sole extractor for HTML and PDF sources. The fetched body (HTML normalized to text via `jsdom`, or PDF text via `pdf-parse`) is sent to Claude with the canonical output schema. There is no heuristic fallback.
 - **MAT-008 — natural-language search parsing** (Round 18): `/windows` accepts free-text queries and Claude returns a structured search-params object.
 
 Rules:
@@ -200,7 +200,7 @@ Rules:
 - May be sent: raw text or structured chunks extracted from the **public source** (PDF text, HTML excerpts), candidate event titles + evidence locators, family-state context for NL search (children's nicknames, active source names, today's date, family timezone), and the structured-output schema we want back.
 - MUST NOT be sent: parent email or name (only nicknames), family ID, user ID, OAuth tokens, refresh tokens, uploaded private PDFs that are not themselves public source material, free-window search history beyond the current query, imported event titles unrelated to the immediate query.
 - Source URLs may be sent because they are public.
-- Outputs are validated against Zod schemas before being applied. Schema violations fall back to heuristics or surface to the user.
+- Outputs are validated against Zod schemas before being applied. Schema-invalid candidates are dropped defensively (`eventCandidateInputSchema.parse(...)` failures are skipped, not crashed). A total LLM failure surfaces to the source's `refreshStatus=FAILED` chip; the parent retries or removes the source.
 - LLM logs record only `{ kind, candidateCount, latencyMs, success }`.
 - Vendor selection (Claude) and the no-training posture are documented in [`DECISIONS.md`](./DECISIONS.md). The Anthropic API's standard data-handling: no training on API inputs/outputs by default.
 

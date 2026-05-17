@@ -9,7 +9,7 @@ Togetherly helps families find overlapping free time across children's school, u
 - Auth: email/password, Google login, Login with Apple, plus Microsoft account linking for Outlook Calendar.
 - Data: PostgreSQL.
 - Calendar imports: PDF, URL, ICS, Google Calendar, and Outlook Calendar.
-- Parsing: deterministic parsers shipped today; LLM-assisted extraction is deferred.
+- Parsing: deterministic parsers for structured providers (ICS, Google, Outlook); Claude (Anthropic) is the sole extractor for unstructured sources (HTML, PDF). `ANTHROPIC_API_KEY` is required for HTML/PDF ingestion — see [`docs/DECISIONS.md`](docs/DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path).
 - Initial source corpus: UCLA (live), Vanderbilt (live), Saratoga High School / Los Gatos-Saratoga Union High School District (still synthetic).
 
 ## Quick Start
