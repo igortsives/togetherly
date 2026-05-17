@@ -375,16 +375,34 @@ function toConfidenceNumber(
   return Number.isFinite(parsed) ? parsed : null;
 }
 
+/** Issue #132: when `viewMode === "terms"`, the timeline expands to a
+ * 365-day horizon and short blocks (< MIN_TERM_BLOCK_DAYS) are
+ * filtered out so the user sees term-level structure cleanly. */
+const TERM_VIEW_HORIZON_DAYS = 365;
+const MIN_TERM_BLOCK_DAYS = 5;
+
+function filterTermBlocks(blocks: TimelineBlock[]): TimelineBlock[] {
+  return blocks.filter((block) => {
+    const days = (block.end.getTime() - block.start.getTime()) / MS_PER_DAY;
+    return days >= MIN_TERM_BLOCK_DAYS;
+  });
+}
+
 export async function getTimelineData(
   options: {
     now?: Date;
     horizonDays?: number;
     /** Per-source filter from the URL `?hide=...` param (#130). */
     hiddenSourceIds?: Set<string>;
+    /** "days" (default) or "terms" — selects the view mode (#132). */
+    viewMode?: "days" | "terms";
   } = {}
 ): Promise<TimelineData> {
   const now = options.now ?? new Date();
-  const horizon = options.horizonDays ?? DEFAULT_HORIZON_DAYS;
+  const viewMode = options.viewMode ?? "days";
+  const horizon =
+    options.horizonDays ??
+    (viewMode === "terms" ? TERM_VIEW_HORIZON_DAYS : DEFAULT_HORIZON_DAYS);
   const start = startOfUtcDay(now);
   const end = new Date(start.getTime() + horizon * MS_PER_DAY);
   const range = buildRange(start, end);
@@ -512,7 +530,7 @@ export async function getTimelineData(
       const childEvents = child.calendars.flatMap(
         (calendar) => eventsByCalendar.get(calendar.id) ?? []
       );
-      const blocks = buildTimelineBlocks(
+      const blocksRaw = buildTimelineBlocks(
         childEvents.map((event) => ({
           id: event.id,
           calendarId: event.calendarId,
@@ -531,6 +549,8 @@ export async function getTimelineData(
         })),
         range
       );
+      const blocks =
+        viewMode === "terms" ? filterTermBlocks(blocksRaw) : blocksRaw;
 
       const summaries: TimelineCalendarSummary[] = child.calendars.map(
         (calendar) => {
@@ -564,7 +584,7 @@ export async function getTimelineData(
       const familyEvents = familyCalendars.flatMap(
         (calendar) => eventsByCalendar.get(calendar.id) ?? []
       );
-      const blocks = buildTimelineBlocks(
+      const blocksRaw = buildTimelineBlocks(
         familyEvents.map((event) => ({
           id: event.id,
           calendarId: event.calendarId,
@@ -583,6 +603,8 @@ export async function getTimelineData(
         })),
         range
       );
+      const blocks =
+        viewMode === "terms" ? filterTermBlocks(blocksRaw) : blocksRaw;
 
       const summaries: TimelineCalendarSummary[] = familyCalendars.map(
         (calendar) => {

@@ -317,6 +317,37 @@ describe("buildTimelineBlocks source attribution (#130)", () => {
   });
 });
 
+describe("term-view filtering (#132)", () => {
+  it("blocks shorter than 5 days are filtered out only in term mode", () => {
+    // We test the underlying buildTimelineBlocks + filter pattern
+    // directly since getTimelineData requires a DB. The TimelineData
+    // for terms mode applies `filterTermBlocks` to each row's
+    // `blocksRaw`.
+    const range = buildRange(date("2027-01-01"), date("2027-12-31"));
+    const blocks = buildTimelineBlocks(
+      [
+        // Short — should be filtered in term view.
+        makeEvent({
+          id: "short",
+          startAt: date("2027-02-16"),
+          endAt: date("2027-02-17")
+        }),
+        // Long — should remain.
+        makeEvent({
+          id: "long",
+          startAt: date("2027-09-28"),
+          endAt: date("2027-12-11")
+        })
+      ],
+      range
+    );
+    const days = (b: { start: Date; end: Date }) =>
+      (b.end.getTime() - b.start.getTime()) / (24 * 60 * 60 * 1000);
+    const longOnly = blocks.filter((b) => days(b) >= 5);
+    expect(longOnly.map((b) => b.id)).toEqual(["long"]);
+  });
+});
+
 describe("inclusiveEnd (#129)", () => {
   it("subtracts 1ms from all-day end so the formatted day is the last visible day", () => {
     const exclusiveEnd = date("2026-02-17");

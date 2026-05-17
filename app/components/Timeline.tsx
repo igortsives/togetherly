@@ -99,10 +99,12 @@ function TimelineLegend() {
 
 function TimelineRowView({
   row,
-  hiddenSourceIds
+  hiddenSourceIds,
+  viewMode
 }: {
   row: TimelineRow;
   hiddenSourceIds: Set<string>;
+  viewMode: "days" | "terms";
 }) {
   const enabledCount = row.calendarSummaries.filter((c) => c.enabled).length;
   const sourceLine =
@@ -158,7 +160,7 @@ function TimelineRowView({
               role="listitem"
               className={`block ${block.kind}${block.lowConfidence ? " low-confidence" : ""}`}
               key={block.id}
-              href={focusHref(block.id, hiddenSourceIds)}
+              href={focusHref(block.id, hiddenSourceIds, viewMode)}
               scroll={false}
               style={{
                 left: `${block.leftPercent}%`,
@@ -184,7 +186,8 @@ function TimelineRowView({
 function toggleHideHref(
   sourceId: string,
   hiddenSourceIds: Set<string>,
-  focus: string | null
+  focus: string | null,
+  view: "days" | "terms" = "days"
 ): string {
   const next = new Set(hiddenSourceIds);
   if (next.has(sourceId)) next.delete(sourceId);
@@ -192,6 +195,7 @@ function toggleHideHref(
   const params = new URLSearchParams();
   if (next.size > 0) params.set("hide", Array.from(next).join(","));
   if (focus) params.set("focus", focus);
+  if (view === "terms") params.set("view", "terms");
   const qs = params.toString();
   return qs ? `/?${qs}` : "/";
 }
@@ -199,29 +203,40 @@ function toggleHideHref(
 /** Build a `?focus=...` query string preserving the current hide filter. */
 function focusHref(
   eventId: string,
-  hiddenSourceIds: Set<string>
+  hiddenSourceIds: Set<string>,
+  view: "days" | "terms" = "days"
 ): string {
   const params = new URLSearchParams();
   if (hiddenSourceIds.size > 0)
     params.set("hide", Array.from(hiddenSourceIds).join(","));
   params.set("focus", eventId);
+  if (view === "terms") params.set("view", "terms");
   return `/?${params.toString()}`;
 }
 
-/** Build a `?` query string clearing focus, preserving hide. */
-function clearFocusHref(hiddenSourceIds: Set<string>): string {
-  if (hiddenSourceIds.size === 0) return "/";
-  return `/?hide=${Array.from(hiddenSourceIds).join(",")}`;
+/** Build a `?` query string clearing focus, preserving hide + view. */
+function clearFocusHref(
+  hiddenSourceIds: Set<string>,
+  view: "days" | "terms" = "days"
+): string {
+  const params = new URLSearchParams();
+  if (hiddenSourceIds.size > 0)
+    params.set("hide", Array.from(hiddenSourceIds).join(","));
+  if (view === "terms") params.set("view", "terms");
+  const qs = params.toString();
+  return qs ? `/?${qs}` : "/";
 }
 
 function SourceLegend({
   sources,
   hiddenSourceIds,
-  focus
+  focus,
+  viewMode
 }: {
   sources: TimelineSource[];
   hiddenSourceIds: Set<string>;
   focus: string | null;
+  viewMode: "days" | "terms";
 }) {
   if (sources.length === 0) return null;
   return (
@@ -232,7 +247,7 @@ function SourceLegend({
         return (
           <Link
             key={source.sourceId}
-            href={toggleHideHref(source.sourceId, hiddenSourceIds, focus)}
+            href={toggleHideHref(source.sourceId, hiddenSourceIds, focus, viewMode)}
             className={`sourceChip${hidden ? " sourceChipHidden" : ""}`}
             aria-pressed={!hidden}
             title={
@@ -258,11 +273,13 @@ function SourceLegend({
 function FocusPanel({
   focusedBlock,
   siblings,
-  hiddenSourceIds
+  hiddenSourceIds,
+  viewMode
 }: {
   focusedBlock: TimelineBlock;
   siblings: TimelineBlock[];
   hiddenSourceIds: Set<string>;
+  viewMode: "days" | "terms";
 }) {
   const compactRangeFormatter = new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -279,7 +296,7 @@ function FocusPanel({
         </div>
         <Link
           className="subtleButton"
-          href={clearFocusHref(hiddenSourceIds)}
+          href={clearFocusHref(hiddenSourceIds, viewMode)}
           aria-label="Close event details"
         >
           <X size={14} aria-hidden="true" /> Close
@@ -308,7 +325,8 @@ function FocusPanel({
                   href={toggleHideHref(
                     focusedBlock.sourceId,
                     hiddenSourceIds,
-                    null
+                    null,
+                    viewMode
                   )}
                 >
                   Hide this source
@@ -348,14 +366,62 @@ function FocusPanel({
 
 const SIBLING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
+/** Build a `?view=...` query string preserving hide + focus state. */
+function viewModeHref(
+  next: "days" | "terms",
+  hiddenSourceIds: Set<string>,
+  focus: string | null
+): string {
+  const params = new URLSearchParams();
+  if (hiddenSourceIds.size > 0)
+    params.set("hide", Array.from(hiddenSourceIds).join(","));
+  if (focus) params.set("focus", focus);
+  if (next === "terms") params.set("view", "terms");
+  const qs = params.toString();
+  return qs ? `/?${qs}` : "/";
+}
+
+function ViewModeToggle({
+  current,
+  hiddenSourceIds,
+  focus
+}: {
+  current: "days" | "terms";
+  hiddenSourceIds: Set<string>;
+  focus: string | null;
+}) {
+  return (
+    <div className="viewModeToggle" role="tablist" aria-label="Timeline view">
+      <Link
+        href={viewModeHref("days", hiddenSourceIds, focus)}
+        role="tab"
+        aria-selected={current === "days"}
+        className={`viewModeChip${current === "days" ? " viewModeChipActive" : ""}`}
+      >
+        Day timeline
+      </Link>
+      <Link
+        href={viewModeHref("terms", hiddenSourceIds, focus)}
+        role="tab"
+        aria-selected={current === "terms"}
+        className={`viewModeChip${current === "terms" ? " viewModeChipActive" : ""}`}
+      >
+        Term overview
+      </Link>
+    </div>
+  );
+}
+
 export function Timeline({
   data,
   hiddenSourceIds = new Set<string>(),
-  focusedEventId = null
+  focusedEventId = null,
+  viewMode = "days"
 }: {
   data: TimelineData;
   hiddenSourceIds?: Set<string>;
   focusedEventId?: string | null;
+  viewMode?: "days" | "terms";
 }) {
   const { range, rows, windows, sources } = data;
 
@@ -382,12 +448,18 @@ export function Timeline({
           <CalendarRange size={14} aria-hidden="true" /> {formatRange(range.start, range.end)}
         </span>
         <span>{range.totalDays} days</span>
+        <ViewModeToggle
+          current={viewMode}
+          hiddenSourceIds={hiddenSourceIds}
+          focus={focusedEventId}
+        />
       </div>
 
       <SourceLegend
         sources={sources}
         hiddenSourceIds={hiddenSourceIds}
         focus={focusedEventId}
+        viewMode={viewMode}
       />
 
       <div className="timelineScale" aria-hidden="true">
@@ -438,6 +510,7 @@ export function Timeline({
           <TimelineRowView
             row={row}
             hiddenSourceIds={hiddenSourceIds}
+            viewMode={viewMode}
             key={row.id}
           />
         ))}
@@ -448,6 +521,7 @@ export function Timeline({
           focusedBlock={focusedBlock}
           siblings={siblings}
           hiddenSourceIds={hiddenSourceIds}
+          viewMode={viewMode}
         />
       ) : null}
 
