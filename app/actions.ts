@@ -191,7 +191,7 @@ export async function deleteSourceAction(formData: FormData) {
 
   await prisma.calendarSource.delete({ where: { id: sourceId } });
   if (source.uploadedFileKey) {
-    await deleteStoredUpload(source.uploadedFileKey);
+    await unlinkUploadedFileIfOrphaned(source.uploadedFileKey);
   }
   revalidatePath("/");
   revalidatePath("/review");
@@ -221,7 +221,7 @@ export async function deleteCalendarAction(formData: FormData) {
 
   for (const source of calendar.sources) {
     if (source.uploadedFileKey) {
-      await deleteStoredUpload(source.uploadedFileKey);
+      await unlinkUploadedFileIfOrphaned(source.uploadedFileKey);
     }
   }
 
@@ -703,6 +703,19 @@ function parseRequiredCutoffDate(value: string, timezone: string): Date {
     throw new Error("A cutoff date is required");
   }
   return parseYmdAtLocalMidnight(trimmed, timezone, "cutoffDate");
+}
+
+/**
+ * Issue #163 — PDFs are content-addressed (`<sha256>.pdf`). Two
+ * CalendarSource rows that uploaded the same PDF share one blob.
+ * Unlink only when no remaining row references the key.
+ */
+async function unlinkUploadedFileIfOrphaned(uploadedFileKey: string): Promise<void> {
+  const remaining = await prisma.calendarSource.count({
+    where: { uploadedFileKey }
+  });
+  if (remaining > 0) return;
+  await deleteStoredUpload(uploadedFileKey);
 }
 
 async function ensureCalendarBelongsToCurrentFamily(calendarId: string) {

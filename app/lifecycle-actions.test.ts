@@ -8,7 +8,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     calendarSource: {
       findFirst: vi.fn(),
-      update: vi.fn()
+      update: vi.fn(),
+      count: vi.fn(),
+      delete: vi.fn()
     },
     calendarEvent: {
       deleteMany: vi.fn()
@@ -52,6 +54,7 @@ import { requireUserFamily } from "@/lib/family/session";
 import { deleteStoredUpload } from "@/lib/sources/storage";
 import {
   deleteCalendarAction,
+  deleteSourceAction,
   trimCalendarEventsAction,
   updateSourceIngestWindowAction
 } from "./actions";
@@ -61,6 +64,8 @@ const mockCalendarFindFirst = prisma.calendar.findFirst as unknown as ReturnType
 const mockCalendarDelete = prisma.calendar.delete as unknown as ReturnType<typeof vi.fn>;
 const mockSourceFindFirst = prisma.calendarSource.findFirst as unknown as ReturnType<typeof vi.fn>;
 const mockSourceUpdate = prisma.calendarSource.update as unknown as ReturnType<typeof vi.fn>;
+const mockSourceCount = prisma.calendarSource.count as unknown as ReturnType<typeof vi.fn>;
+const mockSourceDelete = prisma.calendarSource.delete as unknown as ReturnType<typeof vi.fn>;
 const mockEventsDeleteMany = prisma.calendarEvent.deleteMany as unknown as ReturnType<typeof vi.fn>;
 const mockCandidatesDeleteMany = prisma.eventCandidate.deleteMany as unknown as ReturnType<typeof vi.fn>;
 const mockTransaction = prisma.$transaction as unknown as ReturnType<typeof vi.fn>;
@@ -87,6 +92,53 @@ function formDataWith(values: Record<string, string>): FormData {
   return data;
 }
 
+describe("deleteSourceAction", () => {
+  it("unlinks the PDF blob when no other source references it (#163)", async () => {
+    mockSourceFindFirst.mockResolvedValue({
+      id: "src-1",
+      uploadedFileKey: "blobs/abc.pdf"
+    });
+    mockSourceDelete.mockResolvedValue({});
+    mockSourceCount.mockResolvedValue(0);
+
+    await deleteSourceAction(formDataWith({ sourceId: "src-1" }));
+
+    expect(mockSourceDelete).toHaveBeenCalledWith({ where: { id: "src-1" } });
+    expect(mockSourceCount).toHaveBeenCalledWith({
+      where: { uploadedFileKey: "blobs/abc.pdf" }
+    });
+    expect(mockDeleteUpload).toHaveBeenCalledWith("blobs/abc.pdf");
+  });
+
+  it("keeps a shared PDF blob when another source still references it (#163)", async () => {
+    mockSourceFindFirst.mockResolvedValue({
+      id: "src-1",
+      uploadedFileKey: "blobs/shared.pdf"
+    });
+    mockSourceDelete.mockResolvedValue({});
+    // A sibling source in the same family points at the same blob.
+    mockSourceCount.mockResolvedValue(1);
+
+    await deleteSourceAction(formDataWith({ sourceId: "src-1" }));
+
+    expect(mockSourceDelete).toHaveBeenCalledWith({ where: { id: "src-1" } });
+    expect(mockDeleteUpload).not.toHaveBeenCalled();
+  });
+
+  it("skips the unlink branch entirely for non-PDF sources", async () => {
+    mockSourceFindFirst.mockResolvedValue({
+      id: "src-1",
+      uploadedFileKey: null
+    });
+    mockSourceDelete.mockResolvedValue({});
+
+    await deleteSourceAction(formDataWith({ sourceId: "src-1" }));
+
+    expect(mockSourceCount).not.toHaveBeenCalled();
+    expect(mockDeleteUpload).not.toHaveBeenCalled();
+  });
+});
+
 describe("deleteCalendarAction", () => {
   it("rejects a cross-family attempt", async () => {
     mockCalendarFindFirst.mockResolvedValue(null);
@@ -101,7 +153,7 @@ describe("deleteCalendarAction", () => {
     expect(mockCalendarDelete).not.toHaveBeenCalled();
   });
 
-  it("deletes the calendar and unlinks each uploaded PDF blob", async () => {
+  it("deletes the calendar and unlinks each uploaded PDF blob when no other source references it", async () => {
     mockCalendarFindFirst.mockResolvedValue({
       id: "cal-1",
       sources: [
@@ -111,6 +163,7 @@ describe("deleteCalendarAction", () => {
       ]
     });
     mockCalendarDelete.mockResolvedValue({});
+    mockSourceCount.mockResolvedValue(0);
 
     await deleteCalendarAction(formDataWith({ calendarId: "cal-1" }));
 
@@ -118,6 +171,25 @@ describe("deleteCalendarAction", () => {
     expect(mockDeleteUpload).toHaveBeenCalledTimes(2);
     expect(mockDeleteUpload).toHaveBeenCalledWith("blobs/abc.pdf");
     expect(mockDeleteUpload).toHaveBeenCalledWith("blobs/def.pdf");
+  });
+
+  it("does NOT unlink a PDF blob still referenced by another source (#163)", async () => {
+    mockCalendarFindFirst.mockResolvedValue({
+      id: "cal-1",
+      sources: [{ uploadedFileKey: "blobs/shared.pdf" }]
+    });
+    mockCalendarDelete.mockResolvedValue({});
+    // A different Calendar in the same family has another source
+    // pointing at the same content-addressed blob.
+    mockSourceCount.mockResolvedValue(1);
+
+    await deleteCalendarAction(formDataWith({ calendarId: "cal-1" }));
+
+    expect(mockCalendarDelete).toHaveBeenCalledWith({ where: { id: "cal-1" } });
+    expect(mockSourceCount).toHaveBeenCalledWith({
+      where: { uploadedFileKey: "blobs/shared.pdf" }
+    });
+    expect(mockDeleteUpload).not.toHaveBeenCalled();
   });
 });
 
