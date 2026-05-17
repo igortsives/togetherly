@@ -1070,6 +1070,34 @@ a {
   margin-top: 18px;
 }
 
+.nlSearchForm {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 18px;
+}
+
+.nlSearchForm input[type="text"] {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--foreground);
+  padding: 10px 11px;
+  font-size: 0.95rem;
+}
+
+.nlParseNotice {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid #d3e5ff;
+  border-radius: 8px;
+  background: #f4f8ff;
+  color: var(--foreground);
+  font-size: 0.9rem;
+}
+
 .searchForm label {
   display: grid;
   gap: 6px;

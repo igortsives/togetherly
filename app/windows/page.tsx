@@ -1,18 +1,29 @@
 import Link from "next/link";
-import { Calendar, Search } from "lucide-react";
+import { Calendar, Search, Sparkles } from "lucide-react";
 import { prisma } from "@/lib/db/prisma";
 import { inclusiveEnd } from "@/lib/family/timeline";
 import { getCurrentUserId, requireUserFamily } from "@/lib/family/session";
+import { isLlmConfigured } from "@/lib/llm/anthropic";
 import {
   exportFreeWindowToGoogleAction,
   exportFreeWindowToOutlookAction,
+  parseNaturalLanguageSearchAction,
   searchFreeWindowsAction
 } from "../actions";
 
 export const dynamic = "force-dynamic";
 
 type WindowsPageProps = {
-  searchParams: Promise<{ searchId?: string }>;
+  searchParams: Promise<{
+    searchId?: string;
+    nlQuery?: string;
+    nlExplanation?: string;
+    nlConfidence?: string;
+    nlError?: string;
+    parsedStartDate?: string;
+    parsedEndDate?: string;
+    parsedMinimumDays?: string;
+  }>;
 };
 
 type ExplanationShape = {
@@ -53,6 +64,28 @@ function toInputDate(date: Date) {
 
 function formatDate(date: Date | string) {
   return dayFormatter.format(typeof date === "string" ? new Date(date) : date);
+}
+
+function isValidYmd(value: string | undefined): boolean {
+  if (!value) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(parsed.getTime());
+}
+
+function mapNlError(code: string, explanation: string): string {
+  switch (code) {
+    case "empty":
+      return "Type a question (e.g., \"a free week around Christmas\") and press Parse.";
+    case "unavailable":
+      return "Natural-language search needs the Anthropic API key to be configured. Use the form below instead.";
+    case "parse-failed":
+      return "I couldn't figure out the dates from that. Pick them below and run the search.";
+    case "out-of-scope":
+      return explanation || "I can only help find free time.";
+    default:
+      return "";
+  }
 }
 
 export default async function WindowsPage({ searchParams }: WindowsPageProps) {
@@ -104,6 +137,28 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
     new Date(today.getTime() + 180 * 24 * 60 * 60 * 1000)
   );
 
+  const nlConfigured = isLlmConfigured();
+  const nlQuery = params.nlQuery ?? "";
+  const nlExplanation = params.nlExplanation ?? "";
+  const nlError = params.nlError ?? "";
+  const parsedStartDate = isValidYmd(params.parsedStartDate)
+    ? params.parsedStartDate!
+    : null;
+  const parsedEndDate = isValidYmd(params.parsedEndDate)
+    ? params.parsedEndDate!
+    : null;
+  const parsedMinimumDaysNum = Number(params.parsedMinimumDays);
+  const parsedMinimumDays =
+    Number.isFinite(parsedMinimumDaysNum) &&
+    parsedMinimumDaysNum >= 1 &&
+    parsedMinimumDaysNum <= 365
+      ? parsedMinimumDaysNum
+      : null;
+  const formStart = parsedStartDate ?? (search ? toInputDate(search.startDate) : defaultStart);
+  const formEnd = parsedEndDate ?? (search ? toInputDate(search.endDate) : defaultEnd);
+  const formMinimumDays = parsedMinimumDays ?? (search ? search.minimumDays : 5);
+  const nlErrorMessage = mapNlError(nlError, nlExplanation);
+
   return (
     <main className="shell">
       <aside className="sidebar" aria-label="Togetherly navigation">
@@ -154,6 +209,43 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
           </div>
         </section>
 
+        {nlConfigured ? (
+          <section className="section">
+            <div className="sectionHeader">
+              <div>
+                <p className="eyebrow">Ask Togetherly</p>
+                <h2>Describe the trip you&apos;re looking for.</h2>
+              </div>
+            </div>
+            <form action={parseNaturalLanguageSearchAction} className="nlSearchForm">
+              <label className="wideField">
+                Natural-language query
+                <input
+                  defaultValue={nlQuery}
+                  maxLength={280}
+                  name="nlQuery"
+                  placeholder="I want a free week around Christmas."
+                  type="text"
+                />
+              </label>
+              <button type="submit">
+                <Sparkles size={16} aria-hidden="true" /> Parse
+              </button>
+            </form>
+            {nlErrorMessage ? (
+              <p className="authNotice" role="status">
+                {nlErrorMessage}
+              </p>
+            ) : null}
+            {!nlErrorMessage && nlExplanation && nlQuery ? (
+              <p className="nlParseNotice" role="status">
+                Understood: {nlExplanation} The search form below is
+                pre-filled — review and click Run search.
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
         <section className="section">
           <div className="sectionHeader">
             <div>
@@ -168,7 +260,7 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
                 name="startDate"
                 type="date"
                 required
-                defaultValue={search ? toInputDate(search.startDate) : defaultStart}
+                defaultValue={formStart}
               />
             </label>
             <label>
@@ -177,7 +269,7 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
                 name="endDate"
                 type="date"
                 required
-                defaultValue={search ? toInputDate(search.endDate) : defaultEnd}
+                defaultValue={formEnd}
               />
             </label>
             <label>
@@ -188,7 +280,7 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
                 min={1}
                 max={365}
                 required
-                defaultValue={search ? search.minimumDays : 5}
+                defaultValue={formMinimumDays}
               />
             </label>
             <label className="checkboxField">
