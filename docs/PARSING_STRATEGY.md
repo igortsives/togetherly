@@ -77,16 +77,48 @@ All four are below the 0.9 bulk-confirmation threshold so `requiresParentReview`
 
 ## Boundary-Pair Inference (EXT-009)
 
-When a source contains both a "begins" and an "ends" marker for the same academic unit (term, semester, quarter, finals week), the parser emits an extra interval candidate covering the time between them:
+The recognizer is **synonym-based, not literal-string-based**. Academic institutions use wildly different vocabulary — universities say "Quarter" or "Semester" or "Trimester" or "Term"; K-12 says "School" or "School Year"; some use "Instruction" or "Classes" or "Session" interchangeably. The recognizer composes phrases from three slots — a verb, an academic-unit noun, and an optional "Day of …" prefix — and pairs any matched begin-phrase with the next matched end-phrase chronologically within the same source.
 
-| Begin marker | End marker | Synthesized interval |
-|---|---|---|
-| `Quarter Begins` / `First Day of Classes` / `Instruction Begins` / `Classes Begin` | `Quarter Ends` / `Last Day of Classes` / `Instruction Ends` / `Classes End` | `CLASS_IN_SESSION` (weekdaysOnly) |
-| `Semester Begins` / `Term Begins` | `Semester Ends` / `Term Ends` | `CLASS_IN_SESSION` (weekdaysOnly) |
-| `Final Examinations Begin` / `Finals Week Begins` | `Final Examinations End` / `Finals Week Ends` | `EXAM_PERIOD` |
-| `Reading Days Begin` | `Reading Days End` | `EXAM_PERIOD` (lower confidence) |
+### Slot 1: Begin verbs
 
-The UCLA academic PDF uses `Instruction Begins` / `Instruction Ends` as its primary phrasing — this is the load-bearing case for UAT, so the recognizer must include it. Single-day markers like `School Resumes` are kept in the existing keyword heuristic as `CLASS_IN_SESSION` candidates but are NOT eligible for pairing — they have no natural "end" counterpart and pairing them would generate runaway intervals.
+`begins`, `starts`, `opens`, `commences`, plus the noun-phrase forms `First Day of …` and `Beginning of …`.
+
+### Slot 2: End verbs
+
+`ends`, `concludes`, `closes`, `finishes`, plus the noun-phrase forms `Last Day of …` and `End of …`.
+
+### Slot 3: Academic-unit nouns
+
+`Quarter`, `Semester`, `Trimester`, `Term`, `Module`, `Session`, `School Year`, `Academic Year`, `School`, `Instruction`, `Classes`. Singular or plural.
+
+### Resulting interval
+
+| Pair shape | Synthesized interval |
+|---|---|
+| `<unit> <begins>` ↔ `<unit> <ends>` (where unit is one of the academic-unit nouns) | `CLASS_IN_SESSION` (weekdaysOnly) |
+| `First Day of <unit>` ↔ `Last Day of <unit>` | `CLASS_IN_SESSION` (weekdaysOnly) |
+| Mix of the two (e.g. `Quarter Begins` ↔ `Last Day of Quarter`) | `CLASS_IN_SESSION` (weekdaysOnly) |
+| Any `Final Examinations` / `Finals` / `Finals Week` / `Final Exams` begin ↔ matching end | `EXAM_PERIOD` |
+| `Reading Days` / `Reading Period` / `Study Days` begin ↔ matching end | `EXAM_PERIOD` (lower confidence) |
+| `Midterm Examinations` / `Midterms` / `Midterm Week` begin ↔ matching end | `EXAM_PERIOD` (lower confidence) |
+
+### Examples this should match without per-school code
+
+- UCLA (quarter system): `Fall Quarter Begins` ↔ `Fall Quarter Ends`; `Instruction Begins` ↔ `Instruction Ends`; `Final Examinations` ↔ `End of Final Examinations`.
+- Vanderbilt (semester system): `Fall Semester Begins` ↔ `Fall Semester Ends`; `Classes Begin` ↔ `Classes End`.
+- Stanford (quarter system): `Autumn Quarter Begins` ↔ `Autumn Quarter Ends`; `End-Quarter Period`.
+- Most K-12 districts: `First Day of School` ↔ `Last Day of School`; `School Begins` ↔ `School Ends`.
+- Independent schools / trimester systems: `Fall Trimester` ↔ `End of Fall Trimester`; `Winter Term Begins` ↔ `Winter Term Ends`.
+
+### Markers that are NOT eligible for pairing
+
+Single-day markers like `School Resumes`, `Classes Resume`, `Return from Break` are kept in the existing keyword heuristic as `CLASS_IN_SESSION` candidates but are NOT paired by the recognizer — they have no natural counterpart and pairing them would generate runaway intervals that span the entire calendar. The recognizer also skips any begin/end candidate whose `confidence < 0.6` from the heuristic layer, to avoid amplifying low-quality matches.
+
+### Confidence and conflict handling
+
+- A synthesized interval inherits the lower of its two boundary markers' confidences, capped at 0.85 (synthesized events never bulk-confirm — they always show in the review queue for parent inspection).
+- If a source produces overlapping intervals (e.g., a malformed PDF lists two `Fall Quarter Begins` rows), the recognizer keeps the earliest begin paired with the latest end and records the conflict in the candidate's `evidenceText` for parent review.
+- A begin marker without a matching end (within the same source, within 200 days) is NOT paired by the recognizer. The LLM post-pass (EXT-010) is the fallback for inferring missing boundaries — e.g., when only `Winter Quarter Begins` is listed and the next quarter's `Spring Quarter Begins` is the implicit end.
 
 Pairing is chronological within a single `CalendarSource`. If a source contains only one marker (e.g., `Winter Quarter Begins` with no explicit end), the recognizer DOES NOT synthesize a half-open interval — instead the LLM post-pass (EXT-010) is the fallback for inferring the missing boundary based on the next term's start. Boundary markers themselves remain in the candidate set so the parent can review them; the synthesized interval is an additional candidate with its own `evidenceLocator` pointing to both markers.
 
