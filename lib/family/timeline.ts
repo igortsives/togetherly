@@ -35,6 +35,24 @@ export type TimelineBlock = {
    * the end-day label MUST subtract one day. The `inclusiveEnd` helper
    * below is the single source of truth for that math. */
   allDay: boolean;
+  /** `CalendarSource.id` for the source legend filter and the
+   * per-block source-color stripe (#130). `null` for manually-created
+   * events that have no originating source. */
+  sourceId: string | null;
+  /** Deterministic HSL color string derived from `sourceId` for the
+   * legend swatch and the per-block stripe (#130). */
+  sourceColor: string;
+};
+
+/** Distinct source surfaced on the source legend (#130). */
+export type TimelineSource = {
+  sourceId: string;
+  /** Display name = parent calendar name. */
+  calendarName: string;
+  /** Provider-type label (Google Calendar / PDF upload / etc). */
+  sourceLabel: string;
+  /** Same color used for the per-block stripe. */
+  color: string;
 };
 
 export type TimelineCalendarSummary = {
@@ -82,6 +100,9 @@ export type TimelineData = {
   hasEvents: boolean;
   totalPending: number;
   totalLowConfidence: number;
+  /** All distinct sources contributing events in the visible window
+   * (#130). Drives the source legend at the top of the dashboard. */
+  sources: TimelineSource[];
 };
 
 export type TimelineEventInput = Pick<
@@ -99,6 +120,8 @@ export type TimelineEventInput = Pick<
   calendarName: string;
   /** `null` for manually-added events (no originating CalendarSource). */
   sourceType?: SourceType | null;
+  /** `CalendarSource.id`, or `null` for manually-added events. */
+  sourceId?: string | null;
 };
 
 export type TimelineCandidateCountByCalendar = Map<
@@ -213,6 +236,7 @@ export function buildTimelineBlocks(
       confidenceNumber !== null &&
       requiresParentReview(event.category, confidenceNumber);
 
+    const sourceId = event.sourceId ?? null;
     blocks.push({
       id: event.id,
       title: event.title,
@@ -226,7 +250,9 @@ export function buildTimelineBlocks(
       lowConfidence,
       calendarName: event.calendarName,
       sourceLabel: sourceTypeLabel(event.sourceType ?? null),
-      allDay: event.allDay
+      allDay: event.allDay,
+      sourceId,
+      sourceColor: sourceColor(sourceId)
     });
   }
 
@@ -275,6 +301,22 @@ export function buildTimelineWindows(
 export function inclusiveEnd(end: Date, allDay: boolean): Date {
   if (!allDay) return end;
   return new Date(end.getTime() - 1);
+}
+
+/** Deterministic HSL color derived from a source id (#130). Returns
+ * a CSS `hsl(h, s%, l%)` string. The hash is a 32-bit FNV-1a so
+ * the color is stable across server restarts but uncorrelated with
+ * the id's lexical order. `null` (manually-added events) gets a
+ * neutral gray. */
+export function sourceColor(sourceId: string | null): string {
+  if (!sourceId) return "hsl(0, 0%, 60%)";
+  let hash = 2166136261;
+  for (let i = 0; i < sourceId.length; i++) {
+    hash ^= sourceId.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const hue = Math.abs(hash) % 360;
+  return `hsl(${hue}, 62%, 48%)`;
 }
 
 /** Human-readable label for the originating source type. Issue #51. */
@@ -334,7 +376,12 @@ function toConfidenceNumber(
 }
 
 export async function getTimelineData(
-  options: { now?: Date; horizonDays?: number } = {}
+  options: {
+    now?: Date;
+    horizonDays?: number;
+    /** Per-source filter from the URL `?hide=...` param (#130). */
+    hiddenSourceIds?: Set<string>;
+  } = {}
 ): Promise<TimelineData> {
   const now = options.now ?? new Date();
   const horizon = options.horizonDays ?? DEFAULT_HORIZON_DAYS;
@@ -376,12 +423,21 @@ export async function getTimelineData(
           include: {
             eventCandidate: {
               select: {
-                calendarSource: { select: { sourceType: true } }
+                calendarSource: { select: { id: true, sourceType: true } }
               }
             }
           }
         })
       : [];
+
+    const hiddenSourceIds = options.hiddenSourceIds ?? new Set<string>();
+    const visibleEvents = events.filter((event) => {
+      const sourceId = event.eventCandidate?.calendarSource?.id ?? null;
+      // A manually-created event (sourceId === null) is never hidden
+      // by the source filter — the user has no source toggle for it.
+      if (sourceId === null) return true;
+      return !hiddenSourceIds.has(sourceId);
+    });
 
     // Map calendarId → name for provenance labels (#51). Both the
     // child calendars and the family calendars contribute.
@@ -424,11 +480,31 @@ export async function getTimelineData(
     }
 
     const eventsByCalendar = new Map<string, typeof events>();
-    for (const event of events) {
+    for (const event of visibleEvents) {
       const list = eventsByCalendar.get(event.calendarId) ?? [];
       list.push(event);
       eventsByCalendar.set(event.calendarId, list);
     }
+
+    // Build the source legend from EVERY event in the window
+    // (including hidden ones) so the parent can re-enable a hidden
+    // source from the legend. We iterate `events`, not `visibleEvents`.
+    const sourcesMap = new Map<string, TimelineSource>();
+    for (const event of events) {
+      const src = event.eventCandidate?.calendarSource;
+      if (!src) continue;
+      if (sourcesMap.has(src.id)) continue;
+      sourcesMap.set(src.id, {
+        sourceId: src.id,
+        calendarName:
+          calendarNameById.get(event.calendarId) ?? "Unknown calendar",
+        sourceLabel: sourceTypeLabel(src.sourceType),
+        color: sourceColor(src.id)
+      });
+    }
+    const sources = Array.from(sourcesMap.values()).sort((a, b) =>
+      a.calendarName.localeCompare(b.calendarName)
+    );
 
     const rows: TimelineRow[] = [];
 
@@ -450,7 +526,8 @@ export async function getTimelineData(
           calendarName:
             calendarNameById.get(event.calendarId) ?? "Unknown calendar",
           sourceType:
-            event.eventCandidate?.calendarSource?.sourceType ?? null
+            event.eventCandidate?.calendarSource?.sourceType ?? null,
+          sourceId: event.eventCandidate?.calendarSource?.id ?? null
         })),
         range
       );
@@ -501,7 +578,8 @@ export async function getTimelineData(
           calendarName:
             calendarNameById.get(event.calendarId) ?? "Unknown calendar",
           sourceType:
-            event.eventCandidate?.calendarSource?.sourceType ?? null
+            event.eventCandidate?.calendarSource?.sourceType ?? null,
+          sourceId: event.eventCandidate?.calendarSource?.id ?? null
         })),
         range
       );
@@ -572,7 +650,8 @@ export async function getTimelineData(
       hasChildren: children.length > 0,
       hasEvents: events.length > 0,
       totalPending,
-      totalLowConfidence
+      totalLowConfidence,
+      sources
     };
   } catch (error) {
     console.error("Unable to load timeline data", error);
@@ -586,7 +665,8 @@ export async function getTimelineData(
       hasChildren: false,
       hasEvents: false,
       totalPending: 0,
-      totalLowConfidence: 0
+      totalLowConfidence: 0,
+      sources: []
     };
   }
 }

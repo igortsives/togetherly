@@ -1,8 +1,10 @@
+import Link from "next/link";
 import {
   AlertTriangle,
   CalendarRange,
   HelpCircle,
-  Sparkles
+  Sparkles,
+  X
 } from "lucide-react";
 import {
   blockKindLabel,
@@ -10,7 +12,8 @@ import {
   type TimelineBlock,
   type TimelineBlockKind,
   type TimelineData,
-  type TimelineRow
+  type TimelineRow,
+  type TimelineSource
 } from "@/lib/family/timeline";
 
 const rangeFormatter = new Intl.DateTimeFormat("en-US", {
@@ -94,7 +97,13 @@ function TimelineLegend() {
   );
 }
 
-function TimelineRowView({ row }: { row: TimelineRow }) {
+function TimelineRowView({
+  row,
+  hiddenSourceIds
+}: {
+  row: TimelineRow;
+  hiddenSourceIds: Set<string>;
+}) {
   const enabledCount = row.calendarSummaries.filter((c) => c.enabled).length;
   const sourceLine =
     row.calendarSummaries.length === 0
@@ -145,13 +154,16 @@ function TimelineRowView({ row }: { row: TimelineRow }) {
           </p>
         ) : (
           row.blocks.map((block) => (
-            <div
+            <Link
               role="listitem"
               className={`block ${block.kind}${block.lowConfidence ? " low-confidence" : ""}`}
               key={block.id}
+              href={focusHref(block.id, hiddenSourceIds)}
+              scroll={false}
               style={{
                 left: `${block.leftPercent}%`,
-                width: `${block.widthPercent}%`
+                width: `${block.widthPercent}%`,
+                borderLeft: `3px solid ${block.sourceColor}`
               }}
               title={formatBlockTitle(block)}
               aria-label={`${blockKindLabel(block.kind)}${block.lowConfidence ? " (low confidence)" : ""}: ${formatBlockTitle(block)}`}
@@ -160,7 +172,7 @@ function TimelineRowView({ row }: { row: TimelineRow }) {
                 {blockSymbol(block.kind)}
               </span>
               <span className="blockLabel">{block.title}</span>
-            </div>
+            </Link>
           ))
         )}
       </div>
@@ -168,8 +180,198 @@ function TimelineRowView({ row }: { row: TimelineRow }) {
   );
 }
 
-export function Timeline({ data }: { data: TimelineData }) {
-  const { range, rows, windows } = data;
+/** Build a `?hide=...` query string toggling the given sourceId. */
+function toggleHideHref(
+  sourceId: string,
+  hiddenSourceIds: Set<string>,
+  focus: string | null
+): string {
+  const next = new Set(hiddenSourceIds);
+  if (next.has(sourceId)) next.delete(sourceId);
+  else next.add(sourceId);
+  const params = new URLSearchParams();
+  if (next.size > 0) params.set("hide", Array.from(next).join(","));
+  if (focus) params.set("focus", focus);
+  const qs = params.toString();
+  return qs ? `/?${qs}` : "/";
+}
+
+/** Build a `?focus=...` query string preserving the current hide filter. */
+function focusHref(
+  eventId: string,
+  hiddenSourceIds: Set<string>
+): string {
+  const params = new URLSearchParams();
+  if (hiddenSourceIds.size > 0)
+    params.set("hide", Array.from(hiddenSourceIds).join(","));
+  params.set("focus", eventId);
+  return `/?${params.toString()}`;
+}
+
+/** Build a `?` query string clearing focus, preserving hide. */
+function clearFocusHref(hiddenSourceIds: Set<string>): string {
+  if (hiddenSourceIds.size === 0) return "/";
+  return `/?hide=${Array.from(hiddenSourceIds).join(",")}`;
+}
+
+function SourceLegend({
+  sources,
+  hiddenSourceIds,
+  focus
+}: {
+  sources: TimelineSource[];
+  hiddenSourceIds: Set<string>;
+  focus: string | null;
+}) {
+  if (sources.length === 0) return null;
+  return (
+    <div className="sourceLegend" aria-label="Sources contributing events">
+      <span className="sourceLegendTitle">Sources</span>
+      {sources.map((source) => {
+        const hidden = hiddenSourceIds.has(source.sourceId);
+        return (
+          <Link
+            key={source.sourceId}
+            href={toggleHideHref(source.sourceId, hiddenSourceIds, focus)}
+            className={`sourceChip${hidden ? " sourceChipHidden" : ""}`}
+            aria-pressed={!hidden}
+            title={
+              hidden
+                ? `Show ${source.calendarName}`
+                : `Hide ${source.calendarName}`
+            }
+          >
+            <span
+              className="sourceSwatch"
+              style={{ background: source.color }}
+              aria-hidden="true"
+            />
+            <span className="sourceName">{source.calendarName}</span>
+            <span className="sourceProvider">{source.sourceLabel}</span>
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
+
+function FocusPanel({
+  focusedBlock,
+  siblings,
+  hiddenSourceIds
+}: {
+  focusedBlock: TimelineBlock;
+  siblings: TimelineBlock[];
+  hiddenSourceIds: Set<string>;
+}) {
+  const compactRangeFormatter = new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    timeZone: "UTC"
+  });
+  const visibleEnd = inclusiveEnd(focusedBlock.end, focusedBlock.allDay);
+  return (
+    <aside className="focusPanel" aria-label="Event details">
+      <header>
+        <div>
+          <p className="eyebrow">{focusedBlock.calendarName}</p>
+          <h3>{focusedBlock.title}</h3>
+        </div>
+        <Link
+          className="subtleButton"
+          href={clearFocusHref(hiddenSourceIds)}
+          aria-label="Close event details"
+        >
+          <X size={14} aria-hidden="true" /> Close
+        </Link>
+      </header>
+      <dl>
+        <div>
+          <dt>When</dt>
+          <dd>
+            {compactRangeFormatter.format(focusedBlock.start)}
+            {focusedBlock.start.getTime() === visibleEnd.getTime() ||
+            compactRangeFormatter.format(focusedBlock.start) ===
+              compactRangeFormatter.format(visibleEnd)
+              ? null
+              : ` – ${compactRangeFormatter.format(visibleEnd)}`}
+          </dd>
+        </div>
+        <div>
+          <dt>Source</dt>
+          <dd>
+            {focusedBlock.sourceLabel}
+            {focusedBlock.sourceId ? (
+              <>
+                {" · "}
+                <Link
+                  href={toggleHideHref(
+                    focusedBlock.sourceId,
+                    hiddenSourceIds,
+                    null
+                  )}
+                >
+                  Hide this source
+                </Link>
+              </>
+            ) : null}
+          </dd>
+        </div>
+        <div>
+          <dt>Status</dt>
+          <dd>{blockKindLabel(focusedBlock.kind)}</dd>
+        </div>
+      </dl>
+      {siblings.length > 0 ? (
+        <details className="focusSiblings">
+          <summary>
+            Other events from {focusedBlock.calendarName} this week
+            ({siblings.length})
+          </summary>
+          <ul>
+            {siblings.map((sibling) => (
+              <li key={sibling.id}>
+                <strong>{sibling.title}</strong>{" "}
+                <span>
+                  {compactRangeFormatter.format(sibling.start)}
+                  {" · "}
+                  {blockKindLabel(sibling.kind)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      ) : null}
+    </aside>
+  );
+}
+
+const SIBLING_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function Timeline({
+  data,
+  hiddenSourceIds = new Set<string>(),
+  focusedEventId = null
+}: {
+  data: TimelineData;
+  hiddenSourceIds?: Set<string>;
+  focusedEventId?: string | null;
+}) {
+  const { range, rows, windows, sources } = data;
+
+  const allBlocks = rows.flatMap((row) => row.blocks);
+  const focusedBlock = focusedEventId
+    ? allBlocks.find((block) => block.id === focusedEventId) ?? null
+    : null;
+  const siblings = focusedBlock?.sourceId
+    ? allBlocks.filter(
+        (block) =>
+          block.id !== focusedBlock.id &&
+          block.sourceId === focusedBlock.sourceId &&
+          Math.abs(block.start.getTime() - focusedBlock.start.getTime()) <=
+            SIBLING_WINDOW_MS
+      )
+    : [];
   return (
     <div className="timelineWrapper">
       <div
@@ -181,6 +383,12 @@ export function Timeline({ data }: { data: TimelineData }) {
         </span>
         <span>{range.totalDays} days</span>
       </div>
+
+      <SourceLegend
+        sources={sources}
+        hiddenSourceIds={hiddenSourceIds}
+        focus={focusedEventId}
+      />
 
       <div className="timelineScale" aria-hidden="true">
         {range.monthTicks.map((tick, index) => (
@@ -227,9 +435,21 @@ export function Timeline({ data }: { data: TimelineData }) {
         ) : null}
 
         {rows.map((row) => (
-          <TimelineRowView row={row} key={row.id} />
+          <TimelineRowView
+            row={row}
+            hiddenSourceIds={hiddenSourceIds}
+            key={row.id}
+          />
         ))}
       </div>
+
+      {focusedBlock ? (
+        <FocusPanel
+          focusedBlock={focusedBlock}
+          siblings={siblings}
+          hiddenSourceIds={hiddenSourceIds}
+        />
+      ) : null}
 
       <TimelineLegend />
     </div>
