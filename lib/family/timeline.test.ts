@@ -8,6 +8,7 @@ import {
   computeBlockGeometry,
   defaultTimelineRange,
   inclusiveEnd,
+  sourceColor,
   sourceTypeLabel,
   type TimelineEventInput
 } from "./timeline";
@@ -248,6 +249,73 @@ describe("buildTimelineWindows", () => {
   });
 });
 
+
+describe("sourceColor (#130)", () => {
+  it("returns the same color for the same source id every time", () => {
+    expect(sourceColor("src-abc-123")).toBe(sourceColor("src-abc-123"));
+  });
+
+  it("returns different colors for different source ids", () => {
+    // Not a strict guarantee (hash collisions exist) but the slot
+    // space is 360 hues so the odds of collision on two arbitrary
+    // strings are low. The two below are crafted to hash differently.
+    const a = sourceColor("source-one");
+    const b = sourceColor("source-two");
+    expect(a).not.toBe(b);
+  });
+
+  it("falls back to a neutral gray for null (manually-added events)", () => {
+    expect(sourceColor(null)).toBe("hsl(0, 0%, 60%)");
+  });
+
+  it("returns a valid HSL string", () => {
+    expect(sourceColor("anything")).toMatch(/^hsl\(\d+,\s+\d+%,\s+\d+%\)$/);
+  });
+});
+
+describe("buildTimelineBlocks source attribution (#130)", () => {
+  it("populates sourceId and sourceColor on every block", () => {
+    const range = buildRange(date("2027-01-01"), date("2027-01-31"));
+    const blocks = buildTimelineBlocks(
+      [
+        {
+          id: "e1",
+          calendarId: "cal-a",
+          title: "Some event",
+          category: EventCategory.BREAK,
+          busyStatus: BusyStatus.FREE,
+          startAt: date("2027-01-10"),
+          endAt: date("2027-01-12"),
+          allDay: true,
+          sourceConfidence: 0.95,
+          calendarName: "UCLA",
+          sourceType: SourceType.URL,
+          sourceId: "src-ucla-1"
+        },
+        {
+          id: "e2",
+          calendarId: "cal-b",
+          title: "Manually added",
+          category: EventCategory.MANUAL_BLOCK,
+          busyStatus: BusyStatus.BUSY,
+          startAt: date("2027-01-15"),
+          endAt: date("2027-01-16"),
+          allDay: true,
+          sourceConfidence: 1,
+          calendarName: "Family",
+          sourceType: null,
+          sourceId: null
+        }
+      ],
+      range
+    );
+
+    expect(blocks[0].sourceId).toBe("src-ucla-1");
+    expect(blocks[0].sourceColor).toBe(sourceColor("src-ucla-1"));
+    expect(blocks[1].sourceId).toBeNull();
+    expect(blocks[1].sourceColor).toBe(sourceColor(null));
+  });
+});
 
 describe("inclusiveEnd (#129)", () => {
   it("subtracts 1ms from all-day end so the formatted day is the last visible day", () => {

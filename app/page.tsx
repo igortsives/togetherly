@@ -35,7 +35,13 @@ import { labelSourceType } from "@/lib/sources/source-metadata";
 
 export const dynamic = "force-dynamic";
 
-type HomeSearchParams = Promise<{ feedback?: string }>;
+type HomeSearchParams = Promise<{
+  feedback?: string;
+  /** Comma-separated list of CalendarSource ids to hide from the timeline (#130). */
+  hide?: string;
+  /** Focused event id for the drilldown panel (#130). */
+  focus?: string;
+}>;
 
 const lastFetchedFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -102,8 +108,15 @@ export default async function Home({
   const userId = await getCurrentUserId();
   const resolvedParams = searchParams ? await searchParams : undefined;
   const feedbackSent = resolvedParams?.feedback === "sent";
+  const hiddenSourceIds = new Set(
+    (resolvedParams?.hide ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter((id) => id.length > 0)
+  );
+  const focusedEventId = resolvedParams?.focus ?? null;
   const dashboard = await getFamilyDashboard(userId);
-  const timelineData = await getTimelineData();
+  const timelineData = await getTimelineData({ hiddenSourceIds });
   const googleConnection = userId
     ? await getGoogleConnectionState(userId)
     : { linked: false as const };
@@ -713,7 +726,11 @@ export default async function Home({
               ) : null}
             </div>
           ) : (
-            <Timeline data={timelineData} />
+            <Timeline
+              data={timelineData}
+              hiddenSourceIds={hiddenSourceIds}
+              focusedEventId={focusedEventId}
+            />
           )}
         </section>
       </section>
