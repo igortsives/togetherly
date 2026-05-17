@@ -41,6 +41,8 @@ type HomeSearchParams = Promise<{
   hide?: string;
   /** Focused event id for the drilldown panel (#130). */
   focus?: string;
+  /** "days" (default) or "terms" — selects the timeline view mode (#132). */
+  view?: string;
 }>;
 
 const lastFetchedFormatter = new Intl.DateTimeFormat("en-US", {
@@ -115,8 +117,13 @@ export default async function Home({
       .filter((id) => id.length > 0)
   );
   const focusedEventId = resolvedParams?.focus ?? null;
+  const viewMode: "days" | "terms" =
+    resolvedParams?.view === "terms" ? "terms" : "days";
   const dashboard = await getFamilyDashboard(userId);
-  const timelineData = await getTimelineData({ hiddenSourceIds });
+  const timelineData = await getTimelineData({
+    hiddenSourceIds,
+    viewMode
+  });
   const googleConnection = userId
     ? await getGoogleConnectionState(userId)
     : { linked: false as const };
@@ -730,6 +737,7 @@ export default async function Home({
               data={timelineData}
               hiddenSourceIds={hiddenSourceIds}
               focusedEventId={focusedEventId}
+              viewMode={viewMode}
             />
           )}
         </section>
