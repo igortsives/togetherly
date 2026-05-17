@@ -5,6 +5,7 @@ import {
   extractHtmlEvents,
   type HtmlExtractionError
 } from "@/lib/sources/extractors/html";
+import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 
 export type FetchedHtml = {
   text: string;
@@ -51,12 +52,16 @@ export async function extractAndPersistHtml(args: {
     include: { calendar: true }
   });
 
-  const { candidates, errors } = extractHtmlEvents(args.htmlText, {
+  const { candidates: extracted, errors } = extractHtmlEvents(args.htmlText, {
     calendarId: source.calendarId,
     calendarSourceId: source.id,
     calendarType: source.calendar.type,
     defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
   });
+
+  // Issue #131: synthesize CLASS_IN_SESSION / EXAM_PERIOD intervals
+  // from begin/end boundary pairs found in the extracted candidates.
+  const candidates = extracted.concat(synthesizeBoundaryIntervals(extracted));
 
   const candidateData = candidates.map((candidate) => ({
     calendarId: candidate.calendarId,

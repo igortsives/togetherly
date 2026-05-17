@@ -7,6 +7,7 @@ import {
   extractPdfTextEvents,
   type PdfTextExtractionError
 } from "@/lib/sources/extractors/pdf";
+import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 
 type PdfParseFn = (
   data: Buffer | Uint8Array
@@ -86,12 +87,19 @@ export async function extractAndPersistPdf(args: {
 
   const { text } = await readPdfText(source.uploadedFileKey);
 
-  const { candidates, errors } = extractPdfTextEvents(text, {
+  const { candidates: extracted, errors } = extractPdfTextEvents(text, {
     calendarId: source.calendarId,
     calendarSourceId: source.id,
     calendarType: source.calendar.type,
     defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
   });
+
+  // Issue #131: synthesize CLASS_IN_SESSION / EXAM_PERIOD intervals
+  // from begin/end boundary pairs found in the extracted candidates.
+  // Original boundary markers stay in the candidate set so the parent
+  // sees them in the review queue alongside the inferred interval.
+  const synthesized = synthesizeBoundaryIntervals(extracted);
+  const candidates = extracted.concat(synthesized);
 
   const candidateData = candidates.map((candidate) => ({
     calendarId: candidate.calendarId,

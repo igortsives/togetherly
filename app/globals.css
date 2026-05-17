@@ -1326,6 +1326,18 @@ a {
   margin-top: 10px;
 }
 
+.longWeekendBadge {
+  display: inline-block;
+  margin: 8px 0 0 0;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #fff4e0;
+  color: #8a5a00;
+  border: 1px solid #f0d29a;
+  font-size: 0.78rem;
+  font-weight: 500;
+}
+
 .sourceLegend {
   display: flex;
   flex-wrap: wrap;

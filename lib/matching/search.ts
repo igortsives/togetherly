@@ -1,4 +1,4 @@
-import type { Prisma } from "@prisma/client";
+import { EventCategory, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { requireUserFamily } from "@/lib/family/session";
 import { freeWindowSearchInputSchema } from "@/lib/domain/schemas";
@@ -66,10 +66,19 @@ export async function runFreeWindowSearch(
     includeExamAsBusy: input.includeExamAsBusy
   });
 
+  // MAT-009: also surface SCHOOL_CLOSED events to the matcher so it
+  // can label Sat-start windows that bridge a Mon/Fri holiday as
+  // "long weekend." These events stay free in the matching — they
+  // only enrich the explanation.
+  const holidayEvents = busyInputs.filter(
+    (event) => event.category === EventCategory.SCHOOL_CLOSED
+  );
+
   const windows = findExplainedFreeWindows(
     { start: input.startDate, end: input.endDate },
     busyIntervals,
-    input.minimumDays
+    input.minimumDays,
+    holidayEvents
   );
 
   const search = await prisma.freeWindowSearch.create({
@@ -118,6 +127,8 @@ function serializeExplanation(window: ExplainedFreeWindow) {
 
   return {
     blockedBefore: serializeBlocking(window.explanation.blockedBefore),
-    blockedAfter: serializeBlocking(window.explanation.blockedAfter)
+    blockedAfter: serializeBlocking(window.explanation.blockedAfter),
+    longWeekend: window.explanation.longWeekend ?? false,
+    longWeekendHolidays: window.explanation.longWeekendHolidays ?? []
   };
 }

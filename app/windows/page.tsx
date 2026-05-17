@@ -18,6 +18,8 @@ type WindowsPageProps = {
 type ExplanationShape = {
   blockedBefore?: BlockingShape;
   blockedAfter?: BlockingShape;
+  longWeekend?: boolean;
+  longWeekendHolidays?: string[];
 };
 
 type BlockingShape = {
@@ -252,6 +254,12 @@ export default async function WindowsPage({ searchParams }: WindowsPageProps) {
                       </div>
                       <em className="windowBadge">{result.durationDays}d</em>
                     </header>
+                    {explanation.longWeekend &&
+                    (explanation.longWeekendHolidays?.length ?? 0) > 0 ? (
+                      <p className="longWeekendBadge" role="status">
+                        Long weekend (extends {explanation.longWeekendHolidays!.join(", ")})
+                      </p>
+                    ) : null}
                     <dl className="explanation">
                       <div>
                         <dt>Blocked before</dt>
