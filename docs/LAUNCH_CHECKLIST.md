@@ -20,7 +20,6 @@ These are explicitly NOT part of the private-beta product and should not be impl
 - **Native mobile app.** Mobile-responsive web only.
 - **Public self-serve launch.** Beta is invite-only.
 - **Single sign-on for families.** One parent account per household; secondary-parent share is a post-beta concept.
-- **LLM-assisted extraction.** Heuristic parsers only for beta (tracked separately in [#52](https://github.com/igortsives/togetherly/issues/52)).
 - **Provider webhooks / real-time sync.** Daily scheduled refresh is sufficient (tracked separately in [#50](https://github.com/igortsives/togetherly/issues/50) and [#56](https://github.com/igortsives/togetherly/issues/56)).
 
 If a beta user requests one of these, route the feedback through the existing in-product capture and decline politely.
@@ -41,7 +40,7 @@ In addition to format coverage, the **semantic capabilities** added in Phase 2.5
 
 - Academic calendars must surface visible `class_in_session` ranges (not just term boundary markers) — verified by importing the UCLA PDF and seeing busy shading across the term (EXT-009).
 - Weekends inside in-session ranges must show as free (MAT-010).
-- Free-window search must support natural-language input ("a week around Christmas") with an editable parse preview before running (MAT-008).
+- Free-window search must support natural-language input ("a week around Christmas") with an editable parse preview before running (MAT-008, shipped 2026-05-17 via PR #166).
 - The dashboard must show which source contributed each event via the source legend + drilldown (UI-006, UI-007).
 
 The broader corpus research (NYC Public Schools, LAUSD, Fairfax, Stanford, Michigan, TeamSnap ICS, SportsEngine ICS — issue [#11](https://github.com/igortsives/togetherly/issues/11)) is a *post-beta* expansion, not a beta blocker.
@@ -61,7 +60,7 @@ The PRD's `REV-001`–`REV-004` plus `EXT-007` (evidence locator) define what a 
   - Click the manual "Refresh" button to retry (clears the counter on success).
   - Click "Remove" to drop the source.
   - For OAuth providers: re-link the account to renew tokens.
-- A source the heuristic parser cannot extract events from receives a clear `NEEDS_REVIEW` state with no candidates produced — the parent sees "no events found" instead of silently empty.
+- A source the LLM extractor returns zero candidates from receives a clear `NEEDS_REVIEW` state with no candidates produced — the parent sees "no events found" instead of silently empty. (Heuristic HTML/PDF parsers were removed 2026-05-17 — see [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path).)
 - A school whose calendar format we don't yet support gets a "we don't support this format yet" message in the in-product feedback capture (PR #61). No automated fallback.
 - **Operator response SLA during beta**: a parent-reported failed source should be acknowledged within 1 business day. Beta is invite-only and small enough that this is achievable manually.
 

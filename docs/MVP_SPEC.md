@@ -69,7 +69,7 @@ The MVP is ready for private beta when:
 - [x] The app returns matching windows and conflict explanations. (PR #24)
 - [x] Low-confidence or unreviewed events do not silently affect default results. (Review-gated by design: only `CalendarEvent` rows feed matching; candidates stay in the review queue until confirmed.)
 
-Phase 2 (Private Beta MVP code) is complete. Phase 2.5 (Intelligent Calendar Redesign, Rounds 15-18) is the remaining work before invitation goes out — see [`ROADMAP.md`](./ROADMAP.md) Phase 2.5 and [`LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md). UAT acceptance against a real UCLA / Vanderbilt / Google / ICS source mix is the gate (Round 19).
+Phase 2 (Private Beta MVP code) is complete. Phase 2.5 (Intelligent Calendar Redesign, Rounds 15-18) shipped 2026-05-17; Round 19 (UAT) is the remaining gate before invitations go out — see [`ROADMAP.md`](./ROADMAP.md) Phase 2.5 and [`LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md). UAT acceptance against a real UCLA / Vanderbilt / Google / ICS source mix is the gate.
 
 ## Initial Private Beta Constraints
 

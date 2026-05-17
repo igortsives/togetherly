@@ -431,12 +431,13 @@ The LLM (Claude Sonnet via the Anthropic SDK) is the **only** extractor for unst
 - Export saved windows to Google / Outlook.
 - Account deletion + OAuth disconnect.
 
-### Phase 2: Intelligent MVP Beta (in progress — Rounds 15-18)
+### Phase 2: Intelligent MVP Beta (in progress — Rounds 15-19; Rounds 15-18 shipped 2026-05-17)
 
-- **Round 15 — UI foundations**: all-day end-day display fix; source legend + filter + drilldown side panel.
-- **Round 16 — Semantic redesign**: boundary-pair inference; weekend carve-out from in-session ranges; long-weekend labelling; optional term-overview view mode.
-- **Round 17 — LLM foundation**: Anthropic SDK plumbing; LLM-assisted classification of ambiguous extracted events (closes #52).
-- **Round 18 — Natural-language search**: free-text input on `/windows` that parses to structured search params via Claude, with a "show parse before running" UX.
+- **Round 15 — UI foundations** (shipped): all-day end-day display fix; source legend + filter + drilldown side panel.
+- **Round 16 — Semantic redesign** (shipped): boundary-pair inference; weekend carve-out from in-session ranges; long-weekend labelling; optional term-overview view mode.
+- **Round 17 — LLM-only HTML/PDF extraction** (shipped 2026-05-17): Anthropic SDK plumbing; Claude is the sole extractor for HTML/PDF sources; heuristic extractors deleted (closes #52, #151). See [`DECISIONS.md`](./docs/DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path).
+- **Round 17 follow-up — Calendar lifecycle management** (shipped 2026-05-17): per-Calendar cascade delete; trim events by cutoff date; per-source ingest-window floor (closes #148, #149, #150).
+- **Round 18 — Natural-language search** (shipped 2026-05-17): free-text input on `/windows` parses to structured search params via Claude with a "show parse before running" UX (closes #133).
 - **Round 19 — UAT gate**: end-to-end UAT against real UCLA / Vanderbilt / Google / ICS sources. Decision point: limited cohort release vs continue iterating.
 
 The user-acceptance bar for Phase 2 is that a parent can import a real academic calendar (UCLA PDF or similar) and get *meaningful* busy/free shading on the timeline without having to mentally invert "begins"/"ends" markers into term ranges.

@@ -11,7 +11,7 @@
 | Database | PostgreSQL |
 | ORM | Prisma |
 | File storage | Local filesystem in development; object storage in beta/prod |
-| Auth | NextAuth v5 (Auth.js) + Prisma adapter, JWT sessions, email/password (bcryptjs) + Google + Apple. Microsoft is a linkable provider for Outlook calendar access, not a sign-in option. |
+| Auth | NextAuth v5 (Auth.js) + Prisma adapter, JWT sessions, email/password (bcryptjs) + Google + Apple + Microsoft. Microsoft is both a sign-in option on `/login` (PR #119) and a linkable provider for Outlook calendar access. |
 | Calendar integrations | PDF, URL, ICS, Google Calendar, Outlook Calendar |
 | Parsing | Deterministic parsers for structured providers (ICS, Google, Microsoft Graph); LLM-only extraction for unstructured sources (HTML, PDF text) via Claude — heuristic HTML/PDF extractors were removed 2026-05-17, see [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path). |
 | Review model | Parent confirmation required before extracted events affect recommendations |
@@ -30,25 +30,27 @@ flowchart LR
   Review --> Events["Confirmed CalendarEvent rows"]
   Events --> Matcher["Free Window Engine (lib/matching)"]
   Matcher --> UI["Timeline + /windows results"]
-  Fetcher -.-> Monitor["Source Monitor — deferred (#12)"]
-  Monitor -.-> Alerts["Change Alerts — deferred (#12)"]
+  User --> NlSearch["Natural-language search (lib/matching/nl-search.ts)"]
+  NlSearch --> Matcher
+  Fetcher --> Monitor["Source Monitor (lib/sources/scheduler.ts)"]
+  Monitor --> Alerts["Stale-flag on FreeWindowSearch + dashboard chip"]
 ```
 
-Dashed nodes are not yet implemented. Source refresh fires only when a `CalendarSource` is first created; no scheduler exists yet (issue #12).
+Source refresh runs on (a) inline creation, (b) parent-triggered manual refresh, and (c) the daily Vercel cron (`vercel.json` → `/api/internal/refresh-sources`). Change detection flips `FreeWindowSearch.stale` and chips the dashboard. Provider webhooks for near-real-time alerts remain deferred (#50).
 
 ## Core Services
 
 | Service | Status | Responsibility |
 |---|---|---|
-| Auth service | Shipped (#17, PR #31) | NextAuth v5 + Prisma adapter. Configured in [`auth.ts`](../auth.ts) and gated by [`proxy.ts`](../proxy.ts). Email/password via Credentials provider with bcrypt; Google, Apple, and Microsoft as OAuth providers (Microsoft is linkable but not on the login UI). |
-| Family service | Shipped | Families, children, calendar ownership, calendar tags. Pure helpers in [`lib/family/dashboard.ts`](../lib/family/dashboard.ts); auth-coupled session resolution in [`lib/family/session.ts`](../lib/family/session.ts). |
-| Source service | Shipped (URL/ICS/PDF/Google/Outlook) | URL/PDF/ICS/provider source metadata. Provider-specific ingest orchestrators live in `lib/sources/*-ingest.ts`. |
+| Auth service | Shipped (#17, PR #31; Microsoft on /login PR #119) | NextAuth v5 + Prisma adapter. Configured in [`auth.ts`](../auth.ts) and gated by [`proxy.ts`](../proxy.ts). Email/password via Credentials provider with bcrypt; Google, Apple, and Microsoft as OAuth sign-in options on `/login`. |
+| Family service | Shipped | Families, children, calendar ownership, calendar tags. Pure helpers in [`lib/family/dashboard.ts`](../lib/family/dashboard.ts), [`lib/family/timeline.ts`](../lib/family/timeline.ts), and [`lib/family/dates.ts`](../lib/family/dates.ts) (TZ-correct YMD parsing via `parseYmdAtLocalMidnight`, PR #167). Auth-coupled session resolution in [`lib/family/session.ts`](../lib/family/session.ts). |
+| Source service | Shipped (URL/ICS/PDF/Google/Outlook) | URL/PDF/ICS/provider source metadata. Provider-specific ingest orchestrators live in `lib/sources/*-ingest.ts`. Per-source ingest-window floor (`CalendarSource.ingestWindowStart`) applied via [`lib/sources/ingest-window.ts`](../lib/sources/ingest-window.ts) inside every extractor (PR #161). |
 | Fetch service | Shipped | URL/ICS via global `fetch`; PDF via the local filesystem under `FILE_STORAGE_ROOT`; Google via Calendar API v3; Microsoft via Graph v1.0. |
 | Extract service | Shipped | Pure ICS extractor at [`lib/sources/extractors/ics.ts`](../lib/sources/extractors/ics.ts); LLM-only extractor at [`lib/sources/extractors/llm.ts`](../lib/sources/extractors/llm.ts) drives HTML and PDF ingestion; plus provider mappers (`google-ingest.ts`, `microsoft-ingest.ts`). The heuristic HTML/PDF extractors were removed 2026-05-17 ([`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path)). |
 | Normalize service | Shipped | Validation via `eventCandidateInputSchema` + classification (LLM emits the category for HTML/PDF, constrained to the `EventCategory` enum; provider-aware classification for ICS/Google/Outlook). |
 | Review service | Shipped (#8, PR #23) | `/review` route + `lib/review/`. Pure helpers test-covered; server actions in `app/review/actions.ts`. |
-| Matching service | Shipped (#9, PR #24) | `lib/matching/free-windows.ts` math + `lib/matching/event-busy.ts` interval mapper + `lib/matching/search.ts` server orchestration. |
-| Alert service | Deferred (#12) | Source-change detection and saved-window invalidation. Not yet implemented. |
+| Matching service | Shipped (#9, PR #24; NL search PR #166) | `lib/matching/free-windows.ts` math + `lib/matching/event-busy.ts` interval mapper + `lib/matching/search.ts` server orchestration + `lib/matching/nl-search.ts` Claude-driven natural-language query parser (Round 18). |
+| Alert service | Shipped (#12, #41, PRs #36 / #99) | `refreshSource` detects candidate-set changes and flips `FreeWindowSearch.stale`; `/windows` surfaces a re-run banner. Provider webhooks for near-real-time alerts remain deferred (#50). |
 
 ## Authentication
 
@@ -59,7 +61,7 @@ Implemented in [`auth.ts`](../auth.ts) using `next-auth@^5.0.0-beta` with `@auth
   - **Credentials** — always on. Reads `User.passwordHash` and verifies with `bcryptjs.compare`. Login schema in [`lib/auth/schemas.ts`](../lib/auth/schemas.ts).
   - **Google** — conditional on `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`. Scopes: `openid email profile https://www.googleapis.com/auth/calendar.readonly`. `access_type=offline`, `prompt=consent`, `allowDangerousEmailAccountLinking=true`.
   - **Apple** — conditional on `APPLE_CLIENT_ID`/`APPLE_CLIENT_SECRET`. Sign-in only; Apple Calendar API not used.
-  - **Microsoft Entra ID** — conditional on `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET`. Issuer `/common/v2.0` (work + personal accounts). Scopes: `openid email profile offline_access Calendars.Read`. `prompt=consent`, `allowDangerousEmailAccountLinking=true`. Linkable provider, not surfaced on `/login`.
+  - **Microsoft Entra ID** — conditional on `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET`. Issuer `/common/v2.0` (work + personal accounts). Scopes: `openid email profile offline_access Calendars.ReadWrite`. `prompt=consent`, **no** `allowDangerousEmailAccountLinking` (PR #114, #76) — auto-link-by-email is a takeover vector for personal MSAs where Microsoft does not verify the email at the directory level. Surfaced on `/login` as "Continue with Microsoft" (PR #119) AND as a linkable provider for Outlook calendar access.
 - **Proxy:** [`proxy.ts`](../proxy.ts) gates every route except `/login`, `/register`, `/api/auth/*`, `/_next/*`, and `/favicon.ico`. Unauthenticated requests redirect to `/login?callbackUrl=...`. (Renamed from `middleware.ts` for the Next 16 deprecation — same file convention, just the new name; matcher syntax is unchanged.)
 - **Family resolution seam:** `requireUserFamily()` in [`lib/family/session.ts`](../lib/family/session.ts) is called by every server action and page reader. It lazily creates a `Family` row owned by the signed-in user if one doesn't exist.
 - **Why the file split:** `dashboard.ts` is pure (no `@/auth` import) so the helper tests run under vitest without `server.deps.inline` transformation. `session.ts` is the auth-coupled wrapper.
@@ -102,7 +104,7 @@ app/
   login/, register/                 Auth surfaces (PR #31)
   review/                           Review queue UI + actions (PR #23)
   windows/                          Free-window search + results (PR #24)
-  actions.ts                        Top-level server actions (sources, search, sign-out, OAuth link, etc.)
+  actions.ts                        Top-level server actions: source create/refresh/delete, search, sign-out, OAuth link/disconnect, calendar lifecycle (deleteCalendarAction / trimCalendarEventsAction / updateSourceIngestWindowAction, PR #161), natural-language search parse (parseNaturalLanguageSearchAction, PR #166)
   page.tsx                          Dashboard
   globals.css                       Utility CSS (Stitch design integration is #32)
 auth.ts                             NextAuth config (root, imported by proxy + handlers)
@@ -114,8 +116,9 @@ lib/
   family/
     dashboard.ts                    Pure family-resolution helpers
     session.ts                      auth() wrapper, requireUserFamily()
-    timeline.ts                     Dashboard timeline data shaping
-  matching/                         free-windows + event-busy + search orchestrator
+    timeline.ts                     Dashboard timeline data shaping (MIN_TERM_BLOCK_DAYS exported, PR #167)
+    dates.ts                        TZ-correct YMD parsing (parseYmdAtLocalMidnight, PR #167)
+  matching/                         free-windows + event-busy + search orchestrator + nl-search.ts (Claude-driven NL query parser, PR #166)
   review/                           Candidate → CalendarEvent helpers + queue reader
   llm/
     anthropic.ts                    Claude Sonnet wrapper with structured-output validation
@@ -124,7 +127,9 @@ lib/
     google.ts, google-ingest.ts     Google Calendar API client + orchestrator
     microsoft.ts, microsoft-ingest.ts Outlook API client + orchestrator
     ics-ingest.ts, html-ingest.ts, pdf-ingest.ts
-    source-metadata.ts, storage.ts  Source-type metadata + local PDF blob store
+    ingest-window.ts                Per-source ingest-window floor (PR #161)
+    scheduler.ts, refresh.ts        Daily refresh + per-account locking + change detection
+    source-metadata.ts, storage.ts  Source-type metadata + local PDF blob store (refcounted unlink, PR #167)
 prisma/
   schema.prisma                     User/Account/Session + Family/Child/Calendar/CalendarSource/EventCandidate/CalendarEvent/FreeWindowSearch/FreeWindowResult
   migrations/
@@ -138,7 +143,7 @@ docs/
 
 ## Runtime Flow
 
-1. Parent signs in via `/login` (credentials, Google, or Apple) or registers at `/register`. Middleware redirects all other routes to `/login` when unauthenticated.
+1. Parent signs in via `/login` (credentials, Google, Apple, or Microsoft) or registers at `/register`. Middleware redirects all other routes to `/login` when unauthenticated.
 2. `requireUserFamily()` resolves (or lazily creates) the parent's `Family` row on first dashboard load.
 3. Parent creates children and calendars.
 4. Parent adds a calendar source: URL/ICS/PDF directly, or links a Google/Microsoft account and picks one of their calendars.

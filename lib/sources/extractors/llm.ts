@@ -158,9 +158,11 @@ export async function extractWithLlm(
     });
   } catch (error) {
     if (error instanceof LlmExtractionError) {
-      console.warn("LLM extractor failed; falling back to heuristic", {
-        reason: error.message
-      });
+      // Surfaces to the calling ingest module which stamps the
+      // CalendarSource with `refreshStatus = FAILED`. There is no
+      // heuristic fallback path since PR #157 — the parent retries
+      // or removes the source.
+      console.warn("LLM extractor failed", { reason: error.message });
       return { candidates: [], fallbackReason: error.message };
     }
     throw error;

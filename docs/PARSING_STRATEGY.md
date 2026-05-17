@@ -10,8 +10,9 @@ Two extraction families, deliberately disjoint:
 After the extractor returns candidates:
 
 3. **Boundary-pair inference** — recognize `Quarter/Semester/Term Begins/Ends`, `First/Last Day of Classes`, `Final Examinations Begin/End` markers and synthesize `class_in_session` / `exam_period` interval candidates between them (EXT-009, Round 16). Runs on whichever extractor produced the candidates; the recognizer is agnostic to the path.
-4. **Schema validation** for all extracted events (Zod). The canonical shape is `eventCandidateInputSchema` in `lib/domain/schemas.ts`. Every extractor must produce rows that satisfy it; output that fails validation is rejected, never persisted.
-5. **Parent review** before extracted events affect recommendations.
+4. **Per-source ingest-window floor** — if `CalendarSource.ingestWindowStart` is set, [`lib/sources/ingest-window.ts`](../lib/sources/ingest-window.ts)'s `applyIngestWindow` drops candidates whose `startAt` is strictly before the floor (PR #161, closes [#150](https://github.com/igortsives/togetherly/issues/150)). Applied AFTER boundary synthesis so synthesized intervals are also filtered. Wired into all five ingest modules (ICS / HTML / PDF / Google / Outlook).
+5. **Schema validation** for all extracted events (Zod). The canonical shape is `eventCandidateInputSchema` in `lib/domain/schemas.ts`. Every extractor must produce rows that satisfy it; output that fails validation is rejected, never persisted.
+6. **Parent review** before extracted events affect recommendations.
 
 ## Source Pipeline
 
@@ -29,7 +30,8 @@ flowchart TD
   Provider --> Schema
   LLM --> Schema
   Schema --> Boundary["Boundary-pair recognizer (post-pass)"]
-  Boundary --> Review["Parent review queue"]
+  Boundary --> Floor["Ingest-window floor (per-source, optional)"]
+  Floor --> Review["Parent review queue"]
 ```
 
 ## Parser Types
