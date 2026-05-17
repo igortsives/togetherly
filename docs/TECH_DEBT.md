@@ -7,15 +7,10 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 ### Security / privacy (must be resolved before public launch)
 
 - [#49](https://github.com/igortsives/togetherly/issues/49) — Push family-ownership check into refreshSource() *(P2)*
-- [#77](https://github.com/igortsives/togetherly/issues/77) — Apple sign-in lacks explicit gate in signIn callback *(P2)*
 
 ### Intelligent Calendar Redesign (Phase 2.5 — beta gate)
 
-- [#129](https://github.com/igortsives/togetherly/issues/129) — All-day events show end as the day after start in tooltips and search results *(P1, Private Beta — Round 15)*
-- [#130](https://github.com/igortsives/togetherly/issues/130) — Source-aware unified view: legend, per-source filters, drilldown *(P1, Private Beta — Round 15)*
-- [#131](https://github.com/igortsives/togetherly/issues/131) — Infer in-session ranges from academic-calendar boundary pairs *(P1, Private Beta — Round 16)*
-- [#132](https://github.com/igortsives/togetherly/issues/132) — Term-overview view mode *(P2 — Round 16)*
-- [#133](https://github.com/igortsives/togetherly/issues/133) — Natural-language search front-door on /windows *(P1, Private Beta — Round 18)*
+All five Phase 2.5 issues shipped 2026-05-17 — see "Resolved" section below for #129, #130, #131, #132, #133, plus the calendar-lifecycle follow-ups (#148, #149, #150) and the UAT-prep batch (#162, #147, #82, #163).
 
 ### Source refresh + change alerts (post-PR #36 follow-ups)
 
@@ -109,3 +104,11 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 - ~~Launch readiness checklist~~ — closes [#15](https://github.com/igortsives/togetherly/issues/15); [`docs/LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md) lays out the explicit out-of-scope items, the minimum parser/source coverage required to invite a family, the accuracy + review requirements, the support policy for failed sources, and a pre-launch ops checklist. Reviewed before each cohort expansion.
 - ~~LLM-primary extraction for HTML and PDF~~ — closes [#52](https://github.com/igortsives/togetherly/issues/52) and [#151](https://github.com/igortsives/togetherly/issues/151); [`lib/llm/anthropic.ts`](../lib/llm/anthropic.ts) wraps the Anthropic SDK with Zod-validated structured output; [`lib/sources/extractors/llm.ts`](../lib/sources/extractors/llm.ts) is the HTML/PDF extractor. Output flows through `eventCandidateInputSchema` so the boundary-pair recognizer, matching engine, and UI are agnostic to the path.
 - ~~Heuristic HTML/PDF extractors removed~~ — 2026-05-17 (rationale in [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path)); deleted `lib/sources/extractors/html.ts` + `pdf.ts` and their tests (~1,500 LOC). `ANTHROPIC_API_KEY` is now **required** for HTML/PDF source ingestion. ICS / Google / Outlook ingest paths unchanged. New typed errors `HtmlExtractionUnavailableError` / `PdfExtractionUnavailableError` surface to the dashboard's refresh-failure pill when the key is unset.
+- ~~Calendar lifecycle management~~ — closes [#148](https://github.com/igortsives/togetherly/issues/148), [#149](https://github.com/igortsives/togetherly/issues/149), [#150](https://github.com/igortsives/togetherly/issues/150). PR #161 added `deleteCalendarAction` (cascade), `trimCalendarEventsAction` (delete-before / delete-after a cutoff), and `updateSourceIngestWindowAction` plus the new `CalendarSource.ingestWindowStart` column threaded through all 5 ingest modules via [`lib/sources/ingest-window.ts`](../lib/sources/ingest-window.ts).
+- ~~Natural-language search front-door~~ — closes [#133](https://github.com/igortsives/togetherly/issues/133); PR #166 added [`lib/matching/nl-search.ts`](../lib/matching/nl-search.ts) and `parseNaturalLanguageSearchAction`. Free-text query on `/windows` parses to structured search params via Claude with a "show parse before running" UX. Gracefully no-ops when `ANTHROPIC_API_KEY` is unset.
+- ~~TZ-correct YMD parsing for cutoffs and ingest-window floors~~ — closes [#162](https://github.com/igortsives/togetherly/issues/162); PR #167 added [`lib/family/dates.ts`](../lib/family/dates.ts) (`parseYmdAtLocalMidnight`). Cutoffs and floors now resolve to midnight in the family's IANA timezone instead of UTC midnight. Threaded through 5 callers.
+- ~~Term-overview 5-day filter hint~~ — closes [#147](https://github.com/igortsives/togetherly/issues/147); PR #167 surfaces "Term overview shows blocks 5 days or longer" under the source legend when `viewMode === "terms"`.
+- ~~Bulk-confirm disabled-on-pending~~ — closes [#82](https://github.com/igortsives/togetherly/issues/82); PR #167 wraps the submit button in `BulkConfirmSubmit.tsx` using `useFormStatus()` so a UAT-scale confirm batch can't double-submit.
+- ~~Refcount PDF blobs before unlink~~ — closes [#163](https://github.com/igortsives/togetherly/issues/163); PR #167 adds an `unlinkUploadedFileIfOrphaned` helper that counts remaining `CalendarSource` rows pointing at the content-addressed blob before calling `deleteStoredUpload`. Two sources that uploaded the same PDF no longer leave a dangling reference when one is removed.
+- ~~Apple sign-in gate~~ — closed [#77](https://github.com/igortsives/togetherly/issues/77) as not-applicable 2026-05-17; Apple is configured **without** `allowDangerousEmailAccountLinking`, so the takeover-by-email vector that motivated the issue does not exist.
+- ~~Vercel cron registration~~ — closes [#101](https://github.com/igortsives/togetherly/issues/101); `vercel.json` already registered the daily refresh at 04:00 UTC via PR #126.

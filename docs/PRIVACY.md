@@ -15,7 +15,7 @@ The tables below catalog every field we currently store, pulled from [`prisma/sc
 | `id` | Required | Primary key. |
 | `email` | Required | Login identity; password reset; OAuth account linking. |
 | `name` | Optional | Display only; never required for sign-up. |
-| `authProvider` | Required | `EMAIL`, `GOOGLE`, or `APPLE` per [`MVP_SPEC.md`](./MVP_SPEC.md). |
+| `authProvider` | Required | `EMAIL`, `GOOGLE`, `APPLE`, or `MICROSOFT` per [`MVP_SPEC.md`](./MVP_SPEC.md). |
 | `createdAt` / `updatedAt` | Required | Audit timestamps. |
 
 Not collected: phone number, mailing address, marketing preferences, demographic data.
@@ -201,7 +201,7 @@ Rules:
 - MUST NOT be sent: parent email or name (only nicknames), family ID, user ID, OAuth tokens, refresh tokens, uploaded private PDFs that are not themselves public source material, free-window search history beyond the current query, imported event titles unrelated to the immediate query.
 - Source URLs may be sent because they are public.
 - Outputs are validated against Zod schemas before being applied. Schema-invalid candidates are dropped defensively (`eventCandidateInputSchema.parse(...)` failures are skipped, not crashed). A total LLM failure surfaces to the source's `refreshStatus=FAILED` chip; the parent retries or removes the source.
-- LLM logs record only `{ kind, candidateCount, latencyMs, success }`.
+- LLM logs record only `{ kind, candidateCount, latencyMs, success }`. Telemetry `kind` values today: `extract-<calendar-type>` (e.g. `extract-academic`, `extract-sport`) for HTML/PDF ingestion (EXT-010) and `nl-search-parse` for the natural-language search parse (MAT-008).
 - Vendor selection (Claude) and the no-training posture are documented in [`DECISIONS.md`](./DECISIONS.md). The Anthropic API's standard data-handling: no training on API inputs/outputs by default.
 
 ## 6. Logging + Telemetry Boundary

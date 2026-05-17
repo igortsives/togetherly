@@ -6,7 +6,7 @@ Togetherly helps families find overlapping free time across children's school, u
 
 - Platform: responsive web app first, native mobile later.
 - Surface: private beta.
-- Auth: email/password, Google login, Login with Apple, plus Microsoft account linking for Outlook Calendar.
+- Auth: email/password, Google login, Login with Apple, Continue with Microsoft. Microsoft is both a sign-in option on `/login` and a linkable provider for Outlook Calendar access.
 - Data: PostgreSQL.
 - Calendar imports: PDF, URL, ICS, Google Calendar, and Outlook Calendar.
 - Parsing: deterministic parsers for structured providers (ICS, Google, Outlook); Claude (Anthropic) is the sole extractor for unstructured sources (HTML, PDF). `ANTHROPIC_API_KEY` is required for HTML/PDF ingestion — see [`docs/DECISIONS.md`](docs/DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path).
@@ -33,7 +33,7 @@ Sign in at `/login` with the seeded demo user (`beta-parent@togetherly.local` / 
 | `/` | Family setup, sources panel (URL/ICS/PDF/Google/Outlook), per-child timeline |
 | `/login`, `/register` | Auth surfaces (gated by [`proxy.ts`](./proxy.ts)) |
 | `/review` | Confirm / edit / reject extracted candidates before they affect matching |
-| `/windows` | Free-window search form and results with conflict explanations |
+| `/windows` | Free-window search (structured form + natural-language input via Claude) and results with conflict explanations |
 
 ## Validation
 
