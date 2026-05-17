@@ -3,10 +3,15 @@ import path from "node:path";
 import { ParserType, ReviewStatus } from "@prisma/client";
 import pdfParseModule from "pdf-parse";
 import { prisma } from "@/lib/db/prisma";
+import type { EventCandidate } from "@/lib/domain/schemas";
 import {
   extractPdfTextEvents,
   type PdfTextExtractionError
 } from "@/lib/sources/extractors/pdf";
+import {
+  extractWithLlm,
+  shouldUseLlmExtractor
+} from "@/lib/sources/extractors/llm";
 import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 
 type PdfParseFn = (
@@ -87,17 +92,43 @@ export async function extractAndPersistPdf(args: {
 
   const { text } = await readPdfText(source.uploadedFileKey);
 
-  const { candidates: extracted, errors } = extractPdfTextEvents(text, {
-    calendarId: source.calendarId,
-    calendarSourceId: source.id,
-    calendarType: source.calendar.type,
-    defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
-  });
+  // Round 17 / #52: try the LLM extractor first when configured.
+  // The heuristic stays as a fallback for unconfigured deploys.
+  let extracted: EventCandidate[] = [];
+  let errors: PdfTextExtractionError[] = [];
+
+  if (shouldUseLlmExtractor()) {
+    const llm = await extractWithLlm({
+      calendarId: source.calendarId,
+      calendarSourceId: source.id,
+      calendarType: source.calendar.type,
+      defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles",
+      sourceText: text,
+      sourceLabel: source.uploadedFileKey ?? undefined
+    });
+    if (llm.candidates.length > 0) {
+      extracted = llm.candidates;
+    } else {
+      console.info(
+        "LLM extractor produced no candidates; falling back to heuristic",
+        { sourceId: source.id, reason: llm.fallbackReason }
+      );
+    }
+  }
+
+  if (extracted.length === 0) {
+    const heuristic = extractPdfTextEvents(text, {
+      calendarId: source.calendarId,
+      calendarSourceId: source.id,
+      calendarType: source.calendar.type,
+      defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
+    });
+    extracted = heuristic.candidates;
+    errors = heuristic.errors;
+  }
 
   // Issue #131: synthesize CLASS_IN_SESSION / EXAM_PERIOD intervals
   // from begin/end boundary pairs found in the extracted candidates.
-  // Original boundary markers stay in the candidate set so the parent
-  // sees them in the review queue alongside the inferred interval.
   const synthesized = synthesizeBoundaryIntervals(extracted);
   const candidates = extracted.concat(synthesized);
 

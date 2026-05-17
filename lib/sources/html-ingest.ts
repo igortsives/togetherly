@@ -1,10 +1,15 @@
 import { createHash } from "node:crypto";
 import { ParserType, ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import type { EventCandidate } from "@/lib/domain/schemas";
 import {
   extractHtmlEvents,
   type HtmlExtractionError
 } from "@/lib/sources/extractors/html";
+import {
+  extractWithLlm,
+  shouldUseLlmExtractor
+} from "@/lib/sources/extractors/llm";
 import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 
 export type FetchedHtml = {
@@ -52,15 +57,48 @@ export async function extractAndPersistHtml(args: {
     include: { calendar: true }
   });
 
-  const { candidates: extracted, errors } = extractHtmlEvents(args.htmlText, {
-    calendarId: source.calendarId,
-    calendarSourceId: source.id,
-    calendarType: source.calendar.type,
-    defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
-  });
+  // Round 17 / #52: try the LLM extractor first when configured.
+  // It handles arbitrary HTML structures (headerless tables, attribute-
+  // encoded dates, grid layouts) that the heuristic walker doesn't.
+  // The heuristic stays as a fallback for unconfigured deploys (CI,
+  // local dev without a key) and for LLM failures.
+  let extracted: EventCandidate[] = [];
+  let errors: HtmlExtractionError[] = [];
+
+  if (shouldUseLlmExtractor()) {
+    const llm = await extractWithLlm({
+      calendarId: source.calendarId,
+      calendarSourceId: source.id,
+      calendarType: source.calendar.type,
+      defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles",
+      sourceText: args.htmlText,
+      sourceLabel: source.sourceUrl ?? undefined
+    });
+    if (llm.candidates.length > 0) {
+      extracted = llm.candidates;
+    } else {
+      console.info(
+        "LLM extractor produced no candidates; falling back to heuristic",
+        { sourceId: source.id, reason: llm.fallbackReason }
+      );
+    }
+  }
+
+  if (extracted.length === 0) {
+    const heuristic = extractHtmlEvents(args.htmlText, {
+      calendarId: source.calendarId,
+      calendarSourceId: source.id,
+      calendarType: source.calendar.type,
+      defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
+    });
+    extracted = heuristic.candidates;
+    errors = heuristic.errors;
+  }
 
   // Issue #131: synthesize CLASS_IN_SESSION / EXAM_PERIOD intervals
   // from begin/end boundary pairs found in the extracted candidates.
+  // Runs on whichever extractor produced the candidate set — the
+  // boundary recognizer is agnostic to the extractor.
   const candidates = extracted.concat(synthesizeBoundaryIntervals(extracted));
 
   const candidateData = candidates.map((candidate) => ({

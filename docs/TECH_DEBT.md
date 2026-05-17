@@ -15,7 +15,6 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 - [#130](https://github.com/igortsives/togetherly/issues/130) — Source-aware unified view: legend, per-source filters, drilldown *(P1, Private Beta — Round 15)*
 - [#131](https://github.com/igortsives/togetherly/issues/131) — Infer in-session ranges from academic-calendar boundary pairs *(P1, Private Beta — Round 16)*
 - [#132](https://github.com/igortsives/togetherly/issues/132) — Term-overview view mode *(P2 — Round 16)*
-- [#52](https://github.com/igortsives/togetherly/issues/52) — LLM-assisted extraction for ambiguous HTML/PDF events *(P1, Private Beta — Round 17)*
 - [#133](https://github.com/igortsives/togetherly/issues/133) — Natural-language search front-door on /windows *(P1, Private Beta — Round 18)*
 
 ### Source refresh + change alerts (post-PR #36 follow-ups)
@@ -31,7 +30,6 @@ This page is a **thin index** into GitHub Issues. The substantive tracking lives
 ### Process / tooling
 
 - [#47](https://github.com/igortsives/togetherly/issues/47) — GitHub Actions workflow for lint/typecheck/test/build *(P1, Private Beta)*
-- [#52](https://github.com/igortsives/togetherly/issues/52) — LLM-assisted extraction for ambiguous HTML/PDF events *(P2)*
 - [#53](https://github.com/igortsives/togetherly/issues/53) — Add Playwright E2E test setup *(P2)*
 
 ### Partial / continuing work
@@ -109,3 +107,4 @@ Sync windows are hard-coded to 30 days back / 365 days forward in each `*-ingest
 - ~~Per-source scheduler backoff~~ — closes [#100](https://github.com/igortsives/togetherly/issues/100); `CalendarSource.failedAttempts INT` added (migration `20260516050000_source_failed_attempts`); `refreshSource` increments on failure, resets to 0 on success; the scheduler skips sources where `failedAttempts >= MAX_FAILED_ATTEMPTS = 10`. Manual refresh still works and clears the counter on next success.
 - ~~Widen Microsoft dead-grant detection~~ — closes [#95](https://github.com/igortsives/togetherly/issues/95); `isInvalidGrant` in [`lib/sources/microsoft.ts`](../lib/sources/microsoft.ts) now matches `interaction_required` / `consent_required` plus `error_codes` containing `70008`, `50173`, or `700082` — all paths that surface "refresh token dead, re-link required."
 - ~~Launch readiness checklist~~ — closes [#15](https://github.com/igortsives/togetherly/issues/15); [`docs/LAUNCH_CHECKLIST.md`](./LAUNCH_CHECKLIST.md) lays out the explicit out-of-scope items, the minimum parser/source coverage required to invite a family, the accuracy + review requirements, the support policy for failed sources, and a pre-launch ops checklist. Reviewed before each cohort expansion.
+- ~~LLM-primary extraction for HTML and PDF~~ — closes [#52](https://github.com/igortsives/togetherly/issues/52) and [#151](https://github.com/igortsives/togetherly/issues/151); [`lib/llm/anthropic.ts`](../lib/llm/anthropic.ts) wraps the Anthropic SDK with Zod-validated structured output; [`lib/sources/extractors/llm.ts`](../lib/sources/extractors/llm.ts) becomes the primary HTML/PDF extractor when `ANTHROPIC_API_KEY` is set. Heuristic extractors stay as the fallback for unconfigured deploys / LLM failures. Output flows through the same `eventCandidateInputSchema` so the boundary-pair recognizer, matching engine, and UI are agnostic to the path.
