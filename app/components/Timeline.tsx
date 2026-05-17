@@ -216,8 +216,8 @@ export function Timeline({ data }: { data: TimelineData }) {
                     left: `${window.leftPercent}%`,
                     width: `${window.widthPercent}%`
                   }}
-                  title={`Free window: ${formatRange(window.start, window.end)} (${window.durationDays} days)`}
-                  aria-label={`Recommended free window ${formatRange(window.start, window.end)}, ${window.durationDays} days`}
+                  title={`Free window: ${formatRange(window.start, inclusiveEnd(window.end, true))} (${window.durationDays} days)`}
+                  aria-label={`Recommended free window ${formatRange(window.start, inclusiveEnd(window.end, true))}, ${window.durationDays} days`}
                 >
                   <span>{window.durationDays}d</span>
                 </div>
