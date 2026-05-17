@@ -3,16 +3,11 @@ import path from "node:path";
 import { ParserType, ReviewStatus } from "@prisma/client";
 import pdfParseModule from "pdf-parse";
 import { prisma } from "@/lib/db/prisma";
-import type { EventCandidate } from "@/lib/domain/schemas";
-import {
-  extractPdfTextEvents,
-  type PdfTextExtractionError
-} from "@/lib/sources/extractors/pdf";
+import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 import {
   extractWithLlm,
   shouldUseLlmExtractor
 } from "@/lib/sources/extractors/llm";
-import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 
 type PdfParseFn = (
   data: Buffer | Uint8Array
@@ -34,8 +29,22 @@ export type PdfReadResult = {
 
 export type PdfIngestResult = {
   candidatesInserted: number;
-  errors: PdfTextExtractionError[];
 };
+
+/**
+ * Custom error thrown when a PDF source is being refreshed but the
+ * LLM extractor is not configured (`ANTHROPIC_API_KEY` unset). Decision
+ * recorded in `docs/DECISIONS.md` (2026-05-17 — remove heuristic
+ * fallback). Surfaces to the dashboard as `refreshStatus = FAILED`.
+ */
+export class PdfExtractionUnavailableError extends Error {
+  constructor() {
+    super(
+      "AI extraction is not configured. PDF source ingestion requires ANTHROPIC_API_KEY. Contact the administrator."
+    );
+    this.name = "PdfExtractionUnavailableError";
+  }
+}
 
 export async function readPdfText(uploadedFileKey: string): Promise<PdfReadResult> {
   if (!uploadedFileKey) {
@@ -90,42 +99,24 @@ export async function extractAndPersistPdf(args: {
     throw new Error("PDF source is missing an uploaded file key.");
   }
 
+  // Round 17 follow-up (2026-05-17): the LLM is the only PDF extractor.
+  // See `docs/DECISIONS.md` for rationale.
+  if (!shouldUseLlmExtractor()) {
+    throw new PdfExtractionUnavailableError();
+  }
+
   const { text } = await readPdfText(source.uploadedFileKey);
 
-  // Round 17 / #52: try the LLM extractor first when configured.
-  // The heuristic stays as a fallback for unconfigured deploys.
-  let extracted: EventCandidate[] = [];
-  let errors: PdfTextExtractionError[] = [];
+  const llm = await extractWithLlm({
+    calendarId: source.calendarId,
+    calendarSourceId: source.id,
+    calendarType: source.calendar.type,
+    defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles",
+    sourceText: text,
+    sourceLabel: source.uploadedFileKey ?? undefined
+  });
 
-  if (shouldUseLlmExtractor()) {
-    const llm = await extractWithLlm({
-      calendarId: source.calendarId,
-      calendarSourceId: source.id,
-      calendarType: source.calendar.type,
-      defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles",
-      sourceText: text,
-      sourceLabel: source.uploadedFileKey ?? undefined
-    });
-    if (llm.candidates.length > 0) {
-      extracted = llm.candidates;
-    } else {
-      console.info(
-        "LLM extractor produced no candidates; falling back to heuristic",
-        { sourceId: source.id, reason: llm.fallbackReason }
-      );
-    }
-  }
-
-  if (extracted.length === 0) {
-    const heuristic = extractPdfTextEvents(text, {
-      calendarId: source.calendarId,
-      calendarSourceId: source.id,
-      calendarType: source.calendar.type,
-      defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
-    });
-    extracted = heuristic.candidates;
-    errors = heuristic.errors;
-  }
+  const extracted = llm.candidates;
 
   // Issue #131: synthesize CLASS_IN_SESSION / EXAM_PERIOD intervals
   // from begin/end boundary pairs found in the extracted candidates.
@@ -166,6 +157,5 @@ export async function extractAndPersistPdf(args: {
     })
   ]);
 
-  return { candidatesInserted: candidates.length, errors };
+  return { candidatesInserted: candidates.length };
 }
-

@@ -2,14 +2,16 @@
 
 ## Strategy
 
-Use a layered parsing approach:
+Two extraction families, deliberately disjoint:
 
-1. **Provider APIs (ICS, Google Calendar, Outlook Graph)** — structured-data sources are extracted via their native APIs. No LLM needed.
-2. **LLM-primary extraction for HTML and PDF** — when `ANTHROPIC_API_KEY` is configured, Claude Sonnet is the **primary** extractor for unstructured sources. It handles arbitrary HTML structures (headerless tables, attribute-encoded dates, grid layouts, single-page-app fragments) that no fixed-pattern heuristic could scale to. Output is structured-output Zod-validated; failures fall through to the heuristic extractor (Round 17).
-3. **Heuristic HTML / PDF extractors as fallback** — preserved for unconfigured deploys (CI, local dev without an API key) and for LLM failures (network, rate limit, content-policy refusal). They handle the well-structured 60% of sources at zero cost; the LLM handles the long tail.
-4. **Boundary-pair inference** — recognize `Quarter/Semester/Term Begins/Ends`, `First/Last Day of Classes`, `Final Examinations Begin/End` markers and synthesize `class_in_session` / `exam_period` interval candidates between them (EXT-009, Round 16). Runs on whichever extractor produced the candidate set — the recognizer is agnostic to the path.
-5. **Schema validation** for all extracted events (Zod). The canonical shape is `eventCandidateInputSchema` in `lib/domain/schemas.ts`. Every extractor must produce rows that satisfy it; output that fails validation is rejected, never persisted.
-6. **Parent review** before extracted events affect recommendations.
+1. **Provider APIs (ICS, Google Calendar, Outlook Graph)** — structured-data sources extracted via their native APIs. No LLM required, no LLM used. ICS / Google / Outlook ingest paths are unaffected by Anthropic availability.
+2. **LLM-only extraction for HTML and PDF** — Claude Sonnet (via `@anthropic-ai/sdk`) is the **single** extractor for unstructured text sources. Heuristic regex/keyword extractors were deleted on 2026-05-17 (see [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path)). Output is structured-output Zod-validated. If `ANTHROPIC_API_KEY` is unset, HTML / PDF ingest fails fast with `HtmlExtractionUnavailableError` / `PdfExtractionUnavailableError`; the dashboard's refresh-failure pill surfaces it.
+
+After the extractor returns candidates:
+
+3. **Boundary-pair inference** — recognize `Quarter/Semester/Term Begins/Ends`, `First/Last Day of Classes`, `Final Examinations Begin/End` markers and synthesize `class_in_session` / `exam_period` interval candidates between them (EXT-009, Round 16). Runs on whichever extractor produced the candidates; the recognizer is agnostic to the path.
+4. **Schema validation** for all extracted events (Zod). The canonical shape is `eventCandidateInputSchema` in `lib/domain/schemas.ts`. Every extractor must produce rows that satisfy it; output that fails validation is rejected, never persisted.
+5. **Parent review** before extracted events affect recommendations.
 
 ## Source Pipeline
 
@@ -17,17 +19,17 @@ Use a layered parsing approach:
 flowchart TD
   Input["URL / PDF / ICS / Google / Outlook"] --> Fetch["Fetch or receive source"]
   Fetch --> Classify["Classify format"]
-  Classify --> ICS["ICS parser"]
-  Classify --> HTML["HTML table/list parser"]
-  Classify --> PDF["PDF text/table parser"]
-  Classify --> Provider["Provider API mapper"]
-  HTML --> MaybeLLM["LLM assist if needed"]
-  PDF --> MaybeLLM
-  ICS --> Schema["Canonical schema validation"]
+  Classify --> ICS["ICS parser (ical.js)"]
+  Classify --> Provider["Provider API mapper (Google/Outlook)"]
+  Classify --> HTMLText["HTML body (raw text)"]
+  Classify --> PDFText["PDF body (pdf-parse → text)"]
+  HTMLText --> LLM["LLM extractor (Claude Sonnet)"]
+  PDFText --> LLM
+  ICS --> Schema["Canonical schema validation (Zod)"]
   Provider --> Schema
-  MaybeLLM --> Schema
-  Schema --> Confidence["Confidence scoring"]
-  Confidence --> Review["Parent review queue"]
+  LLM --> Schema
+  Schema --> Boundary["Boundary-pair recognizer (post-pass)"]
+  Boundary --> Review["Parent review queue"]
 ```
 
 ## Parser Types
@@ -37,10 +39,9 @@ flowchart TD
 | ICS parser | ✅ Shipped (#5, PR #22) | [`lib/sources/extractors/ics.ts`](../lib/sources/extractors/ics.ts) via `ical.js`. Expands RRULE recurrence, handles DST, anchors all-day events at UTC midnight. |
 | Google Calendar mapper | ✅ Shipped (#13, PR #33) | [`lib/sources/google-ingest.ts`](../lib/sources/google-ingest.ts) + [`google.ts`](../lib/sources/google.ts). Uses `singleEvents=true` so the API expands recurrence server-side. |
 | Outlook Calendar mapper | ✅ Shipped (#18, PR #34) | [`lib/sources/microsoft-ingest.ts`](../lib/sources/microsoft-ingest.ts) + [`microsoft.ts`](../lib/sources/microsoft.ts) using Microsoft Graph `calendarView` with `Prefer: outlook.timezone="UTC"`. |
-| HTML table/list parser | ✅ Shipped (#6, PR #29) | [`lib/sources/extractors/html.ts`](../lib/sources/extractors/html.ts) via `jsdom`. Walks table / `dl` / `ul` patterns; keyword-based classification. |
-| PDF text parser | ✅ Shipped (#7, PR #30) | [`lib/sources/extractors/pdf.ts`](../lib/sources/extractors/pdf.ts) via `pdf-parse` (loaded through `createRequire` to evade bundler embedding). |
+| HTML extractor | ✅ LLM-only (Round 17 + 2026-05-17 deprecation) | [`lib/sources/extractors/llm.ts`](../lib/sources/extractors/llm.ts) + [`lib/llm/anthropic.ts`](../lib/llm/anthropic.ts). Heuristic `extractHtmlEvents` deleted on 2026-05-17. PDF text reads through `pdf-parse` then through the same LLM extractor. |
+| PDF extractor | ✅ LLM-only (Round 17 + 2026-05-17 deprecation) | Same as HTML — PDF source text is read via `pdf-parse` and sent through the LLM extractor. Heuristic `extractPdfTextEvents` deleted on 2026-05-17. |
 | Boundary-pair recognizer | ✅ Shipped Round 16 (PR #140) | `lib/sources/extractors/boundary-pairs.ts` — pairs academic boundary keywords by chronology and synthesizes `CLASS_IN_SESSION` / `EXAM_PERIOD` candidates between them. Closes [#131](https://github.com/igortsives/togetherly/issues/131). |
-| LLM-primary extractor (HTML / PDF) | ✅ Shipped Round 17 | `lib/llm/anthropic.ts` (SDK wrapper) + `lib/sources/extractors/llm.ts` (Claude-Sonnet structured-output extractor). Used as the primary path when `ANTHROPIC_API_KEY` is set; heuristic extractor is the fallback. Closes [#52](https://github.com/igortsives/togetherly/issues/52) and [#151](https://github.com/igortsives/togetherly/issues/151) structurally. |
 | OCR parser | ⬜ Deferred (P2) | Out of scope for MVP per [`MVP_SPEC.md`](./MVP_SPEC.md#p2-scope). |
 
 ## Confidence Scoring
@@ -63,18 +64,15 @@ Suggested bands:
 | 0.40-0.69 | Low-confidence review with warning |
 | Below 0.40 | Do not recommend; ask user to enter manually |
 
-## Current Confidence Heuristic (HTML/PDF)
+## HTML / PDF Classification (LLM)
 
-The HTML and PDF extractors classify events by keyword on the title:
+The LLM extractor returns a `category` from the `EventCategory` enum and a `confidence` (0-1) on every event. The system prompt at [`lib/sources/extractors/llm.ts`](../lib/sources/extractors/llm.ts) defines the contract:
 
-| Keyword pattern | Category | Confidence |
-|---|---|---|
-| `break`, `vacation`, `holiday`, `no school` | `BREAK` | 0.7 |
-| `final`, `exam`, `midterm` (HTML) / `final examination`, `finals week`, `exam`, `midterm` (PDF) | `EXAM_PERIOD` | 0.65 |
-| `instruction begins/ends`, `first day`, `last day`, `term begins/ends`, `classes begin/end`, `quarter begins/ends`, `semester begins/ends`, `school resumes/starts` | `CLASS_IN_SESSION` | 0.65 |
-| Anything else | `UNKNOWN` | 0.4 |
+- Category MUST be one of `SCHOOL_CLOSED` / `BREAK` / `CLASS_IN_SESSION` / `EXAM_PERIOD` / `ACTIVITY_BUSY` / `OPTIONAL` / `UNKNOWN`.
+- Confidence 0.9+ when title clearly maps to a category and date is unambiguous; 0.6-0.9 when title is suggestive but ambiguous; <0.6 when guessing.
+- Every event must trace to a verbatim `evidenceText` quote from the source.
 
-All four are below the 0.9 bulk-confirmation threshold so `requiresParentReview` flags every HTML/PDF candidate. ICS, Google, and Outlook ingest classify by calendar type: activity-type calendars (SPORT/MUSIC/ACTIVITY/CAMP) get `ACTIVITY_BUSY` at ≥0.9; other types get `UNKNOWN` at 0.55.
+ICS, Google, and Outlook ingest classify by calendar type instead (no LLM): activity-type calendars (SPORT/MUSIC/ACTIVITY/CAMP) get `ACTIVITY_BUSY` at ≥0.9; other types get `UNKNOWN` at 0.55. Those ingest paths don't depend on Anthropic availability.
 
 ## Boundary-Pair Inference (EXT-009)
 
@@ -113,15 +111,15 @@ The recognizer is **synonym-based, not literal-string-based**. Academic institut
 
 ### Markers that are NOT eligible for pairing
 
-Single-day markers like `School Resumes`, `Classes Resume`, `Return from Break` are kept in the existing keyword heuristic as `CLASS_IN_SESSION` candidates but are NOT paired by the recognizer — they have no natural counterpart and pairing them would generate runaway intervals that span the entire calendar. The recognizer also skips any begin/end candidate whose `confidence < 0.6` from the heuristic layer, to avoid amplifying low-quality matches.
+Single-day markers like `School Resumes`, `Classes Resume`, `Return from Break` MAY appear in the candidate set (the LLM categorizes them as `CLASS_IN_SESSION`) but are NOT paired by the recognizer — they have no natural counterpart and pairing them would generate runaway intervals that span the entire calendar. The recognizer also skips any begin/end candidate whose `confidence < 0.6`.
 
 ### Confidence and conflict handling
 
 - A synthesized interval inherits the lower of its two boundary markers' confidences, capped at 0.85 (synthesized events never bulk-confirm — they always show in the review queue for parent inspection).
 - If a source produces overlapping intervals (e.g., a malformed PDF lists two `Fall Quarter Begins` rows), the recognizer keeps the earliest begin paired with the latest end and records the conflict in the candidate's `evidenceText` for parent review.
-- A begin marker without a matching end (within the same source, within 200 days) is NOT paired by the recognizer. The LLM post-pass (EXT-010) is the fallback for inferring missing boundaries — e.g., when only `Winter Quarter Begins` is listed and the next quarter's `Spring Quarter Begins` is the implicit end.
+- A begin marker without a matching end (within the same source, within 200 days) is NOT paired by the recognizer. The LLM is already the primary extractor for HTML/PDF; if a begin marker exists without an explicit end, the LLM has the opportunity to infer the implicit end up-front from the next term's start — handled in extraction rather than as a separate post-pass.
 
-Pairing is chronological within a single `CalendarSource`. If a source contains only one marker (e.g., `Winter Quarter Begins` with no explicit end), the recognizer DOES NOT synthesize a half-open interval — instead the LLM post-pass (EXT-010) is the fallback for inferring the missing boundary based on the next term's start. Boundary markers themselves remain in the candidate set so the parent can review them; the synthesized interval is an additional candidate with its own `evidenceLocator` pointing to both markers.
+Pairing is chronological within a single `CalendarSource`. If a source contains only one marker (e.g., `Winter Quarter Begins` with no explicit end), the recognizer DOES NOT synthesize a half-open interval — the LLM extractor is responsible for inferring such bounds up-front since it is the primary HTML/PDF extractor. Boundary markers themselves remain in the candidate set so the parent can review them; the synthesized interval is an additional candidate with its own `evidenceLocator` pointing to both markers.
 
 The `CLASS_IN_SESSION` carrier interval is consumed by `lib/matching/event-busy.ts` with a `weekdaysOnly` semantics — Sat/Sun inside an in-session range stay free (MAT-010).
 
@@ -132,7 +130,7 @@ The `CLASS_IN_SESSION` carrier interval is consumed by `lib/matching/event-busy.
 - LLM output must include evidence text or location for every event.
 - LLM output must never create confirmed events directly. Output stays in the candidate queue subject to parent review.
 - LLM output must be validated for date ranges and category values.
-- Failed validation falls back to the heuristic result (deterministic baseline) or surfaces to the user; no silent application of unvalidated text.
+- Failed validation surfaces to the user as a refresh failure — there is no heuristic fallback anymore (deleted 2026-05-17). No silent application of unvalidated text.
 - Per [`PRIVACY.md` §5.1](./PRIVACY.md#51-llm-assisted-extraction) and PRD AI-004: only public source text may be sent; no parent email/name, child nickname, family ID, OAuth tokens, or private PDFs.
 - Logs record only `{ kind, candidateCount, latencyMs, success }` (AI-006).
 

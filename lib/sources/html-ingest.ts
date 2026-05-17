@@ -1,16 +1,11 @@
 import { createHash } from "node:crypto";
 import { ParserType, ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
-import type { EventCandidate } from "@/lib/domain/schemas";
-import {
-  extractHtmlEvents,
-  type HtmlExtractionError
-} from "@/lib/sources/extractors/html";
+import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 import {
   extractWithLlm,
   shouldUseLlmExtractor
 } from "@/lib/sources/extractors/llm";
-import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 
 export type FetchedHtml = {
   text: string;
@@ -19,8 +14,22 @@ export type FetchedHtml = {
 
 export type HtmlIngestResult = {
   candidatesInserted: number;
-  errors: HtmlExtractionError[];
 };
+
+/**
+ * Custom error thrown when an HTML source is being refreshed but the
+ * LLM extractor is not configured (`ANTHROPIC_API_KEY` unset). Decision
+ * recorded in `docs/DECISIONS.md` (2026-05-17 — remove heuristic
+ * fallback). Surfaces to the dashboard as `refreshStatus = FAILED`.
+ */
+export class HtmlExtractionUnavailableError extends Error {
+  constructor() {
+    super(
+      "AI extraction is not configured. HTML source ingestion requires ANTHROPIC_API_KEY. Contact the administrator."
+    );
+    this.name = "HtmlExtractionUnavailableError";
+  }
+}
 
 export async function fetchHtml(url: string): Promise<FetchedHtml> {
   const response = await fetch(url, {
@@ -57,48 +66,28 @@ export async function extractAndPersistHtml(args: {
     include: { calendar: true }
   });
 
-  // Round 17 / #52: try the LLM extractor first when configured.
-  // It handles arbitrary HTML structures (headerless tables, attribute-
-  // encoded dates, grid layouts) that the heuristic walker doesn't.
-  // The heuristic stays as a fallback for unconfigured deploys (CI,
-  // local dev without a key) and for LLM failures.
-  let extracted: EventCandidate[] = [];
-  let errors: HtmlExtractionError[] = [];
-
-  if (shouldUseLlmExtractor()) {
-    const llm = await extractWithLlm({
-      calendarId: source.calendarId,
-      calendarSourceId: source.id,
-      calendarType: source.calendar.type,
-      defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles",
-      sourceText: args.htmlText,
-      sourceLabel: source.sourceUrl ?? undefined
-    });
-    if (llm.candidates.length > 0) {
-      extracted = llm.candidates;
-    } else {
-      console.info(
-        "LLM extractor produced no candidates; falling back to heuristic",
-        { sourceId: source.id, reason: llm.fallbackReason }
-      );
-    }
+  // Round 17 follow-up (2026-05-17): the LLM is the only HTML extractor.
+  // Heuristic extractor was removed because (a) it silently failed on
+  // any HTML structure outside the curated fixture set, and (b) maintaining
+  // a parallel code path that didn't actually work for real users was a
+  // net negative. See `docs/DECISIONS.md` for the full rationale.
+  if (!shouldUseLlmExtractor()) {
+    throw new HtmlExtractionUnavailableError();
   }
 
-  if (extracted.length === 0) {
-    const heuristic = extractHtmlEvents(args.htmlText, {
-      calendarId: source.calendarId,
-      calendarSourceId: source.id,
-      calendarType: source.calendar.type,
-      defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles"
-    });
-    extracted = heuristic.candidates;
-    errors = heuristic.errors;
-  }
+  const llm = await extractWithLlm({
+    calendarId: source.calendarId,
+    calendarSourceId: source.id,
+    calendarType: source.calendar.type,
+    defaultTimezone: source.calendar.timezone ?? "America/Los_Angeles",
+    sourceText: args.htmlText,
+    sourceLabel: source.sourceUrl ?? undefined
+  });
+
+  const extracted = llm.candidates;
 
   // Issue #131: synthesize CLASS_IN_SESSION / EXAM_PERIOD intervals
   // from begin/end boundary pairs found in the extracted candidates.
-  // Runs on whichever extractor produced the candidate set — the
-  // boundary recognizer is agnostic to the extractor.
   const candidates = extracted.concat(synthesizeBoundaryIntervals(extracted));
 
   const candidateData = candidates.map((candidate) => ({
@@ -136,7 +125,7 @@ export async function extractAndPersistHtml(args: {
     })
   ]);
 
-  return { candidatesInserted: candidates.length, errors };
+  return { candidatesInserted: candidates.length };
 }
 
 export async function refreshHtmlSource(
