@@ -14,6 +14,7 @@ export type EventBusyInput = {
   busyStatus: BusyStatus;
   startAt: Date;
   endAt: Date;
+  allDay: boolean;
   calendarId: string;
   calendarName: string;
 };

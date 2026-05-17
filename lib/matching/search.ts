@@ -56,6 +56,7 @@ export async function runFreeWindowSearch(
     busyStatus: event.busyStatus,
     startAt: event.startAt,
     endAt: event.endAt,
+    allDay: event.allDay,
     calendarId: event.calendarId,
     calendarName: calendarNameById.get(event.calendarId) || "Unknown calendar"
   }));
@@ -110,7 +111,8 @@ function serializeExplanation(window: ExplainedFreeWindow) {
           calendarId: blocking.calendarId,
           calendarName: blocking.calendarName,
           start: blocking.start.toISOString(),
-          end: blocking.end.toISOString()
+          end: blocking.end.toISOString(),
+          allDay: blocking.allDay
         }
       : undefined;
 
