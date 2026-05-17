@@ -379,7 +379,7 @@ function toConfidenceNumber(
  * 365-day horizon and short blocks (< MIN_TERM_BLOCK_DAYS) are
  * filtered out so the user sees term-level structure cleanly. */
 const TERM_VIEW_HORIZON_DAYS = 365;
-const MIN_TERM_BLOCK_DAYS = 5;
+export const MIN_TERM_BLOCK_DAYS = 5;
 
 function filterTermBlocks(blocks: TimelineBlock[]): TimelineBlock[] {
   return blocks.filter((block) => {

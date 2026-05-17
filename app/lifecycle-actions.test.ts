@@ -135,18 +135,6 @@ describe("trimCalendarEventsAction", () => {
     expect(mockCalendarFindFirst).not.toHaveBeenCalled();
   });
 
-  it("rejects an unparseable cutoff", async () => {
-    await expect(
-      trimCalendarEventsAction(
-        formDataWith({
-          calendarId: "cal-1",
-          cutoffDate: "tomorrow",
-          direction: "delete-after"
-        })
-      )
-    ).rejects.toThrow("cutoffDate must be a YYYY-MM-DD date");
-  });
-
   it("rejects a cross-family attempt", async () => {
     mockCalendarFindFirst.mockResolvedValue(null);
     await expect(
@@ -176,16 +164,18 @@ describe("trimCalendarEventsAction", () => {
       })
     );
 
+    // 2026-09-01 PT midnight = 2026-09-01T07:00 UTC (PDT, -7h).
+    const cutoffPt = new Date("2026-09-01T07:00:00.000Z");
     expect(mockEventsDeleteMany).toHaveBeenCalledWith({
       where: {
         calendarId: "cal-1",
-        startAt: { gte: new Date(Date.UTC(2026, 8, 1)) }
+        startAt: { gte: cutoffPt }
       }
     });
     expect(mockCandidatesDeleteMany).toHaveBeenCalledWith({
       where: {
         calendarId: "cal-1",
-        startAt: { gte: new Date(Date.UTC(2026, 8, 1)) }
+        startAt: { gte: cutoffPt }
       }
     });
     // Both deleteMany calls land inside a single $transaction so the
@@ -215,9 +205,22 @@ describe("trimCalendarEventsAction", () => {
     expect(mockEventsDeleteMany).toHaveBeenCalledWith({
       where: {
         calendarId: "cal-1",
-        startAt: { lt: new Date(Date.UTC(2026, 8, 1)) }
+        startAt: { lt: new Date("2026-09-01T07:00:00.000Z") }
       }
     });
+  });
+
+  it("rejects an invalid cutoff but only after family scoping passes", async () => {
+    mockCalendarFindFirst.mockResolvedValue({ id: "cal-1" });
+    await expect(
+      trimCalendarEventsAction(
+        formDataWith({
+          calendarId: "cal-1",
+          cutoffDate: "tomorrow",
+          direction: "delete-after"
+        })
+      )
+    ).rejects.toThrow("cutoffDate must be a YYYY-MM-DD date");
   });
 });
 
@@ -249,7 +252,8 @@ describe("updateSourceIngestWindowAction", () => {
       formDataWith({ sourceId: "src-1", ingestWindowStart: "2026-09-01" })
     );
 
-    const floor = new Date(Date.UTC(2026, 8, 1));
+    // 2026-09-01 PT midnight = 2026-09-01T07:00 UTC (PDT, -7h).
+    const floor = new Date("2026-09-01T07:00:00.000Z");
     expect(mockSourceUpdate).toHaveBeenCalledWith({
       where: { id: "src-1" },
       data: { ingestWindowStart: floor }

@@ -12,6 +12,7 @@ import {
   calendarSourceInputSchema,
   childInputSchema
 } from "@/lib/domain/schemas";
+import { parseYmdAtLocalMidnight } from "@/lib/family/dates";
 import { getCurrentUserId, requireUserFamily } from "@/lib/family/session";
 import { runFreeWindowSearch } from "@/lib/matching/search";
 import { deleteUserAccount } from "@/lib/family/account-deletion";
@@ -70,9 +71,6 @@ export async function createUrlSourceAction(formData: FormData) {
   const calendarId = String(formData.get("calendarId") || "");
   const sourceType = String(formData.get("sourceType") || SourceType.URL) as SourceType;
   const parserType = parserTypeForSource(sourceType);
-  const ingestWindowStart = parseOptionalIngestWindowStart(
-    formData.get("ingestWindowStart")
-  );
   const input = calendarSourceInputSchema.parse({
     calendarId,
     sourceType,
@@ -82,6 +80,10 @@ export async function createUrlSourceAction(formData: FormData) {
   });
 
   const family = await ensureCalendarBelongsToCurrentFamily(input.calendarId);
+  const ingestWindowStart = parseOptionalIngestWindowStart(
+    formData.get("ingestWindowStart"),
+    family.timezone
+  );
 
   const source = await prisma.calendarSource.create({
     data: {
@@ -106,15 +108,16 @@ export async function createUrlSourceAction(formData: FormData) {
 export async function createPdfSourceAction(formData: FormData) {
   const calendarId = String(formData.get("calendarId") || "");
   const file = formData.get("pdfFile");
-  const ingestWindowStart = parseOptionalIngestWindowStart(
-    formData.get("ingestWindowStart")
-  );
 
   if (!(file instanceof File)) {
     throw new Error("Choose a PDF calendar file before uploading.");
   }
 
   const family = await ensureCalendarBelongsToCurrentFamily(calendarId);
+  const ingestWindowStart = parseOptionalIngestWindowStart(
+    formData.get("ingestWindowStart"),
+    family.timezone
+  );
   const storedUpload = await storeCalendarPdf(file);
   const input = calendarSourceInputSchema.parse({
     calendarId,
@@ -239,8 +242,6 @@ export async function trimCalendarEventsAction(formData: FormData) {
     throw new Error("Direction must be delete-before or delete-after");
   }
 
-  const cutoff = parseRequiredCutoffDate(cutoffRaw);
-
   const family = await requireUserFamily();
   const calendar = await prisma.calendar.findFirst({
     where: { id: calendarId, familyId: family.id },
@@ -249,6 +250,8 @@ export async function trimCalendarEventsAction(formData: FormData) {
   if (!calendar) {
     throw new Error("Calendar not found for this family.");
   }
+
+  const cutoff = parseRequiredCutoffDate(cutoffRaw, family.timezone);
 
   const startAtFilter =
     direction === "delete-before" ? { lt: cutoff } : { gte: cutoff };
@@ -283,7 +286,8 @@ export async function updateSourceIngestWindowAction(formData: FormData) {
   }
 
   const ingestWindowStart = parseOptionalIngestWindowStart(
-    formData.get("ingestWindowStart")
+    formData.get("ingestWindowStart"),
+    family.timezone
   );
 
   await prisma.calendarSource.update({
@@ -545,9 +549,6 @@ export async function disconnectMicrosoftAccountAction() {
 export async function createGoogleCalendarSourceAction(formData: FormData) {
   const calendarId = String(formData.get("calendarId") || "");
   const providerCalendarId = String(formData.get("providerCalendarId") || "");
-  const ingestWindowStart = parseOptionalIngestWindowStart(
-    formData.get("ingestWindowStart")
-  );
 
   const input = calendarSourceInputSchema.parse({
     calendarId,
@@ -558,6 +559,10 @@ export async function createGoogleCalendarSourceAction(formData: FormData) {
   });
 
   const family = await ensureCalendarBelongsToCurrentFamily(input.calendarId);
+  const ingestWindowStart = parseOptionalIngestWindowStart(
+    formData.get("ingestWindowStart"),
+    family.timezone
+  );
 
   const existing = await prisma.calendarSource.findFirst({
     where: {
@@ -597,9 +602,6 @@ export async function createGoogleCalendarSourceAction(formData: FormData) {
 export async function createOutlookCalendarSourceAction(formData: FormData) {
   const calendarId = String(formData.get("calendarId") || "");
   const providerCalendarId = String(formData.get("providerCalendarId") || "");
-  const ingestWindowStart = parseOptionalIngestWindowStart(
-    formData.get("ingestWindowStart")
-  );
 
   const input = calendarSourceInputSchema.parse({
     calendarId,
@@ -610,6 +612,10 @@ export async function createOutlookCalendarSourceAction(formData: FormData) {
   });
 
   const family = await ensureCalendarBelongsToCurrentFamily(input.calendarId);
+  const ingestWindowStart = parseOptionalIngestWindowStart(
+    formData.get("ingestWindowStart"),
+    family.timezone
+  );
 
   const existing = await prisma.calendarSource.findFirst({
     where: {
@@ -681,35 +687,22 @@ export async function submitBetaFeedbackAction(formData: FormData) {
   redirect(`${target}${separator}feedback=sent`);
 }
 
-function parseOptionalIngestWindowStart(value: FormDataEntryValue | null): Date | null {
+function parseOptionalIngestWindowStart(
+  value: FormDataEntryValue | null,
+  timezone: string
+): Date | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
-  return parseYmdToUtcMidnight(trimmed, "ingestWindowStart");
+  return parseYmdAtLocalMidnight(trimmed, timezone, "ingestWindowStart");
 }
 
-function parseRequiredCutoffDate(value: string): Date {
+function parseRequiredCutoffDate(value: string, timezone: string): Date {
   const trimmed = value.trim();
   if (!trimmed) {
     throw new Error("A cutoff date is required");
   }
-  return parseYmdToUtcMidnight(trimmed, "cutoffDate");
-}
-
-function parseYmdToUtcMidnight(value: string, fieldName: string): Date {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
-  if (!match) {
-    throw new Error(`${fieldName} must be a YYYY-MM-DD date`);
-  }
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
-  const utcMs = Date.UTC(year, month - 1, day);
-  const parsed = new Date(utcMs);
-  if (Number.isNaN(parsed.getTime())) {
-    throw new Error(`${fieldName} is not a valid date`);
-  }
-  return parsed;
+  return parseYmdAtLocalMidnight(trimmed, timezone, "cutoffDate");
 }
 
 async function ensureCalendarBelongsToCurrentFamily(calendarId: string) {
