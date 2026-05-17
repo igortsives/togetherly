@@ -20,7 +20,10 @@
  *   so a typo in `family.timezone` is loud, not silent.
  * - DST transitions: US zones transition at 02:00 local. Midnight is
  *   always unambiguous, so the offset computation is stable for the
- *   dates this helper sees.
+ *   dates this helper sees. International zones with midnight DST
+ *   transitions (e.g. `Antarctica/Troll`, historic Chile/Brazil rules)
+ *   could produce ambiguous results on a transition day; revisit when
+ *   international families come online.
  */
 
 const YMD_REGEX = /^(\d{4})-(\d{2})-(\d{2})$/;

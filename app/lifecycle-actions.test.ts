@@ -210,6 +210,31 @@ describe("trimCalendarEventsAction", () => {
     });
   });
 
+  it("resolves a winter cutoff as PST (UTC-8), not PDT", async () => {
+    mockCalendarFindFirst.mockResolvedValue({ id: "cal-1" });
+    mockEventsDeleteMany.mockResolvedValue({ count: 0 });
+    mockCandidatesDeleteMany.mockResolvedValue({ count: 0 });
+    mockTransaction.mockImplementation(async (ops: Promise<unknown>[]) => {
+      return Promise.all(ops);
+    });
+
+    await trimCalendarEventsAction(
+      formDataWith({
+        calendarId: "cal-1",
+        cutoffDate: "2026-01-15",
+        direction: "delete-after"
+      })
+    );
+
+    // 2026-01-15 PT midnight = 2026-01-15T08:00 UTC (PST, UTC-8).
+    expect(mockEventsDeleteMany).toHaveBeenCalledWith({
+      where: {
+        calendarId: "cal-1",
+        startAt: { gte: new Date("2026-01-15T08:00:00.000Z") }
+      }
+    });
+  });
+
   it("rejects an invalid cutoff but only after family scoping passes", async () => {
     mockCalendarFindFirst.mockResolvedValue({ id: "cal-1" });
     await expect(
