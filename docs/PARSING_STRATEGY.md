@@ -4,11 +4,12 @@
 
 Use a layered parsing approach:
 
-1. **Deterministic parsers** for structured formats (ICS, Google API, Outlook Graph, HTML tables, PDF text).
-2. **Boundary-pair inference** for academic calendars — recognize `Quarter/Semester/Term Begins/Ends`, `First/Last Day of Classes`, `Final Examinations Begin/End` markers and synthesize `class_in_session` / `exam_period` interval candidates between them (EXT-009, Round 16).
-3. **LLM-assisted classification** for ambiguous candidates — when the heuristic returns `UNKNOWN` or confidence < 0.6, escalate to Claude with structured output (EXT-010, Round 17).
-4. **Schema validation** for all extracted events (Zod).
-5. **Parent review** before extracted events affect recommendations.
+1. **Provider APIs (ICS, Google Calendar, Outlook Graph)** — structured-data sources are extracted via their native APIs. No LLM needed.
+2. **LLM-primary extraction for HTML and PDF** — when `ANTHROPIC_API_KEY` is configured, Claude Sonnet is the **primary** extractor for unstructured sources. It handles arbitrary HTML structures (headerless tables, attribute-encoded dates, grid layouts, single-page-app fragments) that no fixed-pattern heuristic could scale to. Output is structured-output Zod-validated; failures fall through to the heuristic extractor (Round 17).
+3. **Heuristic HTML / PDF extractors as fallback** — preserved for unconfigured deploys (CI, local dev without an API key) and for LLM failures (network, rate limit, content-policy refusal). They handle the well-structured 60% of sources at zero cost; the LLM handles the long tail.
+4. **Boundary-pair inference** — recognize `Quarter/Semester/Term Begins/Ends`, `First/Last Day of Classes`, `Final Examinations Begin/End` markers and synthesize `class_in_session` / `exam_period` interval candidates between them (EXT-009, Round 16). Runs on whichever extractor produced the candidate set — the recognizer is agnostic to the path.
+5. **Schema validation** for all extracted events (Zod). The canonical shape is `eventCandidateInputSchema` in `lib/domain/schemas.ts`. Every extractor must produce rows that satisfy it; output that fails validation is rejected, never persisted.
+6. **Parent review** before extracted events affect recommendations.
 
 ## Source Pipeline
 
@@ -38,8 +39,8 @@ flowchart TD
 | Outlook Calendar mapper | ✅ Shipped (#18, PR #34) | [`lib/sources/microsoft-ingest.ts`](../lib/sources/microsoft-ingest.ts) + [`microsoft.ts`](../lib/sources/microsoft.ts) using Microsoft Graph `calendarView` with `Prefer: outlook.timezone="UTC"`. |
 | HTML table/list parser | ✅ Shipped (#6, PR #29) | [`lib/sources/extractors/html.ts`](../lib/sources/extractors/html.ts) via `jsdom`. Walks table / `dl` / `ul` patterns; keyword-based classification. |
 | PDF text parser | ✅ Shipped (#7, PR #30) | [`lib/sources/extractors/pdf.ts`](../lib/sources/extractors/pdf.ts) via `pdf-parse` (loaded through `createRequire` to evade bundler embedding). |
-| Boundary-pair recognizer | ⬜ Phase 2.5 (Round 16) | `lib/sources/extractors/boundary-pairs.ts` — pairs academic boundary keywords by chronology and synthesizes `CLASS_IN_SESSION` / `EXAM_PERIOD` candidates between them. Closes [#131](https://github.com/igortsives/togetherly/issues/131). |
-| LLM-assisted classification | ⬜ Phase 2.5 (Round 17) | `lib/llm/anthropic.ts` + extraction post-pass. Closes [#52](https://github.com/igortsives/togetherly/issues/52). |
+| Boundary-pair recognizer | ✅ Shipped Round 16 (PR #140) | `lib/sources/extractors/boundary-pairs.ts` — pairs academic boundary keywords by chronology and synthesizes `CLASS_IN_SESSION` / `EXAM_PERIOD` candidates between them. Closes [#131](https://github.com/igortsives/togetherly/issues/131). |
+| LLM-primary extractor (HTML / PDF) | ✅ Shipped Round 17 | `lib/llm/anthropic.ts` (SDK wrapper) + `lib/sources/extractors/llm.ts` (Claude-Sonnet structured-output extractor). Used as the primary path when `ANTHROPIC_API_KEY` is set; heuristic extractor is the fallback. Closes [#52](https://github.com/igortsives/togetherly/issues/52) and [#151](https://github.com/igortsives/togetherly/issues/151) structurally. |
 | OCR parser | ⬜ Deferred (P2) | Out of scope for MVP per [`MVP_SPEC.md`](./MVP_SPEC.md#p2-scope). |
 
 ## Confidence Scoring
