@@ -33,7 +33,12 @@ const microsoftEnabled = Boolean(
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
-  pages: { signIn: "/login" },
+  // Route every NextAuth-thrown error (cancelled OAuth, account-not-
+  // linked, configuration mismatch, etc.) to `/login` so users see a
+  // friendly banner instead of the bare "Server error / There is a
+  // problem with the server configuration" screen. The login page
+  // maps the `error` query param to a per-case message.
+  pages: { signIn: "/login", error: "/login" },
   providers: [
     Credentials({
       name: "Email and password",
