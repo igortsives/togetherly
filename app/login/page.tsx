@@ -79,7 +79,7 @@ export default async function LoginPage({ searchParams }: Props) {
 
         {params.error ? (
           <p className="authError" role="alert">
-            Sign-in failed. Check your email and password and try again.
+            {authErrorMessage(params.error)}
           </p>
         ) : null}
 
@@ -136,4 +136,43 @@ export default async function LoginPage({ searchParams }: Props) {
       </section>
     </main>
   );
+}
+
+/**
+ * Map NextAuth's `error` query param to a parent-readable message.
+ * NextAuth surfaces a few codes here when its built-in error route is
+ * redirected to `/login` via `pages.error` in `auth.ts`.
+ *
+ * `Configuration` is the catch-all NextAuth returns for any OAuth
+ * response it can't validate — including the routine "user clicked
+ * Cancel on the Google consent screen" case (Google sends back
+ * `error=access_denied` with no `iss` parameter, which trips
+ * `OperationProcessingError`). We treat that as a friendly cancel,
+ * not a server error.
+ *
+ * `OAuthAccountNotLinked` happens when a returning user signs in
+ * with a different OAuth provider whose email already maps to a
+ * locally-linked account (#116).
+ *
+ * `CredentialsSignin` is the email/password failure we always had.
+ *
+ * Unknown codes fall back to a generic "try again" message.
+ */
+export function authErrorMessage(code: string): string {
+  switch (code) {
+    case "Configuration":
+    case "OAuthCallback":
+    case "OAuthSignin":
+      return "Sign-in was cancelled or could not complete. Try again, or use a different provider.";
+    case "OAuthAccountNotLinked":
+      return "That email is already linked to a different sign-in method. Sign in with your original provider, then link the new one from /account.";
+    case "AccessDenied":
+      return "Access denied. If this is a workspace account, an admin may need to allow this app.";
+    case "CredentialsSignin":
+      return "Sign-in failed. Check your email and password and try again.";
+    case "SessionRequired":
+      return "Please sign in to continue.";
+    default:
+      return "Sign-in failed. Try again, or use a different provider.";
+  }
 }
