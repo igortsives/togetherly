@@ -303,17 +303,18 @@ describe("refreshSource family ownership", () => {
 
     await refreshSource("source-1", "family-expected");
 
-    // Phase 1 claim: stamp a Date.
-    expect(mockUpdate).toHaveBeenCalledWith({
-      where: { id: "source-1" },
-      data: { refreshStartedAt: expect.any(Date) }
-    });
-    // Phase 3b success: clear the claim.
-    expect(mockUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ refreshStartedAt: null })
-      })
+    // Order matters: the claim must be STAMPED (phase 1) before it is
+    // CLEARED (phase 3b). Find the index of each call and assert the
+    // stamp precedes the clear — a swapped implementation (clear first,
+    // stamp later) would otherwise pass the looser was-called checks.
+    const stampIdx = mockUpdate.mock.calls.findIndex(
+      ([arg]) => arg?.data?.refreshStartedAt instanceof Date
     );
+    const clearIdx = mockUpdate.mock.calls.findIndex(
+      ([arg]) => arg?.data?.refreshStartedAt === null
+    );
+    expect(stampIdx).toBeGreaterThanOrEqual(0);
+    expect(clearIdx).toBeGreaterThan(stampIdx);
   });
 
   it("clears the claim and increments failedAttempts when the orchestrator throws (issues #100/#170)", async () => {
