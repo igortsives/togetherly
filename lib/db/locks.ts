@@ -26,36 +26,28 @@ export type AccountTxClient = ExtendedTxClient;
  * advisory locks across the app land in different 64-bit slots.
  */
 /**
- * Issue: HTML/PDF source refresh runs an LLM call inside the lock
- * (typical 8-15s end-to-end). The default Prisma $transaction timeout
- * is 5s, so a routine refresh trips `P2028 Transaction already closed`.
- * Bumping to 90s covers worst-case Claude latency plus the surrounding
- * DB writes. `maxWait` is the time a caller will queue waiting for a
- * pool connection before this $transaction begins — 10s gives us
- * headroom if a couple of refreshes pile up. The structural fix
- * (move the LLM call outside the transaction so we hold the Postgres
- * connection for only the DB writes) is filed as a follow-up.
+ * The work inside this lock must stay short — only DB reads/writes,
+ * never a network round-trip. Source refresh holds the lock for the
+ * candidate snapshot + status writes only; the LLM call runs outside
+ * the transaction entirely (issue #170), so the default Prisma 5s
+ * `$transaction` timeout is plenty. Don't reintroduce slow work here:
+ * holding a pooled connection idle-in-transaction across an 8-15s LLM
+ * round-trip exhausts the pool at cohort scale (the bug #170 fixed).
  */
-const LOCK_TX_TIMEOUT_MS = 90_000;
-const LOCK_TX_MAX_WAIT_MS = 10_000;
-
 export async function withAdvisoryLock<T>(
   namespace: string,
   key: string,
   fn: (tx: ExtendedTxClient) => Promise<T>
 ): Promise<T> {
-  return prisma.$transaction(
-    async (tx) => {
-      const lockKey = `${namespace}:${key}`;
-      await tx.$executeRaw`
-        SELECT pg_advisory_xact_lock(
-          ('x' || substr(md5(${lockKey}), 1, 16))::bit(64)::bigint
-        )
-      `;
-      return fn(tx);
-    },
-    { timeout: LOCK_TX_TIMEOUT_MS, maxWait: LOCK_TX_MAX_WAIT_MS }
-  );
+  return prisma.$transaction(async (tx) => {
+    const lockKey = `${namespace}:${key}`;
+    await tx.$executeRaw`
+      SELECT pg_advisory_xact_lock(
+        ('x' || substr(md5(${lockKey}), 1, 16))::bit(64)::bigint
+      )
+    `;
+    return fn(tx);
+  });
 }
 
 /** OAuth token-refresh lock (issue #66). */

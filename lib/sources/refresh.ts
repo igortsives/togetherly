@@ -19,7 +19,25 @@ export type RefreshOutcome = {
   candidatesBefore: number;
   candidatesAfter: number;
   changeDetected: boolean;
+  /** Set when another refresher already held a fresh claim, so this
+   * call did no work (issue #170). */
+  skipped?: "in-progress";
 };
+
+export type RefreshOptions = {
+  /** Manual dashboard refresh: re-extract even if the fetched content
+   * is byte-identical to the last extraction (issue #158). */
+  force?: boolean;
+};
+
+/**
+ * How long a `refreshStartedAt` claim is honored before a new
+ * refresher treats it as stale and reclaims (issue #170). Must sit
+ * comfortably above worst-case LLM latency so a slow-but-alive refresh
+ * isn't stolen, while still recovering promptly from a crashed worker
+ * that left the claim set.
+ */
+export const REFRESH_CLAIM_TTL_MS = 15 * 60 * 1000;
 
 export class UnsupportedSourceTypeError extends Error {
   constructor(sourceType: SourceType) {
@@ -37,23 +55,22 @@ export class SourceFamilyMismatchError extends Error {
 
 export async function refreshSource(
   sourceId: string,
-  expectedFamilyId: string
+  expectedFamilyId: string,
+  options: RefreshOptions = {}
 ): Promise<RefreshOutcome> {
-  // Serialize concurrent refreshes of the same source (issue #40).
-  // A second caller blocks on the Postgres advisory lock until the
-  // winner commits, then proceeds — typically finding the candidate
-  // set already current.
+  const now = new Date();
+
+  // PHASE 1 — claim (brief lock-holding transaction).
   //
-  // The lock-holding `$transaction` is used for the family-ownership
-  // check, the before/after candidate snapshots, the `lastFetchedAt`
-  // / refreshStatus write, and the staleness fan-out. The actual
-  // ingest work in `dispatchToOrchestrator` happens on a separate
-  // connection (ingest modules use their own `$transaction([...])`
-  // for the candidate-set rewrite). That's fine: the advisory lock
-  // is held across the dispatch call so concurrent callers still
-  // serialize, and the ingest write commits before the lock-holding
-  // tx commits, so the next lock-acquirer sees the durable state.
-  return withSourceLock(sourceId, async (tx) => {
+  // Serialize concurrent refreshes of the same source (issue #40) and
+  // ensure only one refresher runs the LLM (issue #170). We take the
+  // advisory lock only long enough to check ownership, snapshot the
+  // current candidate set, and stamp `refreshStartedAt`. A concurrent
+  // refresher that finds a fresh claim bails immediately; a stale
+  // claim (crashed worker) is reclaimable after REFRESH_CLAIM_TTL_MS.
+  // Crucially the LLM call does NOT happen here, so the Postgres
+  // connection is held for milliseconds, not the whole 8-15s round-trip.
+  const claim = await withSourceLock(sourceId, async (tx) => {
     const source = await tx.calendarSource.findUniqueOrThrow({
       where: { id: sourceId },
       include: { calendar: { select: { familyId: true } } }
@@ -63,12 +80,48 @@ export async function refreshSource(
       throw new SourceFamilyMismatchError(sourceId);
     }
 
-    const isFirstRefresh = source.lastParsedAt === null;
-    const beforeSnapshot = await snapshotCandidatesForSource(sourceId, tx);
+    const claimIsFresh =
+      source.refreshStartedAt != null &&
+      now.getTime() - source.refreshStartedAt.getTime() < REFRESH_CLAIM_TTL_MS;
+    if (claimIsFresh) {
+      return { kind: "busy" as const, source };
+    }
 
-    try {
-      await dispatchToOrchestrator(source);
-    } catch (error) {
+    const beforeSnapshot = await snapshotCandidatesForSource(sourceId, tx);
+    await tx.calendarSource.update({
+      where: { id: sourceId },
+      data: { refreshStartedAt: now }
+    });
+
+    return { kind: "claimed" as const, source, beforeSnapshot };
+  });
+
+  if (claim.kind === "busy") {
+    const candidatesNow = await snapshotCandidatesForSource(sourceId);
+    return {
+      sourceId,
+      refreshStatus: claim.source.refreshStatus,
+      candidatesBefore: candidatesNow.candidates.length,
+      candidatesAfter: candidatesNow.candidates.length,
+      changeDetected: false,
+      skipped: "in-progress"
+    };
+  }
+
+  const { source, beforeSnapshot } = claim;
+  const isFirstRefresh = source.lastParsedAt === null;
+
+  // PHASE 2 — fetch + extract (NO transaction, NO lock held).
+  //
+  // This is where the LLM call lives. The ingest module fetches the
+  // source, runs the (content-hash-gated) extractor, and rewrites the
+  // candidate set in its own short `$transaction([...])`. None of that
+  // pins the refresh lock.
+  try {
+    await dispatchToOrchestrator(source, options);
+  } catch (error) {
+    // PHASE 3a — failure bookkeeping (brief lock-holding transaction).
+    await withSourceLock(sourceId, async (tx) => {
       await tx.calendarSource.update({
         where: { id: sourceId },
         data: {
@@ -76,12 +129,17 @@ export async function refreshSource(
           lastFetchedAt: new Date(),
           // Increment failure counter for issue #100 backoff. The
           // scheduler skips sources that exceed `MAX_FAILED_ATTEMPTS`.
-          failedAttempts: { increment: 1 }
+          failedAttempts: { increment: 1 },
+          // Release the claim so the next attempt can proceed.
+          refreshStartedAt: null
         }
       });
-      throw error;
-    }
+    });
+    throw error;
+  }
 
+  // PHASE 3b — success bookkeeping (brief lock-holding transaction).
+  return withSourceLock(sourceId, async (tx) => {
     const afterSnapshot = await snapshotCandidatesForSource(sourceId, tx);
 
     const refreshStatus = resolveRefreshStatus({
@@ -97,8 +155,10 @@ export async function refreshSource(
       data: {
         refreshStatus,
         lastFetchedAt: new Date(),
-        // Successful refresh resets the failure counter (#100).
-        failedAttempts: 0
+        // Successful refresh resets the failure counter (#100) and
+        // releases the claim (#170).
+        failedAttempts: 0,
+        refreshStartedAt: null
       }
     });
 
@@ -125,16 +185,19 @@ export async function refreshSource(
   });
 }
 
-async function dispatchToOrchestrator(source: CalendarSource): Promise<void> {
+async function dispatchToOrchestrator(
+  source: CalendarSource,
+  options: RefreshOptions
+): Promise<void> {
   switch (source.sourceType) {
     case SourceType.ICS:
       await refreshIcsSource(source.id);
       return;
     case SourceType.URL:
-      await refreshHtmlSource(source.id);
+      await refreshHtmlSource(source.id, options);
       return;
     case SourceType.PDF_UPLOAD:
-      await extractAndPersistPdf({ calendarSourceId: source.id });
+      await extractAndPersistPdf({ calendarSourceId: source.id, ...options });
       return;
     case SourceType.GOOGLE_CALENDAR:
       await refreshGoogleSource({ calendarSourceId: source.id });

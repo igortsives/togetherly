@@ -3,6 +3,7 @@ import path from "node:path";
 import { ParserType, ReviewStatus } from "@prisma/client";
 import pdfParseModule from "pdf-parse";
 import { prisma } from "@/lib/db/prisma";
+import { shouldSkipExtraction } from "@/lib/sources/content-hash";
 import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 import {
   extractWithLlm,
@@ -30,6 +31,9 @@ export type PdfReadResult = {
 
 export type PdfIngestResult = {
   candidatesInserted: number;
+  /** True when the content-hash short-circuit skipped the LLM call
+   * because this upload was already extracted (issue #158). */
+  skippedUnchanged?: boolean;
 };
 
 /**
@@ -88,6 +92,7 @@ export async function readPdfText(uploadedFileKey: string): Promise<PdfReadResul
 
 export async function extractAndPersistPdf(args: {
   calendarSourceId: string;
+  force?: boolean;
   now?: Date;
 }): Promise<PdfIngestResult> {
   const now = args.now ?? new Date();
@@ -98,6 +103,27 @@ export async function extractAndPersistPdf(args: {
 
   if (!source.uploadedFileKey) {
     throw new Error("PDF source is missing an uploaded file key.");
+  }
+
+  // Issue #158: an uploaded PDF is content-addressed — its `contentHash`
+  // is the file-bytes hash set at upload and never changes for a given
+  // file. So once we've parsed it, re-running the LLM on the same bytes
+  // is pure waste. A manual refresh (`force`) re-extracts anyway. (PDF
+  // sources are excluded from the scheduler, so this only guards repeat
+  // manual/programmatic refreshes.)
+  if (
+    shouldSkipExtraction({
+      force: args.force ?? false,
+      lastParsedAt: source.lastParsedAt,
+      storedHash: source.contentHash,
+      fetchedHash: source.contentHash
+    })
+  ) {
+    await prisma.calendarSource.update({
+      where: { id: source.id },
+      data: { lastFetchedAt: now }
+    });
+    return { candidatesInserted: 0, skippedUnchanged: true };
   }
 
   // Round 17 follow-up (2026-05-17): the LLM is the only PDF extractor.

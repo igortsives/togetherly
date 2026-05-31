@@ -90,6 +90,42 @@ describe("refreshAllStaleSources", () => {
     expect(mockRefreshSource).toHaveBeenCalledWith("src-b", "fam-2");
   });
 
+  it("reports a skipped (already-in-progress) refresh as skipped, not succeeded (#170)", async () => {
+    mockFindMany.mockResolvedValue([
+      { id: "src-a", calendar: { familyId: "fam-1" } },
+      { id: "src-b", calendar: { familyId: "fam-2" } }
+    ]);
+    mockRefreshSource
+      .mockResolvedValueOnce({
+        sourceId: "src-a",
+        refreshStatus: "OK",
+        candidatesBefore: 0,
+        candidatesAfter: 0,
+        changeDetected: false,
+        skipped: "in-progress"
+      })
+      .mockResolvedValueOnce({
+        sourceId: "src-b",
+        refreshStatus: "CHANGED",
+        candidatesBefore: 1,
+        candidatesAfter: 2,
+        changeDetected: true
+      });
+
+    const summary = await refreshAllStaleSources();
+
+    expect(summary.attempted).toBe(2);
+    expect(summary.succeeded).toBe(1);
+    expect(summary.failed).toBe(0);
+    expect(summary.results[0]).toEqual({
+      sourceId: "src-a",
+      familyId: "fam-1",
+      status: "skipped",
+      reason: "refresh already in progress"
+    });
+    expect(summary.results[1]).toMatchObject({ sourceId: "src-b", status: "ok" });
+  });
+
   it("isolates errors so a failing source does not stop the batch", async () => {
     mockFindMany.mockResolvedValue([
       { id: "src-a", calendar: { familyId: "fam-1" } },

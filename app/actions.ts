@@ -164,7 +164,9 @@ export async function refreshSourceAction(formData: FormData) {
   }
 
   try {
-    await refreshSource(sourceId, family.id);
+    // Manual refresh forces re-extraction even if the source content
+    // is unchanged — the parent's explicit signal (issue #158).
+    await refreshSource(sourceId, family.id, { force: true });
   } catch (error) {
     console.error("Manual source refresh failed", { sourceId, error });
   }

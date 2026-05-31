@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { ParserType, ReviewStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { shouldSkipExtraction } from "@/lib/sources/content-hash";
 import { synthesizeBoundaryIntervals } from "@/lib/sources/extractors/boundary-pairs";
 import {
   extractWithLlm,
@@ -15,6 +16,9 @@ export type FetchedHtml = {
 
 export type HtmlIngestResult = {
   candidatesInserted: number;
+  /** True when the content-hash short-circuit skipped the LLM call
+   * because the fetched body was unchanged (issue #158). */
+  skippedUnchanged?: boolean;
 };
 
 /**
@@ -59,6 +63,7 @@ export async function extractAndPersistHtml(args: {
   calendarSourceId: string;
   htmlText: string;
   contentHash: string;
+  force?: boolean;
   now?: Date;
 }): Promise<HtmlIngestResult> {
   const now = args.now ?? new Date();
@@ -66,6 +71,27 @@ export async function extractAndPersistHtml(args: {
     where: { id: args.calendarSourceId },
     include: { calendar: true }
   });
+
+  // Issue #158: skip the LLM call when the fetched body is byte-for-byte
+  // identical to the last successful extraction. A manual refresh
+  // (`force`) always re-extracts — the parent's signal that the source
+  // changed even if the page didn't. We still stamp `lastFetchedAt` so
+  // the scheduler's cadence advances, but leave candidates + parserType
+  // + contentHash untouched.
+  if (
+    shouldSkipExtraction({
+      force: args.force ?? false,
+      lastParsedAt: source.lastParsedAt,
+      storedHash: source.contentHash,
+      fetchedHash: args.contentHash
+    })
+  ) {
+    await prisma.calendarSource.update({
+      where: { id: source.id },
+      data: { lastFetchedAt: now }
+    });
+    return { candidatesInserted: 0, skippedUnchanged: true };
+  }
 
   // Round 17 follow-up (2026-05-17): the LLM is the only HTML extractor.
   // Heuristic extractor was removed because (a) it silently failed on
@@ -133,7 +159,8 @@ export async function extractAndPersistHtml(args: {
 }
 
 export async function refreshHtmlSource(
-  calendarSourceId: string
+  calendarSourceId: string,
+  options: { force?: boolean } = {}
 ): Promise<HtmlIngestResult> {
   const source = await prisma.calendarSource.findUniqueOrThrow({
     where: { id: calendarSourceId }
@@ -147,6 +174,7 @@ export async function refreshHtmlSource(
   return extractAndPersistHtml({
     calendarSourceId,
     htmlText: fetched.text,
-    contentHash: fetched.contentHash
+    contentHash: fetched.contentHash,
+    force: options.force
   });
 }

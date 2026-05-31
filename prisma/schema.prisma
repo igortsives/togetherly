@@ -199,6 +199,7 @@ model CalendarSource {
   candidates         EventCandidate[]
   lastFetchedAt      DateTime?
   lastParsedAt       DateTime?
+  refreshStartedAt   DateTime?
   failedAttempts     Int              @default(0)
   ingestWindowStart  DateTime?
   createdAt          DateTime         @default(now())
