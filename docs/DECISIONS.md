@@ -8,9 +8,9 @@
 | Auth model | Email/password, Google login, Login with Apple, Continue with Microsoft |
 | Data storage | PostgreSQL |
 | Calendar integrations | PDF, URL, ICS, Google Calendar, Outlook Calendar in MVP |
-| Parsing strategy | Hybrid: deterministic parsers + boundary-pair inference + LLM-assisted classification fallback |
+| Parsing strategy | Provider APIs for structured sources (ICS / Google / Outlook); LLM-only extraction (Claude Sonnet) for unstructured HTML / PDF — no deterministic HTML/PDF parser, no heuristic fallback (deleted 2026-05-17). Format-agnostic boundary-pair inference runs as a post-pass on whatever the extractor produces. |
 | Free-window search input | Structured form AND natural-language query (LLM-parsed) |
-| First source corpus | UCLA, Vanderbilt, Saratoga High School / LGSUHSD |
+| Source fixtures | UCLA + Vanderbilt (live 2026-27 captures). Role under LLM-only extraction: regression tests for our format-agnostic post-processing + an offline prompt-eval set — NOT per-format parser validation, and not a guarantee that a later year's format will extract cleanly (resilience to format drift comes from the LLM + confidence + review queue, not fixtures). |
 | Product surface | Private beta |
 | LLM provider | Anthropic Claude (Sonnet) via `@anthropic-ai/sdk` |
 | Beta launch gating | UAT pass at end of Round 19 (Phase 2.5 redesign) |
