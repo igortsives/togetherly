@@ -2,7 +2,9 @@
 
 ## Purpose
 
-The source corpus gives engineering real calendar examples for parser development, regression tests, and product-quality review.
+The source corpus gives engineering real calendar examples for regression testing our format-agnostic post-processing and for offline LLM prompt-eval.
+
+> **Role under LLM-only extraction (2026-05-17).** There are no per-format HTML/PDF parsers anymore — Claude is the sole extractor (see [`DECISIONS.md`](./DECISIONS.md#2026-05-17--remove-heuristic-htmlpdf-extractors-llm-is-the-only-path)). These fixtures do **not** validate parsers, and a capture from one year does **not** guarantee a later year's format extracts cleanly. Year-over-year format-drift resilience comes from the LLM + confidence scoring + the parent review queue, not from fixtures. What the corpus still earns its keep for: (1) deterministic regression tests for our own post-extraction code (boundary-pair inference, ingest-window floor, schema validation) which run on candidates regardless of source format or year; (2) an offline eval set for prompt changes in `lib/sources/extractors/llm.ts` (CI mocks the SDK, so this is a manual/real-key eval, not a CI gate).
 
 Initial focus:
 
@@ -128,7 +130,7 @@ Each fixture should define:
 
 - Source URL.
 - Source format.
-- Expected parser type.
+- Source format / ingest path (ICS / Google / Outlook provider mapper, or LLM extractor for HTML/PDF).
 - Expected canonical events.
 - Expected event categories.
 - Expected busy/free defaults.
@@ -149,7 +151,7 @@ Each fixture should define:
 - Never commit identifiers, student names, addresses, contact details, or
   anything that could deanonymize a specific child or family.
 - When in doubt about reuse, prefer paraphrased structural excerpts that
-  exercise the parser pattern but do not reproduce protected text wholesale.
+  exercise the extraction path but do not reproduce protected text wholesale.
 
 ## Known Source Questions
 
