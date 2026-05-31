@@ -122,7 +122,7 @@ Do not commit copyrighted source snapshots unless allowed. For private beta deve
 - **Guidance Event Calendar 2025-2026** (originally listed in this doc) -
   deferred to a later corpus slice; the 2026-2027 cycle is the MVP target.
 
-## Parser Regression Criteria
+## Fixture Regression Criteria
 
 Each fixture should define:
 
