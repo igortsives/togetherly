@@ -88,6 +88,18 @@ export async function refreshAllStaleSources(
     summary.attempted += 1;
     try {
       const outcome = await refreshSource(sourceId, familyId);
+      // Another refresher already held a fresh claim (issue #170), so
+      // this firing did no work. Report it as skipped rather than
+      // inflating the success count with a no-op.
+      if (outcome.skipped === "in-progress") {
+        summary.results.push({
+          sourceId,
+          familyId,
+          status: "skipped",
+          reason: "refresh already in progress"
+        });
+        continue;
+      }
       summary.succeeded += 1;
       summary.results.push({
         sourceId,

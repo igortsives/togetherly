@@ -218,6 +218,7 @@ describe("refreshSource family ownership", () => {
       sourceType: SourceType.URL,
       sourceUrl: "https://example.com/calendar",
       lastParsedAt: null,
+      refreshStartedAt: null,
       refreshStatus: RefreshStatus.NEEDS_REVIEW,
       calendar: { familyId }
     };
@@ -253,8 +254,86 @@ describe("refreshSource family ownership", () => {
 
     const outcome = await refreshSource("source-1", "family-expected");
 
-    expect(mockRefreshHtmlSource).toHaveBeenCalledWith("source-1");
+    expect(mockRefreshHtmlSource).toHaveBeenCalledWith("source-1", {
+      force: undefined
+    });
     expect(outcome.sourceId).toBe("source-1");
+  });
+
+  it("forwards force=true to the HTML orchestrator (issue #158 manual refresh)", async () => {
+    mockFindUniqueOrThrow.mockResolvedValue(makeSource("family-expected"));
+
+    await refreshSource("source-1", "family-expected", { force: true });
+
+    expect(mockRefreshHtmlSource).toHaveBeenCalledWith("source-1", {
+      force: true
+    });
+  });
+
+  it("skips work and does not run the orchestrator when a fresh claim exists (issue #170)", async () => {
+    // refreshStartedAt set to 'now-ish' → another refresher is mid-flight.
+    mockFindUniqueOrThrow.mockResolvedValue({
+      ...makeSource("family-expected"),
+      refreshStartedAt: new Date()
+    });
+
+    const outcome = await refreshSource("source-1", "family-expected");
+
+    expect(outcome.skipped).toBe("in-progress");
+    expect(mockRefreshHtmlSource).not.toHaveBeenCalled();
+    // No claim stamp, no status write — only the snapshot read happened.
+    expect(mockUpdate).not.toHaveBeenCalled();
+  });
+
+  it("reclaims a stale claim and proceeds (issue #170 crash recovery)", async () => {
+    mockFindUniqueOrThrow.mockResolvedValue({
+      ...makeSource("family-expected"),
+      // Older than REFRESH_CLAIM_TTL_MS (15min) → treated as abandoned.
+      refreshStartedAt: new Date(Date.now() - 60 * 60 * 1000)
+    });
+
+    const outcome = await refreshSource("source-1", "family-expected");
+
+    expect(outcome.skipped).toBeUndefined();
+    expect(mockRefreshHtmlSource).toHaveBeenCalled();
+  });
+
+  it("stamps refreshStartedAt on claim and clears it on success (issue #170)", async () => {
+    mockFindUniqueOrThrow.mockResolvedValue(makeSource("family-expected"));
+
+    await refreshSource("source-1", "family-expected");
+
+    // Order matters: the claim must be STAMPED (phase 1) before it is
+    // CLEARED (phase 3b). Find the index of each call and assert the
+    // stamp precedes the clear — a swapped implementation (clear first,
+    // stamp later) would otherwise pass the looser was-called checks.
+    const stampIdx = mockUpdate.mock.calls.findIndex(
+      ([arg]) => arg?.data?.refreshStartedAt instanceof Date
+    );
+    const clearIdx = mockUpdate.mock.calls.findIndex(
+      ([arg]) => arg?.data?.refreshStartedAt === null
+    );
+    expect(stampIdx).toBeGreaterThanOrEqual(0);
+    expect(clearIdx).toBeGreaterThan(stampIdx);
+  });
+
+  it("clears the claim and increments failedAttempts when the orchestrator throws (issues #100/#170)", async () => {
+    mockFindUniqueOrThrow.mockResolvedValue(makeSource("family-expected"));
+    mockRefreshHtmlSource.mockRejectedValue(new Error("fetch blew up"));
+
+    await expect(
+      refreshSource("source-1", "family-expected")
+    ).rejects.toThrow("fetch blew up");
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          refreshStatus: RefreshStatus.FAILED,
+          failedAttempts: { increment: 1 },
+          refreshStartedAt: null
+        })
+      })
+    );
   });
 
   it("loads the calendar relation so familyId can be checked", async () => {
@@ -331,5 +410,41 @@ describe("refreshSource family ownership", () => {
         data: expect.objectContaining({ lastFetchedAt: expect.any(Date) })
       })
     );
+  });
+
+  it("serializes concurrent refreshers so only one runs the extractor (issue #170)", async () => {
+    // Model the advisory lock + claim column statefully: refreshStartedAt
+    // is written by the winner's phase-1 claim and read back by anyone
+    // who arrives while it's in flight. The real Postgres advisory lock
+    // guarantees phase-1 transactions don't interleave; we drive the
+    // "second arrives mid-extraction" case deterministically by launching
+    // it from inside the winner's (mocked) extractor, at which point the
+    // claim is provably already stamped.
+    const row = makeSource("family-expected") as {
+      refreshStartedAt: Date | null;
+      [k: string]: unknown;
+    };
+    mockFindUniqueOrThrow.mockImplementation(async () => ({ ...row }));
+    mockUpdate.mockImplementation(
+      async (args: { data: Record<string, unknown> }) => {
+        if ("refreshStartedAt" in args.data) {
+          row.refreshStartedAt = args.data.refreshStartedAt as Date | null;
+        }
+        return {};
+      }
+    );
+
+    let secondOutcome: Awaited<ReturnType<typeof refreshSource>> | undefined;
+    mockRefreshHtmlSource.mockImplementation(async () => {
+      // The winner is mid-extraction with the claim held. A second
+      // refresher that arrives now must find a fresh claim and bail.
+      secondOutcome = await refreshSource("source-1", "family-expected");
+    });
+
+    await refreshSource("source-1", "family-expected");
+
+    expect(secondOutcome?.skipped).toBe("in-progress");
+    // The extractor ran exactly once across both callers.
+    expect(mockRefreshHtmlSource).toHaveBeenCalledTimes(1);
   });
 });
